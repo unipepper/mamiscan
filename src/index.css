@@ -1,0 +1,56 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #F28C82;
+  --color-primary-strong: #E06F64;
+  --color-secondary: #9DB7A5;
+  --color-accent: #FAEEE9;
+  --color-bg-canvas: #FCFBFA;
+  --color-bg-surface: #FFFEFD;
+  --color-border-subtle: #EEE8E4;
+  --color-text-primary: #3E3A39;
+  --color-text-secondary: #7B7672;
+
+  --color-success-bg: #EAF4EC;
+  --color-success-fg: #5B8661;
+  --color-caution-bg: #FFF5E4;
+  --color-caution-fg: #A8781F;
+  --color-danger-bg: #FCE8E6;
+  --color-danger-fg: #B85750;
+  --color-neutral-bg: #F3F1F0;
+  --color-neutral-fg: #7F7A77;
+
+  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-2xl: 28px;
+  --radius-3xl: 32px;
+
+  --shadow-none: none;
+  --shadow-sm: 0 4px 12px rgba(62,58,57,0.04);
+  --shadow-md: 0 6px 18px rgba(62,58,57,0.04);
+  --shadow-lg: 0 10px 30px rgba(62,58,57,0.05);
+
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-7: 28px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+}
+
+body {
+  background-color: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
