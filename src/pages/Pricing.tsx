@@ -1,28 +1,24 @@
-import { useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft, CheckCircle2, ShieldCheck, Sparkles, Star } from "lucide-react"
+import { ArrowLeft, CheckCircle2, Sparkles, Star } from "lucide-react"
 import { Button } from "@/src/components/ui/button"
 import { Card, CardContent } from "@/src/components/ui/card"
 import { useAuth } from "@/src/lib/AuthContext"
 
 export function Pricing() {
   const navigate = useNavigate()
-  const { user, isLoading } = useAuth()
+  const { user } = useAuth()
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      navigate("/login", { replace: true })
+  const handleSubscribe = () => {
+    if (!user) {
+      navigate("/login")
+    } else {
+      // TODO: Implement payment logic
+      console.log("Proceed to payment")
     }
-  }, [user, isLoading, navigate])
-
-  if (isLoading || !user) {
-    return <div className="min-h-screen bg-bg-canvas flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-    </div>
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-bg-canvas pb-20">
+    <div className="flex flex-col flex-1 bg-bg-canvas pb-20">
       {/* Header */}
       <header className="sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-text-primary">
@@ -80,7 +76,7 @@ export function Pricing() {
                   <span className="text-sm text-text-primary">안전한 대체 제품 우선 추천</span>
                 </li>
               </ul>
-              <Button className="w-full text-base font-bold h-12">
+              <Button className="w-full text-base font-bold h-12" onClick={handleSubscribe}>
                 임신 패키지 시작하기
               </Button>
             </CardContent>
@@ -105,7 +101,7 @@ export function Pricing() {
                   <span className="text-sm text-text-primary">스캔 히스토리 무제한 저장</span>
                 </li>
               </ul>
-              <Button variant="outline" className="w-full text-base font-bold h-12">
+              <Button variant="outline" className="w-full text-base font-bold h-12" onClick={handleSubscribe}>
                 월간 구독 시작하기
               </Button>
             </CardContent>

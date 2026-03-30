@@ -7,7 +7,7 @@ import { useAuth } from "@/src/lib/AuthContext"
 
 export function Scan() {
   const navigate = useNavigate()
-  const { user, isLoading } = useAuth()
+  const { user } = useAuth()
   const [scanMode, setScanMode] = useState<"barcode" | "ocr">("barcode")
   const scanModeRef = useRef(scanMode)
   const [isScanning, setIsScanning] = useState(false)
@@ -16,18 +16,6 @@ export function Scan() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (!isLoading && !user) {
-      navigate("/login", { replace: true })
-    }
-  }, [user, isLoading, navigate])
-
-  if (isLoading || !user) {
-    return <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-    </div>
-  }
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -242,7 +230,7 @@ export function Scan() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-black text-white relative overflow-hidden">
+    <div className="flex flex-col flex-1 bg-black text-white relative overflow-hidden">
       {/* Camera Feed Background (Z-index 0) */}
       <video 
         ref={videoRef}

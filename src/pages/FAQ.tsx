@@ -1,24 +1,10 @@
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react"
-import { useState, useEffect } from "react"
-import { useAuth } from "@/src/lib/AuthContext"
+import { useState } from "react"
 
 export function FAQ() {
   const navigate = useNavigate()
-  const { user, isLoading } = useAuth()
   const [openIndex, setOpenIndex] = useState<number | null>(0)
-
-  useEffect(() => {
-    if (!isLoading && !user) {
-      navigate("/login", { replace: true })
-    }
-  }, [user, isLoading, navigate])
-
-  if (isLoading || !user) {
-    return <div className="min-h-screen bg-bg-canvas flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-    </div>
-  }
 
   const faqs = [
     {
@@ -40,7 +26,7 @@ export function FAQ() {
   ]
 
   return (
-    <div className="flex flex-col min-h-screen bg-bg-canvas pb-20">
+    <div className="flex flex-col flex-1 bg-bg-canvas pb-20">
       <header className="sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-text-primary">
           <ArrowLeft className="w-6 h-6" />

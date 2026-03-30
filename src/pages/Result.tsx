@@ -1,4 +1,3 @@
-import { useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, AlertTriangle, CheckCircle, Info, ChevronRight, ShoppingBag, Lock } from "lucide-react"
 import { Button } from "@/src/components/ui/button"
@@ -8,20 +7,8 @@ import { useAuth } from "@/src/lib/AuthContext"
 
 export function Result() {
   const navigate = useNavigate()
-  const { user, isLoading } = useAuth()
+  const { user } = useAuth()
   const isPremium = user?.subscription_status === 'premium'
-
-  useEffect(() => {
-    if (!isLoading && !user) {
-      navigate("/login", { replace: true })
-    }
-  }, [user, isLoading, navigate])
-
-  if (isLoading || !user) {
-    return <div className="min-h-screen bg-bg-canvas flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-    </div>
-  }
 
   // Mock data for result
   const result = {
@@ -43,7 +30,7 @@ export function Result() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-bg-canvas pb-24">
+    <div className="flex flex-col flex-1 bg-bg-canvas pb-24">
       {/* Header */}
       <header className="sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-text-primary">
@@ -72,51 +59,53 @@ export function Result() {
           </CardContent>
         </Card>
 
-        {/* Ingredients Detail */}
-        <section className="space-y-4">
-          <h2 className="text-[18px] font-bold text-text-primary px-1">
-            어떤 성분 때문인가요?
-          </h2>
+        {/* Ingredients Detail (Member Only) */}
+        <section className="space-y-4 relative">
+          {!user && (
+            <div className="absolute inset-0 z-10 bg-bg-canvas/60 backdrop-blur-[4px] flex flex-col items-center justify-center rounded-xl border border-border-subtle mt-8 p-6 text-center">
+              <div className="bg-primary/10 p-3 rounded-full mb-3">
+                <Lock className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="font-bold text-text-primary mb-2">회원 전용 기능</h3>
+              <p className="text-sm text-text-secondary mb-4">
+                어떤 성분이 주의가 필요한지<br/>상세한 분석 결과를 확인해보세요.
+              </p>
+              <Button onClick={() => navigate("/login")} className="font-bold">
+                로그인 / 회원가입 하기
+              </Button>
+            </div>
+          )}
           
-          <div className="space-y-3">
-            {result.ingredients.filter(i => i.status !== "success").map((ingredient, idx) => (
-              <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-bold text-text-primary">{ingredient.name}</span>
-                    <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent text-white ${ingredient.status === 'caution' ? 'bg-caution-fg hover:bg-caution-fg/80' : 'bg-danger-fg hover:bg-danger-fg/80'}`}>
-                      {ingredient.status === "caution" ? "주의" : "위험"}
+          <div className={!user ? "opacity-40 pointer-events-none select-none" : ""}>
+            <h2 className="text-[18px] font-bold text-text-primary px-1">
+              어떤 성분 때문인가요?
+            </h2>
+            
+            <div className="space-y-3 mt-4">
+              {result.ingredients.filter(i => i.status !== "success").map((ingredient, idx) => (
+                <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-bold text-text-primary">{ingredient.name}</span>
+                      <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent text-white ${ingredient.status === 'caution' ? 'bg-caution-fg hover:bg-caution-fg/80' : 'bg-danger-fg hover:bg-danger-fg/80'}`}>
+                        {ingredient.status === "caution" ? "주의" : "위험"}
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-neutral-bg rounded-lg p-3 mt-3">
-                    <p className="text-sm text-text-secondary leading-relaxed">
-                      {ingredient.reason}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    <div className="bg-neutral-bg rounded-lg p-3 mt-3">
+                      <p className="text-sm text-text-secondary leading-relaxed">
+                        {ingredient.reason}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </section>
 
         {/* Premium Features: Week Analysis & Alternatives */}
-        <section className="space-y-6 pt-4 border-t border-border-subtle relative">
-          {!isPremium && (
-            <div className="absolute inset-0 z-10 bg-bg-canvas/60 backdrop-blur-[4px] flex flex-col items-center justify-center rounded-xl border border-border-subtle mt-4 p-6 text-center">
-              <div className="bg-primary/10 p-3 rounded-full mb-3">
-                <Lock className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="font-bold text-text-primary mb-2">프리미엄 전용 기능</h3>
-              <p className="text-sm text-text-secondary mb-4">
-                주차별 맞춤 분석과 안전한 대체 제품 추천은<br/>프리미엄 플랜에서 제공됩니다.
-              </p>
-              <Button onClick={() => navigate("/pricing")} className="font-bold">
-                프리미엄 혜택 알아보기
-              </Button>
-            </div>
-          )}
-
-          <div className={!isPremium ? "opacity-40 pointer-events-none select-none" : ""}>
+        <section className="space-y-6 pt-4 border-t border-border-subtle">
+          <div>
             {/* Week Analysis */}
             <div className="space-y-3 mb-8">
               <div className="flex items-center justify-between px-1">
@@ -127,13 +116,22 @@ export function Result() {
                   16주차 (중기)
                 </span>
               </div>
-              <Card className="bg-primary/5 border-primary/20 shadow-sm">
-                <CardContent className="p-4">
-                  <p className="text-sm text-text-primary leading-relaxed">
-                    {result.weekAnalysis}
-                  </p>
-                </CardContent>
-              </Card>
+              <div className="relative">
+                <div className={!isPremium ? "opacity-30 blur-[3px] pointer-events-none select-none" : ""}>
+                  <Card className="bg-primary/5 border-primary/20 shadow-sm">
+                    <CardContent className="p-4">
+                      <p className="text-sm text-text-primary leading-relaxed">
+                        {result.weekAnalysis}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+                {user && !isPremium && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center">
+                    <Lock className="w-8 h-8 text-text-secondary/40" />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Alternatives Section */}
@@ -151,23 +149,40 @@ export function Result() {
                 주의 성분이 없는 비슷한 제품을 찾아봤어요.
               </p>
 
-              <div className="grid gap-3">
-                {result.alternatives.map((alt, idx) => (
-                  <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm hover:bg-neutral-bg transition-colors cursor-pointer">
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-neutral-bg rounded-md flex items-center justify-center shrink-0">
-                          <ShoppingBag className="w-5 h-5 text-text-secondary" />
+              <div className="relative">
+                <div className={!isPremium ? "opacity-30 blur-[3px] pointer-events-none select-none grid gap-3" : "grid gap-3"}>
+                  {result.alternatives.map((alt, idx) => (
+                    <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm hover:bg-neutral-bg transition-colors cursor-pointer">
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 bg-neutral-bg rounded-md flex items-center justify-center shrink-0">
+                            <ShoppingBag className="w-5 h-5 text-text-secondary" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-text-secondary mb-0.5">{alt.brand}</p>
+                            <p className="font-semibold text-text-primary text-sm">{alt.name}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-xs text-text-secondary mb-0.5">{alt.brand}</p>
-                          <p className="font-semibold text-text-primary text-sm">{alt.name}</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-text-secondary" />
-                    </CardContent>
-                  </Card>
-                ))}
+                        <ChevronRight className="w-5 h-5 text-text-secondary" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {user && !isPremium && (
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center">
+                    <div className="bg-primary/10 p-3 rounded-full mb-3">
+                      <Lock className="w-6 h-6 text-primary" />
+                    </div>
+                    <h3 className="font-bold text-text-primary mb-2">프리미엄 전용 기능</h3>
+                    <p className="text-sm text-text-secondary mb-4">
+                      주차별 맞춤 분석과 안전한 대체 제품 추천은<br/>프리미엄 플랜에서 제공됩니다.
+                    </p>
+                    <Button onClick={() => navigate("/pricing")} className="font-bold shadow-md">
+                      프리미엄 혜택 알아보기
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -187,8 +202,8 @@ export function Result() {
       {/* Bottom Action Panel */}
       <div className="fixed bottom-0 w-full max-w-md left-1/2 -translate-x-1/2 p-4 bg-bg-surface border-t border-border-subtle pb-safe z-50">
         <div className="flex space-x-3">
-          <Button variant="secondary" className="flex-1" onClick={() => navigate("/")}>
-            홈으로
+          <Button variant="secondary" className="flex-1" onClick={() => navigate("/history")}>
+            히스토리 보기
           </Button>
           <Button className="flex-1" onClick={() => navigate("/scan")}>
             다른 제품 스캔

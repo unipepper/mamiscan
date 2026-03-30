@@ -1,16 +1,13 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/src/lib/AuthContext"
+import { ArrowLeft, CheckCircle2 } from "lucide-react"
+import { Button } from "@/src/components/ui/button"
 
 export function Login() {
   const navigate = useNavigate()
   const { login, user, isLoading } = useAuth()
-
-  useEffect(() => {
-    if (!isLoading && user) {
-      navigate("/")
-    }
-  }, [user, isLoading, navigate])
+  const [isNewUser, setIsNewUser] = useState(false)
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -21,7 +18,16 @@ export function Login() {
       }
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         login(event.data.token, event.data.user);
-        navigate('/');
+        if (event.data.isNewUser) {
+          setIsNewUser(true);
+          navigate('/login', { replace: true });
+        } else {
+          if (window.history.length > 2) {
+            navigate(-1);
+          } else {
+            navigate('/', { replace: true });
+          }
+        }
       }
     };
     window.addEventListener('message', handleMessage);
@@ -45,15 +51,65 @@ export function Login() {
     }
   };
 
+  const handleTestLogin = async () => {
+    try {
+      const res = await fetch('/api/auth/test', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        login(data.token, data.user);
+        if (data.isNewUser) {
+          setIsNewUser(true);
+          navigate('/login', { replace: true });
+        } else {
+          if (window.history.length > 2) {
+            navigate(-1);
+          } else {
+            navigate('/', { replace: true });
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('테스트 로그인에 실패했습니다.');
+    }
+  };
+
   if (isLoading) {
-    return <div className="min-h-screen bg-bg-canvas flex items-center justify-center">
+    return <div className="flex-1 bg-bg-canvas flex items-center justify-center">
       <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
     </div>
   }
 
+  if (user) {
+    return (
+      <div className="flex flex-col flex-1 bg-bg-canvas items-center justify-center px-6">
+        <div className="bg-primary/10 p-4 rounded-full mb-4">
+          <CheckCircle2 className="w-12 h-12 text-primary" />
+        </div>
+        <h1 className="text-2xl font-bold text-text-primary mb-2">
+          {isNewUser ? '회원가입 완료!' : '로그인 완료!'}
+        </h1>
+        <p className="text-text-secondary mb-8 text-center">
+          {isNewUser ? '마마스캔에 오신 것을 환영합니다.' : '다시 오신 것을 환영합니다.'}
+        </p>
+        <Button className="w-full h-12 text-base font-bold" onClick={() => navigate('/')}>
+          홈으로 가기
+        </Button>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex flex-col min-h-screen bg-bg-canvas px-6 pt-12 pb-8">
-      <div className="flex-1 flex flex-col justify-center">
+    <div className="flex flex-col flex-1 bg-bg-canvas">
+      <header className="flex items-center h-14 px-4 sticky top-0 z-50">
+        <button 
+          onClick={() => navigate(-1)} 
+          className="p-2 -ml-2 text-text-secondary hover:text-text-primary transition-colors"
+        >
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+      </header>
+      <div className="flex-1 flex flex-col justify-center px-6 pb-20">
         <h1 className="text-3xl font-bold text-text-primary mb-2">로그인</h1>
         <p className="text-text-secondary mb-12">마마스캔에 오신 것을 환영합니다.</p>
 
@@ -79,6 +135,22 @@ export function Login() {
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
             <span>Google로 시작하기</span>
+          </button>
+
+          <div className="relative py-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border-subtle" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-bg-canvas px-2 text-text-secondary">또는</span>
+            </div>
+          </div>
+
+          <button 
+            onClick={handleTestLogin} 
+            className="w-full py-4 bg-primary text-white rounded-xl font-bold text-lg shadow-sm flex items-center justify-center space-x-2 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <span>테스트 계정으로 로그인 (개발용)</span>
           </button>
         </div>
       </div>

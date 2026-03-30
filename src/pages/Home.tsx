@@ -1,6 +1,5 @@
-import { useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { Scan, ShieldCheck, Search, ArrowRight, ChevronRight, LogIn } from "lucide-react"
+import { Scan, ShieldCheck, Search, ArrowRight, ChevronRight, LogIn, CheckCircle2, Lock, Star } from "lucide-react"
 import { Button } from "@/src/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/src/components/ui/card"
 import { useAuth } from "@/src/lib/AuthContext"
@@ -8,22 +7,10 @@ import { Header } from "@/src/components/layout/Header"
 
 export function Home() {
   const navigate = useNavigate()
-  const { user, isLoading } = useAuth()
-
-  useEffect(() => {
-    if (!isLoading && !user) {
-      navigate("/login", { replace: true })
-    }
-  }, [user, isLoading, navigate])
-
-  if (isLoading || !user) {
-    return <div className="min-h-screen bg-bg-canvas flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-    </div>
-  }
+  const { user } = useAuth()
 
   return (
-    <div className="flex flex-col min-h-screen bg-bg-canvas">
+    <div className="flex flex-col flex-1 bg-bg-canvas">
       <Header />
       {/* Hero Section */}
       <section className="px-4 pt-6 pb-8">
@@ -114,7 +101,6 @@ export function Home() {
             식약처(MFDS), 미국 FDA, CDC 등 공신력 있는 기관의 임산부 가이드라인을 바탕으로 분석합니다.
           </p>
           <div className="flex justify-center items-center space-x-6 pt-4 opacity-50 grayscale">
-            {/* Placeholder for logos */}
             <div className="font-bold text-xl">MFDS</div>
             <div className="font-bold text-xl">FDA</div>
             <div className="font-bold text-xl">CDC</div>
@@ -122,27 +108,98 @@ export function Home() {
         </div>
       </section>
 
-      {/* Subscription Section */}
+      {/* Subscription Section or Pricing Teaser */}
       <section className="px-4 py-8 space-y-4">
-        <h3 className="text-[18px] font-bold text-text-primary px-1">
-          구독 관리
-        </h3>
-        <Card 
-          className="bg-bg-surface border-border-subtle shadow-sm hover:bg-neutral-bg transition-colors cursor-pointer"
-          onClick={() => navigate("/pricing")}
-        >
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <span className="font-medium text-text-primary block mb-1">
-                {user.subscription_status === 'premium' ? '현재 프리미엄 플랜 이용 중' : '현재 무료 플랜 이용 중'}
-              </span>
-              {user.subscription_status !== 'premium' && (
-                <span className="text-xs text-primary font-medium">프리미엄 혜택 알아보기</span>
-              )}
-            </div>
-            <ChevronRight className="w-5 h-5 text-text-secondary" />
-          </CardContent>
-        </Card>
+        {user?.subscription_status === 'premium' ? (
+          <>
+            <h3 className="text-[18px] font-bold text-text-primary px-1">
+              구독 관리
+            </h3>
+            <Card 
+              className="bg-bg-surface border-border-subtle shadow-sm hover:bg-neutral-bg transition-colors cursor-pointer"
+              onClick={() => navigate("/pricing")}
+            >
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <span className="font-medium text-text-primary block mb-1">
+                    현재 프리미엄 플랜 이용 중
+                  </span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-text-secondary" />
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          <div className="space-y-4">
+            <h3 className="text-[18px] font-bold text-text-primary px-1 mb-2">
+              요금제 안내
+            </h3>
+            
+            {/* Early Bird Package */}
+            <Card className="bg-accent border-2 border-primary shadow-md relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg">
+                얼리버드 특가 (선착순 300명)
+              </div>
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Star className="w-5 h-5 text-primary fill-primary" />
+                  <h2 className="text-lg font-bold text-text-primary">임신 패키지</h2>
+                </div>
+                <div className="mb-4">
+                  <span className="text-3xl font-bold text-text-primary">33,000원</span>
+                  <span className="text-sm text-text-secondary ml-1">/ 일시불</span>
+                  <p className="text-xs text-primary font-medium mt-1">정가 49,000원 대비 33% 할인</p>
+                </div>
+                <ul className="space-y-3 mb-6">
+                  <li className="flex items-start space-x-2">
+                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                    <span className="text-sm text-text-primary">10개월 내내 무제한 이용 (월 3,300원 꼴)</span>
+                  </li>
+                  <li className="flex items-start space-x-2">
+                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                    <span className="text-sm text-text-primary">임신 주차별 정밀 맞춤 분석</span>
+                  </li>
+                  <li className="flex items-start space-x-2">
+                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                    <span className="text-sm text-text-primary">스캔 히스토리 무제한 저장</span>
+                  </li>
+                  <li className="flex items-start space-x-2">
+                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                    <span className="text-sm text-text-primary">안전한 대체 제품 우선 추천</span>
+                  </li>
+                </ul>
+                <Button className="w-full text-base font-bold h-12" onClick={() => navigate("/plan/package")}>
+                  임신 패키지 혜택 자세히 보기
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Monthly Plan */}
+            <Card className="bg-bg-surface border border-border-subtle shadow-sm">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-bold text-text-primary mb-2">월간 구독</h2>
+                <div className="mb-4">
+                  <span className="text-2xl font-bold text-text-primary">3,900원</span>
+                  <span className="text-sm text-text-secondary ml-1">/ 월</span>
+                  <p className="text-xs text-text-secondary mt-1 line-through">정가 5,900원</p>
+                </div>
+                <ul className="space-y-3 mb-6">
+                  <li className="flex items-start space-x-2">
+                    <CheckCircle2 className="w-5 h-5 text-secondary shrink-0" />
+                    <span className="text-sm text-text-primary">임신 주차별 정밀 맞춤 분석</span>
+                  </li>
+                  <li className="flex items-start space-x-2">
+                    <CheckCircle2 className="w-5 h-5 text-secondary shrink-0" />
+                    <span className="text-sm text-text-primary">스캔 히스토리 무제한 저장</span>
+                  </li>
+                </ul>
+                <Button variant="outline" className="w-full text-base font-bold h-12" onClick={() => navigate("/plan/monthly")}>
+                  월간 구독 혜택 자세히 보기
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </section>
     </div>
   )

@@ -56,8 +56,10 @@ async function startServer() {
       });
       const userData = await userRes.json();
 
+      let isNewUser = false;
       let user = db.prepare("SELECT * FROM users WHERE email = ?").get(userData.email) as any;
       if (!user) {
+        isNewUser = true;
         const stmt = db.prepare("INSERT INTO users (email, name, provider, provider_id) VALUES (?, ?, ?, ?)");
         const info = stmt.run(userData.email, userData.name, "google", userData.id);
         user = { id: info.lastInsertRowid, email: userData.email, name: userData.name, subscription_status: 'free' };
@@ -68,7 +70,7 @@ async function startServer() {
       res.send(`
         <html><body><script>
           if (window.opener) {
-            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${token}', user: ${JSON.stringify(user)} }, '*');
+            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${token}', user: ${JSON.stringify(user)}, isNewUser: ${isNewUser} }, '*');
             window.close();
           } else {
             window.location.href = '/';
@@ -117,8 +119,10 @@ async function startServer() {
       const email = userData.kakao_account?.email || `kakao_${userData.id}@example.com`;
       const name = userData.kakao_account?.profile?.nickname || "카카오 유저";
 
+      let isNewUser = false;
       let user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
       if (!user) {
+        isNewUser = true;
         const stmt = db.prepare("INSERT INTO users (email, name, provider, provider_id) VALUES (?, ?, ?, ?)");
         const info = stmt.run(email, name, "kakao", String(userData.id));
         user = { id: info.lastInsertRowid, email, name, subscription_status: 'free' };
@@ -129,7 +133,7 @@ async function startServer() {
       res.send(`
         <html><body><script>
           if (window.opener) {
-            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${token}', user: ${JSON.stringify(user)} }, '*');
+            window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${token}', user: ${JSON.stringify(user)}, isNewUser: ${isNewUser} }, '*');
             window.close();
           } else {
             window.location.href = '/';
@@ -139,6 +143,28 @@ async function startServer() {
     } catch (error) {
       console.error("Kakao OAuth Error:", error);
       res.status(500).send("Authentication failed");
+    }
+  });
+
+  app.post("/api/auth/test", (req, res) => {
+    try {
+      const email = "test@momscan.com";
+      const name = "테스트 유저";
+      let isNewUser = false;
+      let user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
+      
+      if (!user) {
+        isNewUser = true;
+        const stmt = db.prepare("INSERT INTO users (email, name, provider, provider_id) VALUES (?, ?, ?, ?)");
+        const info = stmt.run(email, name, "test", "test_123");
+        user = { id: info.lastInsertRowid, email, name, subscription_status: 'free' };
+      }
+
+      const token = jwt.sign({ userId: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: "7d" });
+      res.json({ success: true, token, user, isNewUser });
+    } catch (error) {
+      console.error("Test Login Error:", error);
+      res.status(500).json({ success: false, message: "Test login failed" });
     }
   });
 

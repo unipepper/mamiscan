@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft, User, Calendar, Bell, ChevronRight, LogOut } from "lucide-react"
+import { ArrowLeft, User, Calendar, Bell, ChevronRight, LogOut, Lock } from "lucide-react"
 import { Button } from "@/src/components/ui/button"
 import { Card, CardContent } from "@/src/components/ui/card"
 import { useAuth } from "@/src/lib/AuthContext"
@@ -8,7 +8,7 @@ import { useAuth } from "@/src/lib/AuthContext"
 export function Settings() {
   const navigate = useNavigate()
   const [week, setWeek] = useState<string>("12")
-  const { user, logout, isLoading } = useAuth()
+  const { user, isLoading, logout } = useAuth()
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -22,13 +22,13 @@ export function Settings() {
   }
 
   if (isLoading || !user) {
-    return <div className="min-h-screen bg-bg-canvas flex items-center justify-center">
+    return <div className="flex-1 bg-bg-canvas flex items-center justify-center">
       <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
     </div>
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-bg-canvas">
+    <div className="flex flex-col flex-1 bg-bg-canvas">
       {/* Header */}
       <header className="sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
         <span className="font-bold text-lg text-text-primary">내 정보</span>
@@ -36,7 +36,7 @@ export function Settings() {
 
       <main className="px-4 py-6 space-y-8">
         {/* Profile Section */}
-        <section className="flex items-center space-x-4">
+        <section className="flex items-center space-x-4 mb-8">
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
             <User className="w-8 h-8 text-primary" />
           </div>
@@ -47,7 +47,7 @@ export function Settings() {
         </section>
 
         {/* Pregnancy Info */}
-        <section className="space-y-4">
+        <section className="space-y-4 mb-8">
           <h3 className="text-[18px] font-bold text-text-primary px-1">
             임신 정보
           </h3>
