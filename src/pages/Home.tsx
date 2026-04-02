@@ -55,7 +55,7 @@ export function Home() {
               <div>
                 <h3 className="text-lg font-bold text-text-primary mb-1">바코드 스캔</h3>
                 <p className="text-sm text-text-secondary leading-relaxed">
-                  마트에서 고민될 때, 제품 바코드나 성분표를 찍으면 바로 분석해드려요.
+                  마트에서 고민될 때, 제품 바코드나 식료품을 찍으면 바로 분석해드려요.
                 </p>
               </div>
             </CardContent>

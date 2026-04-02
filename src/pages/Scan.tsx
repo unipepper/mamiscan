@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { Camera, X, ScanLine, Image as ImageIcon, Type } from "lucide-react"
+import { Camera, X, ScanLine, Image as ImageIcon, Info, Lock, RefreshCw, MoreVertical } from "lucide-react"
 import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library"
 import { cn } from "@/src/lib/utils"
 import { useAuth } from "@/src/lib/AuthContext"
@@ -8,19 +8,14 @@ import { useAuth } from "@/src/lib/AuthContext"
 export function Scan() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [scanMode, setScanMode] = useState<"barcode" | "ocr">("barcode")
-  const scanModeRef = useRef(scanMode)
   const [isScanning, setIsScanning] = useState(false)
   const isScanningRef = useRef(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
+  const [showPermissionGuide, setShowPermissionGuide] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Keep ref in sync with state
-  useEffect(() => {
-    scanModeRef.current = scanMode
-  }, [scanMode])
 
   useEffect(() => {
     const codeReader = new BrowserMultiFormatReader()
@@ -57,8 +52,8 @@ export function Scan() {
             codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result, err) => {
               if (!isMounted) return
               
-              // Only process barcode if we are in barcode mode
-              if (result && !isScanningRef.current && scanModeRef.current === "barcode") {
+              // Process barcode if found
+              if (result && !isScanningRef.current) {
                 isScanningRef.current = true
                 setIsScanning(true)
                 console.log("Scanned Barcode:", result.getText())
@@ -74,15 +69,23 @@ export function Scan() {
                   return
                 }
                 console.error("Scan error:", err)
+                if (isMounted) {
+                  setToastMessage("바코드 인식 중 오류가 발생했습니다. 다시 시도해 주세요.")
+                  setTimeout(() => setToastMessage(null), 3000)
+                }
               }
             })
           }
         }
         setCameraError(null)
-      } catch (err) {
+      } catch (err: any) {
         if (isMounted) {
           console.error("Error accessing camera:", err)
-          setCameraError("카메라 접근 권한이 없거나 카메라를 찾을 수 없습니다.")
+          if (err.name === 'NotAllowedError' || err.message === 'Permission denied') {
+            setCameraError("카메라 접근 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용하거나 '앨범에서 선택'을 이용해 주세요.")
+          } else {
+            setCameraError("카메라를 찾을 수 없거나 접근할 수 없습니다. '앨범에서 선택'을 이용해 주세요.")
+          }
         }
       }
     }
@@ -101,7 +104,7 @@ export function Scan() {
     }
   }, [navigate])
 
-  const handleCaptureOCR = async () => {
+  const handleCapture = async () => {
     if (isScanningRef.current || !videoRef.current) return
     isScanningRef.current = true
     setIsScanning(true)
@@ -117,21 +120,11 @@ export function Scan() {
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height)
         const base64Image = canvas.toDataURL("image/jpeg", 0.8)
 
-        // 서버의 OCR API로 전송
-        const response = await fetch("/api/ocr", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: base64Image })
-        })
-        
-        const data = await response.json()
-        console.log("OCR Result:", data)
-        
-        // 결과 페이지로 이동 (실제로는 data.text를 넘겨서 처리)
-        navigate("/result", { state: { ocrText: data.text } })
+        // 결과 페이지로 이동 (이미지를 넘겨서 처리)
+        navigate("/result", { state: { imageBase64: base64Image } })
       }
     } catch (error) {
-      console.error("OCR Capture failed:", error)
+      console.error("Capture failed:", error)
       setIsScanning(false)
       isScanningRef.current = false
     }
@@ -154,50 +147,32 @@ export function Scan() {
         return
       }
 
-      if (scanMode === "barcode") {
-        try {
-          if (!codeReaderRef.current) {
-            codeReaderRef.current = new BrowserMultiFormatReader()
-          }
-          const img = new Image()
-          img.onload = async () => {
-            try {
-              const result = await codeReaderRef.current!.decodeFromImageElement(img)
-              console.log("Scanned Barcode from image:", result.getText())
-              setTimeout(() => {
-                navigate("/result")
-              }, 1500)
-            } catch (err) {
-              console.error("Barcode decode error:", err)
-              alert("바코드를 인식할 수 없습니다. 다른 이미지를 선택해주세요.")
-              setIsScanning(false)
-              isScanningRef.current = false
-            }
-          }
-          img.src = dataUrl
-        } catch (err) {
-          console.error(err)
-          setIsScanning(false)
-          isScanningRef.current = false
+      try {
+        if (!codeReaderRef.current) {
+          codeReaderRef.current = new BrowserMultiFormatReader()
         }
-      } else {
-        try {
-          const response = await fetch("/api/ocr", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ imageBase64: dataUrl })
-          })
-          
-          const data = await response.json()
-          console.log("OCR Result:", data)
-          
-          navigate("/result", { state: { ocrText: data.text } })
-        } catch (error) {
-          console.error("OCR upload failed:", error)
-          alert("이미지 분석에 실패했습니다.")
-          setIsScanning(false)
-          isScanningRef.current = false
+        const img = new Image()
+        img.onload = async () => {
+          try {
+            const result = await codeReaderRef.current!.decodeFromImageElement(img)
+            console.log("Scanned Barcode from image:", result.getText())
+            setTimeout(() => {
+              navigate("/result")
+            }, 1500)
+          } catch (err) {
+            // 바코드를 찾을 수 없으면 식료품 이미지로 간주
+            console.log("No barcode found, treating as food image...")
+            setToastMessage("바코드를 찾지 못해 식료품 AI 분석으로 전환합니다.")
+            setTimeout(() => {
+              navigate("/result", { state: { imageBase64: dataUrl } })
+            }, 2000)
+          }
         }
+        img.src = dataUrl
+      } catch (err) {
+        console.error(err)
+        setIsScanning(false)
+        isScanningRef.current = false
       }
     }
     reader.readAsDataURL(file)
@@ -208,9 +183,10 @@ export function Scan() {
     }
   }
 
-  const holeWidth = scanMode === "ocr" ? 320 : 280;
-  const holeHeight = scanMode === "ocr" ? 360 : 280;
+  const holeWidth = 320;
+  const holeHeight = 380;
   const holeRadius = 24;
+  const yOffset = '60px';
 
   const svgMask = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${holeWidth}' height='${holeHeight}'%3E%3Crect width='${holeWidth}' height='${holeHeight}' rx='${holeRadius}' fill='black'/%3E%3C/svg%3E`;
 
@@ -218,12 +194,12 @@ export function Scan() {
     backdropFilter: 'blur(12px)',
     WebkitBackdropFilter: 'blur(12px)',
     WebkitMaskImage: `linear-gradient(black, black), url("${svgMask}")`,
-    WebkitMaskPosition: 'center',
+    WebkitMaskPosition: `center calc(50% - ${yOffset})`,
     WebkitMaskRepeat: 'no-repeat',
     WebkitMaskSize: `100% 100%, ${holeWidth}px ${holeHeight}px`,
     WebkitMaskComposite: 'destination-out',
     maskImage: `linear-gradient(black, black), url("${svgMask}")`,
-    maskPosition: 'center',
+    maskPosition: `center calc(50% - ${yOffset})`,
     maskRepeat: 'no-repeat',
     maskSize: `100% 100%, ${holeWidth}px ${holeHeight}px`,
     maskComposite: 'exclude',
@@ -258,43 +234,30 @@ export function Scan() {
             >
               <X className="w-6 h-6" />
             </button>
-            
-            {/* Mode Toggle */}
-            <div className="flex bg-black/40 rounded-full p-1 backdrop-blur-md">
-              <button
-                onClick={() => setScanMode("barcode")}
-                className={cn(
-                  "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center space-x-1",
-                  scanMode === "barcode" ? "bg-white text-black" : "text-white/70 hover:text-white"
-                )}
-              >
-                <ScanLine className="w-4 h-4" />
-                <span>바코드</span>
-              </button>
-              <button
-                onClick={() => setScanMode("ocr")}
-                className={cn(
-                  "px-4 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center space-x-1",
-                  scanMode === "ocr" ? "bg-white text-black" : "text-white/70 hover:text-white"
-                )}
-              >
-                <Type className="w-4 h-4" />
-                <span>성분표</span>
-              </button>
-            </div>
-
-            <div className="w-10"></div> {/* Spacer for centering */}
+            <button
+              onClick={() => setCameraError(prev => prev ? null : "카메라 접근 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용하거나 '앨범에서 선택'을 이용해 주세요.")}
+              className="px-3 py-1.5 bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold rounded-full pointer-events-auto transition-colors backdrop-blur-md"
+            >
+              에러 UI 테스트
+            </button>
           </header>
           {cameraError && (
-            <div className="mx-4 mt-2 bg-danger-bg text-danger-fg p-3 rounded-lg text-sm text-center font-medium shadow-lg">
-              {cameraError}
+            <div className="mx-4 mt-2 bg-danger-bg text-danger-fg p-3 rounded-lg text-sm text-center font-medium shadow-lg flex flex-col items-center space-y-2 pointer-events-auto">
+              <span>{cameraError}</span>
+              <button 
+                onClick={() => setShowPermissionGuide(true)}
+                className="flex items-center space-x-1 bg-black/10 px-3 py-1.5 rounded-full hover:bg-black/20 transition-colors"
+              >
+                <Info className="w-4 h-4" />
+                <span>카메라 허용 방법 보기</span>
+              </button>
             </div>
           )}
         </div>
 
         {/* Middle Area (Viewfinder) */}
         <div className="absolute inset-0 flex justify-center items-center pointer-events-none">
-          <div className={cn("relative transition-all duration-300", scanMode === "ocr" ? "w-[320px] h-[360px]" : "w-[280px] h-[280px]")}>
+          <div className="relative transition-all duration-300 w-[320px] h-[380px] -translate-y-[60px]">
             {/* Corner markers */}
             <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-[24px]"></div>
             <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-[24px]"></div>
@@ -302,15 +265,13 @@ export function Scan() {
             <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-[24px]"></div>
             
             {/* Scanning animation line */}
-            {scanMode === "barcode" && (
-              <div className="absolute top-0 left-0 w-full h-0.5 bg-primary shadow-[0_0_8px_2px_rgba(242,140,130,0.5)] animate-[scan_2s_ease-in-out_infinite]"></div>
-            )}
+            <div className="absolute top-0 left-0 w-full h-0.5 bg-primary shadow-[0_0_8px_2px_rgba(242,140,130,0.5)] animate-[scan_2s_ease-in-out_infinite]"></div>
             
             {isScanning && (
               <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center backdrop-blur-md rounded-[24px]">
                 <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p className="text-sm font-medium text-white drop-shadow-md">
-                  {scanMode === "barcode" ? "바코드를 분석하고 있어요..." : "성분표 글자를 읽고 있어요..."}
+                  분석하고 있어요...
                 </p>
               </div>
             )}
@@ -319,14 +280,21 @@ export function Scan() {
 
         {/* Bottom Area */}
         <div className="absolute bottom-0 left-0 right-0 flex flex-col justify-end pb-12 pointer-events-auto">
-          <p className="text-center text-sm text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] font-medium mb-8">
-            {scanMode === "barcode" 
-              ? <>제품의 바코드를<br />사각형 안에 맞춰주세요</>
-              : <>원재료명이 적힌 성분표가<br />잘 보이도록 촬영해 주세요</>
-            }
+          {/* Toast Notification */}
+          {toastMessage && (
+            <div className="absolute bottom-36 left-0 right-0 flex justify-center px-4 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="bg-gray-800/90 text-white px-4 py-3 rounded-xl shadow-lg backdrop-blur-md text-sm font-medium flex items-center space-x-2">
+                <Info className="w-4 h-4 text-primary" />
+                <span>{toastMessage}</span>
+              </div>
+            </div>
+          )}
+
+          <p className="text-center text-base text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] font-medium mb-10">
+            바코드를 스캔하거나<br />식료품을 촬영해 주세요
           </p>
 
-          <div className="flex items-center justify-center space-x-8 w-full px-8">
+          <div className="relative flex items-center justify-center w-full px-8">
             <input 
               type="file" 
               ref={fileInputRef} 
@@ -334,47 +302,104 @@ export function Scan() {
               accept="image/*" 
               onChange={handleFileUpload} 
             />
-            <button 
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isScanning}
-              className={cn(
-                "flex flex-col items-center space-y-2 text-white hover:text-gray-200 transition-colors drop-shadow-lg",
-                isScanning && "opacity-50 pointer-events-none"
-              )}
-            >
-              <div className="w-12 h-12 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-md">
-                <ImageIcon className="w-6 h-6" />
-              </div>
-              <span className="text-xs font-medium drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">앨범에서 선택</span>
-            </button>
+            
+            <div className="absolute left-8 flex items-center justify-center">
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isScanning}
+                className={cn(
+                  "flex flex-col items-center space-y-2 text-white hover:text-gray-200 transition-colors drop-shadow-lg",
+                  isScanning && "opacity-50 pointer-events-none"
+                )}
+              >
+                <div className="w-12 h-12 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-md">
+                  <ImageIcon className="w-6 h-6" />
+                </div>
+                <span className="text-xs font-medium drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">앨범에서 선택</span>
+              </button>
+            </div>
             
             <button 
-              onClick={scanMode === "ocr" ? handleCaptureOCR : undefined}
+              onClick={handleCapture}
               disabled={isScanning}
               className={cn(
-                "w-20 h-20 rounded-full border-4 flex items-center justify-center p-1 transition-transform shadow-xl",
-                scanMode === "ocr" ? "border-white hover:scale-105 active:scale-95" : "border-white/60",
+                "w-20 h-20 rounded-full border-4 flex items-center justify-center p-1 transition-transform shadow-xl border-white hover:scale-105 active:scale-95",
                 isScanning && "opacity-50 pointer-events-none"
               )}
             >
               <div className="w-full h-full rounded-full bg-white flex items-center justify-center shadow-inner">
-                {scanMode === "barcode" ? (
-                  <ScanLine className="w-8 h-8 text-black" />
-                ) : (
-                  <Camera className="w-8 h-8 text-black" />
-                )}
+                <Camera className="w-8 h-8 text-black" />
               </div>
             </button>
-            
-            <div className="w-12 flex flex-col items-center space-y-2 opacity-0">
-              {/* Placeholder for symmetry */}
-              <div className="w-12 h-12"></div>
-              <span className="text-xs"></span>
-            </div>
           </div>
         </div>
       </div>
       
+      {/* Permission Guide Modal */}
+      {showPermissionGuide && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm pointer-events-auto">
+          <div className="bg-white text-gray-900 rounded-2xl p-6 w-full max-w-sm shadow-2xl relative animate-in fade-in zoom-in duration-200">
+            <button 
+              onClick={() => setShowPermissionGuide(false)}
+              className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-lg font-bold mb-4 flex items-center">
+              <Camera className="w-5 h-5 mr-2 text-primary" />
+              카메라 권한 허용 가이드
+            </h3>
+            
+            <div className="space-y-6 text-sm text-gray-600 overflow-y-auto max-h-[60vh] pr-2">
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-2">📱 아이폰 (Safari)</h4>
+                <div className="bg-gray-50 rounded-lg p-3 mb-3 flex items-center justify-center border border-gray-100">
+                  <div className="bg-white rounded-md px-3 py-2 flex items-center shadow-sm w-full max-w-[220px] justify-between border border-gray-200">
+                    <span className="text-base font-serif font-bold text-blue-500">aA</span>
+                    <span className="text-xs text-gray-400">mamascan.com</span>
+                    <RefreshCw className="w-3.5 h-3.5 text-gray-400" />
+                  </div>
+                </div>
+                <ol className="list-decimal pl-4 space-y-1">
+                  <li>주소창 왼쪽의 <strong>'aA'</strong> 아이콘 터치</li>
+                  <li><strong>'웹사이트 설정'</strong> 터치</li>
+                  <li>카메라를 <strong>'허용'</strong>으로 변경 후 새로고침</li>
+                </ol>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-2">📱 안드로이드 (Chrome)</h4>
+                <div className="bg-gray-50 rounded-lg p-3 mb-3 flex items-center justify-center border border-gray-100">
+                  <div className="bg-white rounded-full px-3 py-2 flex items-center shadow-sm w-full max-w-[220px] border border-gray-200">
+                    <Lock className="w-3.5 h-3.5 text-gray-700 mr-2" />
+                    <span className="text-xs text-gray-400 flex-1 text-center">mamascan.com</span>
+                    <MoreVertical className="w-3.5 h-3.5 text-gray-400 ml-2" />
+                  </div>
+                </div>
+                <ol className="list-decimal pl-4 space-y-1">
+                  <li>주소창 왼쪽의 <strong>자물쇠 모양</strong> 아이콘 터치</li>
+                  <li><strong>'권한'</strong> 메뉴 선택</li>
+                  <li>카메라를 <strong>'허용'</strong>으로 변경 후 새로고침</li>
+                </ol>
+              </div>
+              
+              <div className="pt-3 border-t border-gray-100">
+                <p className="text-xs text-gray-500">
+                  권한 허용이 어려우신 경우, 하단의 <strong>'앨범에서 선택'</strong> 버튼을 눌러 기존 사진을 업로드하실 수 있습니다.
+                </p>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => setShowPermissionGuide(false)}
+              className="w-full mt-6 bg-primary text-white font-medium py-2.5 rounded-xl hover:bg-primary/90 transition-colors"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes scan {
           0% { top: 0%; }

@@ -5,6 +5,7 @@ interface User {
   email: string;
   name: string;
   subscription_status?: string;
+  pregnancy_weeks?: number;
 }
 
 interface AuthContextType {
