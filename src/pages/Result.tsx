@@ -150,6 +150,20 @@ export function Result() {
             setError(parsedResult.description || "식료품을 명확하게 인식할 수 없습니다.\n다시 촬영해 주세요.")
             setResult(null)
           } else {
+            // Deduct scan if user is logged in
+            if (user) {
+              try {
+                const token = localStorage.getItem('token');
+                await fetch('/api/user/deduct-scan', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`
+                  }
+                });
+              } catch (e) {
+                console.error("Failed to deduct scan:", e);
+              }
+            }
             setResult(parsedResult)
           }
         } else {
@@ -262,7 +276,7 @@ export function Result() {
             </div>
           )}
 
-          <div className={!user ? "opacity-30 pointer-events-none select-none" : ""}>
+          <div className={!user ? "opacity-30 pointer-events-none select-none overflow-hidden max-h-[400px]" : ""}>
             {/* Ingredients Detail */}
             <section className="space-y-4">
               <h2 className="text-[18px] font-bold text-text-primary px-1">
@@ -270,7 +284,41 @@ export function Result() {
               </h2>
             
             <div className="space-y-3 mt-4">
-              {result.ingredients && result.ingredients.filter((i: any) => i.status !== "success").length > 0 ? (
+              {!user ? (
+                // Fake data for non-logged-in users to keep it short and visually appealing
+                <>
+                  <Card className="bg-bg-surface border-border-subtle shadow-sm">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-text-primary">주의 성분 A</span>
+                        <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-caution-fg text-white">
+                          주의
+                        </div>
+                      </div>
+                      <div className="bg-neutral-bg rounded-lg p-3 mt-3">
+                        <p className="text-sm text-text-secondary leading-relaxed">
+                          임산부에게 영향을 줄 수 있는 성분으로 섭취량 조절이 필요합니다.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-bg-surface border-border-subtle shadow-sm">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-text-primary">위험 성분 B</span>
+                        <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-danger-fg text-white">
+                          위험
+                        </div>
+                      </div>
+                      <div className="bg-neutral-bg rounded-lg p-3 mt-3">
+                        <p className="text-sm text-text-secondary leading-relaxed">
+                          임신 중 섭취를 피하는 것이 권장되는 성분입니다.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              ) : result.ingredients && result.ingredients.filter((i: any) => i.status !== "success").length > 0 ? (
                 result.ingredients.filter((i: any) => i.status !== "success").map((ingredient: any, idx: number) => (
                   <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm">
                     <CardContent className="p-4">
@@ -319,7 +367,7 @@ export function Result() {
                   <Card className="bg-primary/5 border-primary/20 shadow-sm">
                     <CardContent className="p-4">
                       <p className="text-sm text-text-primary leading-relaxed">
-                        {result.weekAnalysis}
+                        {!user ? "현재 임신 주차에 따른 맞춤형 섭취 가이드와 주의사항을 상세하게 분석하여 제공해 드립니다. 개인화된 리포트를 확인해보세요." : result.weekAnalysis}
                       </p>
                     </CardContent>
                   </Card>
@@ -397,12 +445,12 @@ export function Result() {
                     <div className="bg-primary/10 p-3 rounded-full mb-3">
                       <Lock className="w-6 h-6 text-primary" />
                     </div>
-                    <h3 className="font-bold text-text-primary mb-2">프리미엄 전용 기능</h3>
+                    <h3 className="font-bold text-text-primary mb-2">이용권 전용 기능</h3>
                     <p className="text-sm text-text-secondary mb-4">
-                      주차별 맞춤 분석과 안전한 대체 제품 추천은<br/>프리미엄 플랜에서 제공됩니다.
+                      주차별 맞춤 분석과 안전한 대체 제품 추천은<br/>이용권 구매 시 제공됩니다.
                     </p>
                     <Button onClick={() => navigate("/pricing")} className="font-bold shadow-md">
-                      프리미엄 혜택 알아보기
+                      이용권 알아보기
                     </Button>
                   </div>
                 )}

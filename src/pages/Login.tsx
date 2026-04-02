@@ -1,13 +1,30 @@
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "@/src/lib/AuthContext"
 import { ArrowLeft, CheckCircle2 } from "lucide-react"
 import { Button } from "@/src/components/ui/button"
 
 export function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { login, user, isLoading } = useAuth()
   const [isNewUser, setIsNewUser] = useState(false)
+  const returnTo = location.state?.returnTo
+
+  const handleLoginSuccess = (isNew: boolean) => {
+    if (isNew) {
+      setIsNewUser(true);
+      navigate('/login', { replace: true, state: { returnTo } });
+    } else {
+      if (returnTo) {
+        navigate(returnTo, { replace: true });
+      } else if (window.history.length > 2) {
+        navigate(-1);
+      } else {
+        navigate('/', { replace: true });
+      }
+    }
+  }
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -18,21 +35,12 @@ export function Login() {
       }
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         login(event.data.token, event.data.user);
-        if (event.data.isNewUser) {
-          setIsNewUser(true);
-          navigate('/login', { replace: true });
-        } else {
-          if (window.history.length > 2) {
-            navigate(-1);
-          } else {
-            navigate('/', { replace: true });
-          }
-        }
+        handleLoginSuccess(event.data.isNewUser);
       }
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [login, navigate]);
+  }, [login, navigate, returnTo]);
 
   const handleOAuth = async (provider: 'google' | 'kakao') => {
     try {
@@ -57,16 +65,7 @@ export function Login() {
       const data = await res.json();
       if (data.success) {
         login(data.token, data.user);
-        if (data.isNewUser) {
-          setIsNewUser(true);
-          navigate('/login', { replace: true });
-        } else {
-          if (window.history.length > 2) {
-            navigate(-1);
-          } else {
-            navigate('/', { replace: true });
-          }
-        }
+        handleLoginSuccess(data.isNewUser);
       }
     } catch (err) {
       console.error(err);
@@ -92,8 +91,17 @@ export function Login() {
         <p className="text-text-secondary mb-8 text-center">
           {isNewUser ? '마마스캔에 오신 것을 환영합니다.' : '다시 오신 것을 환영합니다.'}
         </p>
-        <Button className="w-full h-12 text-base font-bold" onClick={() => navigate('/')}>
-          홈으로 가기
+        <Button 
+          className="w-full h-12 text-base font-bold" 
+          onClick={() => {
+            if (returnTo) {
+              navigate(returnTo, { replace: true });
+            } else {
+              navigate('/');
+            }
+          }}
+        >
+          {returnTo ? '이용권 안내로 이동하기' : '홈으로 가기'}
         </Button>
       </div>
     )
@@ -109,7 +117,7 @@ export function Login() {
           <ArrowLeft className="w-6 h-6" />
         </button>
       </header>
-      <div className="flex-1 flex flex-col justify-center px-6 pb-20">
+      <div className="flex-1 flex flex-col justify-center px-6 py-6 overflow-y-auto">
         <h1 className="text-3xl font-bold text-text-primary mb-2">로그인</h1>
         <p className="text-text-secondary mb-12">마마스캔에 오신 것을 환영합니다.</p>
 
@@ -150,7 +158,7 @@ export function Login() {
             onClick={handleTestLogin} 
             className="w-full py-4 bg-primary text-white rounded-xl font-bold text-lg shadow-sm flex items-center justify-center space-x-2 transition-transform hover:scale-[1.02] active:scale-[0.98]"
           >
-            <span>테스트 계정으로 로그인 (개발용)</span>
+            <span>개발자 로그인 (테스트 계정)</span>
           </button>
         </div>
       </div>

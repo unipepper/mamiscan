@@ -9,6 +9,7 @@ import { Home } from "@/src/pages/Home"
 import { Scan } from "@/src/pages/Scan"
 import { Result } from "@/src/pages/Result"
 import { Settings } from "@/src/pages/Settings"
+import { BillingHistory } from "@/src/pages/BillingHistory"
 import { History } from "@/src/pages/History"
 import { Pricing } from "@/src/pages/Pricing"
 import { PlanDetail } from "@/src/pages/PlanDetail"
@@ -67,9 +68,10 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/history" element={<History />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/login" element={<Login />} />
           </Route>
           <Route element={<FullScreenLayout />}>
+            <Route path="/billing-history" element={<BillingHistory />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/scan" element={<Scan />} />
             <Route path="/result" element={<Result />} />
             <Route path="/pricing" element={<Pricing />} />

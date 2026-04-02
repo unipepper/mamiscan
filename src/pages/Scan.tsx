@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { Camera, X, ScanLine, Image as ImageIcon, Info, Lock, RefreshCw, MoreVertical } from "lucide-react"
+import { Camera, X, ScanLine, Image as ImageIcon, Info, Lock, RefreshCw, MoreVertical, ShieldCheck } from "lucide-react"
 import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library"
 import { cn } from "@/src/lib/utils"
 import { useAuth } from "@/src/lib/AuthContext"
@@ -241,6 +241,7 @@ export function Scan() {
               에러 UI 테스트
             </button>
           </header>
+
           {cameraError && (
             <div className="mx-4 mt-2 bg-danger-bg text-danger-fg p-3 rounded-lg text-sm text-center font-medium shadow-lg flex flex-col items-center space-y-2 pointer-events-auto">
               <span>{cameraError}</span>
@@ -279,7 +280,36 @@ export function Scan() {
         </div>
 
         {/* Bottom Area */}
-        <div className="absolute bottom-0 left-0 right-0 flex flex-col justify-end pb-12 pointer-events-auto">
+        <div className="absolute bottom-0 left-0 right-0 flex flex-col justify-end pb-8 pointer-events-auto">
+          {/* Scan Status Banner */}
+          <div className="px-4 mb-6">
+            {!user ? (
+              <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center justify-between cursor-pointer" onClick={() => navigate("/login")}>
+                <div className="flex items-center space-x-2">
+                  <ScanLine className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-white">로그인하고 무료 스캔 3회 받기</span>
+                </div>
+              </div>
+            ) : user.subscription_status === 'premium' ? (
+              <div className="bg-primary/80 backdrop-blur-md border border-primary/20 rounded-xl p-3 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <ShieldCheck className="w-4 h-4 text-white" />
+                  <span className="text-sm font-medium text-white">무제한 스캔 이용 중</span>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center justify-between cursor-pointer" onClick={() => navigate("/pricing")}>
+                <div className="flex items-center space-x-2">
+                  <ScanLine className="w-4 h-4 text-secondary" />
+                  <span className="text-sm font-medium text-white">
+                    남은 횟수: <strong className="text-secondary">{user.remaining_scans || 0}회</strong>
+                  </span>
+                </div>
+                <span className="text-xs font-bold text-black bg-secondary px-2 py-1 rounded-full shadow-sm">충전하기</span>
+              </div>
+            )}
+          </div>
+
           {/* Toast Notification */}
           {toastMessage && (
             <div className="absolute bottom-36 left-0 right-0 flex justify-center px-4 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">

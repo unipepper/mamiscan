@@ -30,6 +30,22 @@ db.exec(`
     ingredients TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  );
 `);
+
+try {
+  db.exec(`ALTER TABLE users ADD COLUMN remaining_scans INTEGER DEFAULT 3;`);
+} catch (e) {
+  // Column might already exist
+}
 
 export default db;

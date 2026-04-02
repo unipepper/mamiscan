@@ -60,9 +60,11 @@ async function startServer() {
       let user = db.prepare("SELECT * FROM users WHERE email = ?").get(userData.email) as any;
       if (!user) {
         isNewUser = true;
-        const stmt = db.prepare("INSERT INTO users (email, name, provider, provider_id) VALUES (?, ?, ?, ?)");
+        const stmt = db.prepare("INSERT INTO users (email, name, provider, provider_id, remaining_scans) VALUES (?, ?, ?, ?, 3)");
         const info = stmt.run(userData.email, userData.name, "google", userData.id);
-        user = { id: info.lastInsertRowid, email: userData.email, name: userData.name, subscription_status: 'free' };
+        user = { id: info.lastInsertRowid, email: userData.email, name: userData.name, subscription_status: 'free', remaining_scans: 3 };
+        
+        db.prepare("INSERT INTO transactions (user_id, type, amount, description) VALUES (?, ?, ?, ?)").run(user.id, 'bonus', 3, '회원가입 무료 스캔 지급');
       }
 
       const token = jwt.sign({ userId: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: "7d" });
@@ -123,9 +125,11 @@ async function startServer() {
       let user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
       if (!user) {
         isNewUser = true;
-        const stmt = db.prepare("INSERT INTO users (email, name, provider, provider_id) VALUES (?, ?, ?, ?)");
+        const stmt = db.prepare("INSERT INTO users (email, name, provider, provider_id, remaining_scans) VALUES (?, ?, ?, ?, 3)");
         const info = stmt.run(email, name, "kakao", String(userData.id));
-        user = { id: info.lastInsertRowid, email, name, subscription_status: 'free' };
+        user = { id: info.lastInsertRowid, email, name, subscription_status: 'free', remaining_scans: 3 };
+        
+        db.prepare("INSERT INTO transactions (user_id, type, amount, description) VALUES (?, ?, ?, ?)").run(user.id, 'bonus', 3, '회원가입 무료 스캔 지급');
       }
 
       const token = jwt.sign({ userId: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: "7d" });
@@ -155,9 +159,11 @@ async function startServer() {
       
       if (!user) {
         isNewUser = true;
-        const stmt = db.prepare("INSERT INTO users (email, name, provider, provider_id) VALUES (?, ?, ?, ?)");
+        const stmt = db.prepare("INSERT INTO users (email, name, provider, provider_id, remaining_scans) VALUES (?, ?, ?, ?, 3)");
         const info = stmt.run(email, name, "test", "test_123");
-        user = { id: info.lastInsertRowid, email, name, subscription_status: 'free' };
+        user = { id: info.lastInsertRowid, email, name, subscription_status: 'free', remaining_scans: 3 };
+        
+        db.prepare("INSERT INTO transactions (user_id, type, amount, description) VALUES (?, ?, ?, ?)").run(user.id, 'bonus', 3, '회원가입 무료 스캔 지급');
       }
 
       const token = jwt.sign({ userId: user.id, email: user.email, name: user.name }, JWT_SECRET, { expiresIn: "7d" });
@@ -178,12 +184,65 @@ async function startServer() {
       const token = authHeader.split(" ")[1];
       const decoded: any = jwt.verify(token, JWT_SECRET);
       
-      const user: any = db.prepare("SELECT id, email, name, subscription_status FROM users WHERE id = ?").get(decoded.userId);
+      const user: any = db.prepare("SELECT id, email, name, subscription_status, remaining_scans FROM users WHERE id = ?").get(decoded.userId);
       if (!user) {
         return res.status(404).json({ success: false, message: "사용자를 찾을 수 없습니다." });
       }
 
       res.json({ success: true, user });
+    } catch (error) {
+      res.status(401).json({ success: false, message: "유효하지 않은 토큰입니다." });
+    }
+  });
+
+  app.get("/api/user/transactions", (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ success: false, message: "인증 토큰이 없습니다." });
+      }
+
+      const token = authHeader.split(" ")[1];
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      
+      const transactions = db.prepare("SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC").all(decoded.userId);
+      
+      res.json({ success: true, transactions });
+    } catch (error) {
+      res.status(401).json({ success: false, message: "유효하지 않은 토큰입니다." });
+    }
+  });
+
+  app.post("/api/user/deduct-scan", (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ success: false, message: "인증 토큰이 없습니다." });
+      }
+
+      const token = authHeader.split(" ")[1];
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      
+      const user: any = db.prepare("SELECT id, subscription_status, remaining_scans FROM users WHERE id = ?").get(decoded.userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "사용자를 찾을 수 없습니다." });
+      }
+
+      if (user.subscription_status === 'premium') {
+        // 프리미엄 유저는 횟수 차감 없음, 내역만 기록
+        db.prepare("INSERT INTO transactions (user_id, type, amount, description) VALUES (?, ?, ?, ?)").run(user.id, 'usage', 0, '스캔 1회 사용 (무제한)');
+        return res.json({ success: true, remaining_scans: user.remaining_scans });
+      }
+
+      if (user.remaining_scans <= 0) {
+        return res.status(403).json({ success: false, message: "남은 스캔 횟수가 없습니다." });
+      }
+
+      // 횟수 차감 및 내역 기록
+      db.prepare("UPDATE users SET remaining_scans = remaining_scans - 1 WHERE id = ?").run(user.id);
+      db.prepare("INSERT INTO transactions (user_id, type, amount, description) VALUES (?, ?, ?, ?)").run(user.id, 'usage', -1, '스캔 1회 사용');
+      
+      res.json({ success: true, remaining_scans: user.remaining_scans - 1 });
     } catch (error) {
       res.status(401).json({ success: false, message: "유효하지 않은 토큰입니다." });
     }
@@ -251,21 +310,6 @@ async function startServer() {
     try {
       const { paymentKey, orderId, amount } = req.body;
       
-      // TODO: 실제 결제 연동 시 아래 주석 해제 후 시크릿 키 적용
-      /*
-      const secretKey = process.env.TOSS_SECRET_KEY;
-      const response = await fetch("https://api.tosspayments.com/v1/payments/confirm", {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${Buffer.from(secretKey + ":").toString("base64")}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ paymentKey, orderId, amount }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message);
-      */
-
       // 임시 성공 응답
       res.json({ 
         success: true, 
@@ -275,6 +319,37 @@ async function startServer() {
     } catch (error: any) {
       console.error("Payment confirmation failed:", error);
       res.status(400).json({ success: false, message: error.message });
+    }
+  });
+
+  app.post("/api/payments/mock-purchase", (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ success: false, message: "인증 토큰이 없습니다." });
+      }
+
+      const token = authHeader.split(" ")[1];
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      
+      const { passType } = req.body; // 'premium' or '5scans'
+      
+      const user: any = db.prepare("SELECT id, subscription_status, remaining_scans FROM users WHERE id = ?").get(decoded.userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "사용자를 찾을 수 없습니다." });
+      }
+
+      if (passType === 'premium') {
+        db.prepare("UPDATE users SET subscription_status = 'premium' WHERE id = ?").run(user.id);
+        db.prepare("INSERT INTO transactions (user_id, type, amount, description) VALUES (?, ?, ?, ?)").run(user.id, 'purchase', 0, '1개월 무제한 이용권 구매');
+      } else if (passType === '5scans') {
+        db.prepare("UPDATE users SET remaining_scans = remaining_scans + 5 WHERE id = ?").run(user.id);
+        db.prepare("INSERT INTO transactions (user_id, type, amount, description) VALUES (?, ?, ?, ?)").run(user.id, 'purchase', 5, '5회 추가권 구매');
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(401).json({ success: false, message: "유효하지 않은 토큰입니다." });
     }
   });
 

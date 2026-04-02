@@ -134,6 +134,34 @@ export function Settings() {
               </svg>
               <span>Google로 시작하기</span>
             </button>
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border-subtle" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-bg-canvas px-2 text-text-secondary">또는</span>
+              </div>
+            </div>
+            <button 
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/auth/test', { method: 'POST' });
+                  const data = await res.json();
+                  if (data.success) {
+                    login(data.token, data.user);
+                    if (data.isNewUser) {
+                      navigate('/login', { replace: true });
+                    }
+                  }
+                } catch (err) {
+                  console.error(err);
+                  alert('테스트 로그인에 실패했습니다.');
+                }
+              }} 
+              className="w-full py-3 bg-primary text-white rounded-xl font-bold text-base shadow-sm flex items-center justify-center space-x-2 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span>개발자 로그인 (테스트 계정)</span>
+            </button>
           </div>
         </div>
       </div>
@@ -157,6 +185,45 @@ export function Settings() {
             <h2 className="text-xl font-bold text-text-primary">{user.name} 님</h2>
             <p className="text-sm text-text-secondary">{user.email}</p>
           </div>
+        </section>
+
+        {/* Subscription Status */}
+        <section className="space-y-4 mb-8">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-[18px] font-bold text-text-primary">
+              이용권 정보
+            </h3>
+            <button 
+              onClick={() => navigate("/billing-history")}
+              className="text-sm font-medium text-text-secondary hover:text-primary transition-colors flex items-center"
+            >
+              전체 내역 보기 <ChevronRight className="w-4 h-4 ml-0.5" />
+            </button>
+          </div>
+          <Card className="bg-bg-surface border-border-subtle shadow-sm">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                {user.subscription_status === 'premium' ? (
+                  <>
+                    <p className="font-bold text-primary mb-1">무제한 이용권 사용 중</p>
+                    <p className="text-sm text-text-secondary">횟수 제한 없이 스캔 가능합니다.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-bold text-text-primary mb-1">
+                      남은 스캔 횟수: <span className="text-secondary">{user.remaining_scans || 0}회</span>
+                    </p>
+                    <p className="text-sm text-text-secondary">추가 스캔이 필요하신가요?</p>
+                  </>
+                )}
+              </div>
+              {user.subscription_status !== 'premium' && (
+                <Button variant="outline" size="sm" onClick={() => navigate("/pricing")}>
+                  충전하기
+                </Button>
+              )}
+            </CardContent>
+          </Card>
         </section>
 
         {/* Pregnancy Info */}
@@ -185,7 +252,7 @@ export function Settings() {
               </div>
               <div className="p-4 bg-accent/50">
                 <p className="text-xs text-text-secondary leading-relaxed">
-                  입력하신 주차 정보는 <strong>구독 플랜</strong> 이용 시 스캔 결과에 반영되어 더욱 정밀한 맞춤 분석을 제공합니다.
+                  입력하신 주차 정보는 <strong>이용권</strong> 구매 시 스캔 결과에 반영되어 더욱 정밀한 맞춤 분석을 제공합니다.
                 </p>
               </div>
             </CardContent>

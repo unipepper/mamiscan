@@ -178,13 +178,13 @@ export function History() {
                   과거 히스토리가 궁금하신가요?
                 </h3>
                 <p className="text-sm text-text-secondary">
-                  프리미엄 플랜을 구독하시면 무제한 스캔 히스토리를 확인하실 수 있습니다.
+                  이용권을 구매하시면 무제한 스캔 히스토리를 확인하실 수 있습니다.
                 </p>
                 <Button 
                   className="w-full font-bold mt-2"
                   onClick={() => navigate("/pricing")}
                 >
-                  프리미엄 혜택 알아보기
+                  이용권 알아보기
                 </Button>
               </div>
             )}
