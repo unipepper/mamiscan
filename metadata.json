@@ -1,0 +1,7 @@
+{
+  "name": "마마스캔 (MamaScan)",
+  "description": "임산부를 위한 성분 안전 확인 서비스. 바코드를 스캔하여 5초 안에 안전 여부와 대체 제품을 확인하세요.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
