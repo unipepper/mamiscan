@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom"
-import { Scan, ShieldCheck, Search, ArrowRight, ChevronRight, LogIn, CheckCircle2, Lock, Star } from "lucide-react"
+import { Scan, ShieldCheck, Search, ArrowRight, ChevronRight, LogIn, CheckCircle2, Lock, Star, Calendar } from "lucide-react"
 import { Button } from "@/src/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/src/components/ui/card"
 import { useAuth } from "@/src/lib/AuthContext"
@@ -149,25 +149,78 @@ export function Home() {
 
       {/* Subscription Section or Pricing Teaser */}
       <section className="px-4 py-8 space-y-4">
-        {user?.subscription_status === 'premium' ? (
-          <>
+        {user ? (
+          <div className="space-y-4">
             <h3 className="text-[18px] font-bold text-text-primary px-1">
-              이용권 관리
+              내 정보
             </h3>
+            
+            {/* Pregnancy Info Card */}
+            <Card 
+              className="bg-bg-surface border-border-subtle shadow-sm hover:bg-neutral-bg transition-colors cursor-pointer"
+              onClick={() => navigate("/settings")}
+            >
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-primary/10 p-2 rounded-full">
+                    <Calendar className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <span className="font-medium text-text-primary block">
+                      현재 임신 주차
+                    </span>
+                    <span className="text-sm text-text-secondary">
+                      {user.pregnancy_weeks ? `${user.pregnancy_weeks}주차` : '설정하기'}
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-text-secondary" />
+              </CardContent>
+            </Card>
+
+            {/* Subscription Card */}
             <Card 
               className="bg-bg-surface border-border-subtle shadow-sm hover:bg-neutral-bg transition-colors cursor-pointer"
               onClick={() => navigate("/pricing")}
             >
               <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <span className="font-medium text-text-primary block mb-1">
-                    현재 이용권 이용 중
-                  </span>
+                <div className="flex items-center space-x-3">
+                  <div className="bg-secondary/10 p-2 rounded-full">
+                    <Star className="w-5 h-5 text-secondary" />
+                  </div>
+                  <div>
+                    {user.subscription_status === 'premium' ? (
+                      <>
+                        <span className="font-medium text-text-primary block mb-1">
+                          1개월 무제한 이용권
+                        </span>
+                        {user.subscription_expires_at && (
+                          <div className="space-y-1">
+                            <p className="text-xs text-text-secondary">
+                              이용기간: ~ {new Date(user.subscription_expires_at).toLocaleDateString('ko-KR')}
+                            </p>
+                            <p className="text-xs font-bold text-primary">
+                              남은 기간: {Math.max(0, Math.ceil((new Date(user.subscription_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))}일
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-medium text-text-primary block">
+                          남은 스캔 횟수
+                        </span>
+                        <span className="text-sm font-bold text-secondary">
+                          {user.remaining_scans || 0}회
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-text-secondary" />
               </CardContent>
             </Card>
-          </>
+          </div>
         ) : (
           <div className="space-y-4">
             <h3 className="text-[18px] font-bold text-text-primary px-1 mb-2">

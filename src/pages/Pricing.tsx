@@ -25,8 +25,8 @@ export function Pricing() {
         const data = await res.json();
         if (data.success) {
           alert("결제가 완료되었습니다.");
-          // Reload page to fetch updated user info
-          window.location.href = "/settings";
+          // Reload page to fetch updated user info and redirect to home
+          window.location.href = "/";
         } else {
           alert("결제에 실패했습니다.");
         }
