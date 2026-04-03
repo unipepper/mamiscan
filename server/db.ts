@@ -48,4 +48,31 @@ try {
   // Column might already exist
 }
 
+try {
+  db.exec(`ALTER TABLE users ADD COLUMN pregnancy_weeks INTEGER;`);
+} catch (e) {
+  // Column might already exist
+}
+
+try {
+  db.exec(`ALTER TABLE users ADD COLUMN subscription_expires_at DATETIME;`);
+} catch (e) {
+  // Column might already exist
+}
+
+// Set expiration date for existing premium users who don't have one (e.g., 30 days from now)
+try {
+  const expiresAt = new Date();
+  expiresAt.setMonth(expiresAt.getMonth() + 1);
+  db.prepare(`UPDATE users SET subscription_expires_at = ? WHERE subscription_status = 'premium' AND subscription_expires_at IS NULL`).run(expiresAt.toISOString());
+} catch (e) {
+  console.error("Failed to update existing premium users:", e);
+}
+
+try {
+  db.exec(`ALTER TABLE transactions ADD COLUMN status TEXT DEFAULT 'completed';`);
+} catch (e) {
+  // Column might already exist
+}
+
 export default db;

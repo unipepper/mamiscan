@@ -68,10 +68,39 @@ export function History() {
     ]}
   ]
 
+  const [tempHistory, setTempHistory] = useState<any[]>([])
+
+  useEffect(() => {
+    if (!user) {
+      try {
+        const stored = localStorage.getItem('temporaryHistory');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          // Group by date
+          const grouped = parsed.reduce((acc: any, item: any) => {
+            const date = item.date;
+            if (!acc[date]) acc[date] = [];
+            acc[date].push(item);
+            return acc;
+          }, {});
+          
+          const formatted = Object.keys(grouped).map((date, index) => ({
+            id: `temp-${index}`,
+            date: date === new Date().toLocaleDateString('ko-KR') ? '오늘' : date,
+            items: grouped[date]
+          }));
+          setTempHistory(formatted);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [user]);
+
   const isPremium = user?.subscription_status === 'premium'
   
-  // If not logged in, show a limited fake history so it fills the screen without scrolling
-  const displayData = user ? (isPremium ? historyData : historyData.slice(0, 1)) : historyData.slice(0, 2)
+  // If not logged in, show temporary history or a limited fake history
+  const displayData = user ? (isPremium ? historyData : historyData.slice(0, 1)) : (tempHistory.length > 0 ? tempHistory : historyData.slice(0, 2))
 
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas">
@@ -97,44 +126,8 @@ export function History() {
         </div>
 
         {/* History List */}
-        <div className={`relative flex-1 flex flex-col ${!user ? 'overflow-hidden' : ''}`}>
-          {!user && (
-            <div className="absolute inset-0 z-10 bg-bg-canvas/40 backdrop-blur-[4px] flex flex-col items-center justify-center p-6 text-center">
-              <div className="bg-primary/10 p-3 rounded-full mb-3">
-                <Lock className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="font-bold text-text-primary mb-2">회원 전용 기능</h3>
-              <p className="text-sm text-text-secondary mb-6">
-                스캔 기록을 저장하고 언제든 다시 확인하려면<br/>로그인이 필요합니다.
-              </p>
-              
-              <div className="w-full max-w-[280px] space-y-3">
-                <button
-                  onClick={() => handleOAuth('kakao')}
-                  className="w-full flex items-center justify-center space-x-2 bg-[#FEE500] hover:bg-[#FEE500]/90 text-black font-bold h-12 rounded-xl transition-colors"
-                >
-                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
-                    <path d="M12 3c-5.523 0-10 3.515-10 7.85 0 2.764 1.764 5.188 4.418 6.55l-1.12 4.104c-.06.22.18.4.38.28l4.74-3.15c.51.08 1.04.12 1.58.12 5.523 0 10-3.515 10-7.85C22 6.515 17.523 3 12 3z" />
-                  </svg>
-                  <span>카카오로 시작하기</span>
-                </button>
-                <button
-                  onClick={() => handleOAuth('google')}
-                  className="w-full flex items-center justify-center space-x-2 bg-white hover:bg-gray-50 text-gray-700 font-bold h-12 rounded-xl border border-gray-200 transition-colors"
-                >
-                  <svg viewBox="0 0 24 24" className="w-5 h-5">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                  </svg>
-                  <span>Google로 시작하기</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className={!user ? "opacity-40 pointer-events-none select-none flex-1" : "flex-1"}>
+        <div className="relative flex-1 flex flex-col pb-32">
+          <div className="flex-1">
             {displayData.map((group) => (
               <section key={group.id} className="space-y-3 mb-6">
                 <h3 className="text-sm font-bold text-text-secondary px-1">{group.date}</h3>
@@ -143,7 +136,7 @@ export function History() {
                     <Card 
                       key={idx} 
                       className="bg-bg-surface border-border-subtle shadow-sm hover:bg-neutral-bg transition-colors cursor-pointer"
-                      onClick={() => navigate("/result")}
+                      onClick={() => navigate("/result", { state: { resultData: item.resultData } })}
                     >
                       <CardContent className="p-4 flex items-center justify-between">
                         <div className="flex items-center space-x-4">
@@ -168,6 +161,42 @@ export function History() {
                 </div>
               </section>
             ))}
+
+            {!user && (
+              <div className="mt-8 bg-primary/5 border border-primary/20 rounded-xl p-6 text-center">
+                <div className="bg-primary/10 p-3 rounded-full mb-3 inline-flex">
+                  <Lock className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-bold text-text-primary mb-2">더 많은 기록을 저장하세요</h3>
+                <p className="text-sm text-text-secondary mb-6">
+                  로그인하면 스캔 기록이 안전하게 저장되며,<br/>언제든 다시 확인할 수 있습니다.
+                </p>
+                
+                <div className="w-full max-w-[280px] mx-auto space-y-3">
+                  <button
+                    onClick={() => handleOAuth('kakao')}
+                    className="w-full flex items-center justify-center space-x-2 bg-[#FEE500] hover:bg-[#FEE500]/90 text-black font-bold h-12 rounded-xl transition-colors"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
+                      <path d="M12 3c-5.523 0-10 3.515-10 7.85 0 2.764 1.764 5.188 4.418 6.55l-1.12 4.104c-.06.22.18.4.38.28l4.74-3.15c.51.08 1.04.12 1.58.12 5.523 0 10-3.515 10-7.85C22 6.515 17.523 3 12 3z" />
+                    </svg>
+                    <span>카카오로 시작하기</span>
+                  </button>
+                  <button
+                    onClick={() => handleOAuth('google')}
+                    className="w-full flex items-center justify-center space-x-2 bg-white hover:bg-gray-50 text-gray-700 font-bold h-12 rounded-xl border border-gray-200 transition-colors"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-5 h-5">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                    </svg>
+                    <span>Google로 시작하기</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {user && !isPremium && (
               <div className="mt-8 p-6 bg-accent/50 border border-primary/20 rounded-xl text-center space-y-4">

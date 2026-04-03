@@ -81,11 +81,31 @@ export function PlanDetail() {
 
   const plan = isUnlimited ? planData.unlimited : planData.pass
 
-  const handleCtaClick = () => {
+  const handleCtaClick = async () => {
     if (!user) {
       navigate('/login', { state: { returnTo: `/plan/${isUnlimited ? 'unlimited' : 'pass'}` } })
     } else {
-      alert('결제 모듈로 이동합니다.')
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/payments/mock-purchase', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ passType: isUnlimited ? 'premium' : '5scans' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("결제가 완료되었습니다.");
+          window.location.href = "/";
+        } else {
+          alert("결제에 실패했습니다.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("결제 중 오류가 발생했습니다.");
+      }
     }
   }
 

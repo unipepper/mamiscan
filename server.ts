@@ -184,11 +184,37 @@ async function startServer() {
       const token = authHeader.split(" ")[1];
       const decoded: any = jwt.verify(token, JWT_SECRET);
       
-      const user: any = db.prepare("SELECT id, email, name, subscription_status, remaining_scans FROM users WHERE id = ?").get(decoded.userId);
+      const user: any = db.prepare("SELECT id, email, name, subscription_status, subscription_expires_at, remaining_scans, pregnancy_weeks FROM users WHERE id = ?").get(decoded.userId);
       if (!user) {
         return res.status(404).json({ success: false, message: "사용자를 찾을 수 없습니다." });
       }
 
+      res.json({ success: true, user });
+    } catch (error) {
+      res.status(401).json({ success: false, message: "유효하지 않은 토큰입니다." });
+    }
+  });
+
+  app.post("/api/user/pregnancy-weeks", (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ success: false, message: "인증 토큰이 없습니다." });
+      }
+
+      const token = authHeader.split(" ")[1];
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      
+      const { weeks } = req.body;
+      
+      if (typeof weeks !== 'number' || weeks < 1 || weeks > 42) {
+        return res.status(400).json({ success: false, message: "유효한 임신 주차를 입력해주세요 (1~42)." });
+      }
+
+      db.prepare("UPDATE users SET pregnancy_weeks = ? WHERE id = ?").run(weeks, decoded.userId);
+      
+      const user: any = db.prepare("SELECT id, email, name, subscription_status, subscription_expires_at, remaining_scans, pregnancy_weeks FROM users WHERE id = ?").get(decoded.userId);
+      
       res.json({ success: true, user });
     } catch (error) {
       res.status(401).json({ success: false, message: "유효하지 않은 토큰입니다." });
@@ -207,7 +233,75 @@ async function startServer() {
       
       const transactions = db.prepare("SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC").all(decoded.userId);
       
-      res.json({ success: true, transactions });
+      const enrichedTransactions = transactions.map((tx: any) => {
+        if (tx.type === 'purchase') {
+          const usageCount: any = db.prepare("SELECT COUNT(*) as count FROM transactions WHERE user_id = ? AND type = 'usage' AND created_at > ?").get(decoded.userId, tx.created_at);
+          return { ...tx, hasUsage: usageCount.count > 0 };
+        }
+        return tx;
+      });
+      
+      res.json({ success: true, transactions: enrichedTransactions });
+    } catch (error) {
+      res.status(401).json({ success: false, message: "유효하지 않은 토큰입니다." });
+    }
+  });
+
+  app.post("/api/user/refund", (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ success: false, message: "인증 토큰이 없습니다." });
+      }
+
+      const token = authHeader.split(" ")[1];
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      
+      const { transactionId, reason } = req.body;
+      
+      if (!transactionId) {
+        return res.status(400).json({ success: false, message: "결제 내역 ID가 필요합니다." });
+      }
+
+      const transaction: any = db.prepare("SELECT * FROM transactions WHERE id = ? AND user_id = ?").get(transactionId, decoded.userId);
+      
+      if (!transaction) {
+        return res.status(404).json({ success: false, message: "결제 내역을 찾을 수 없습니다." });
+      }
+
+      if (transaction.type !== 'purchase') {
+        return res.status(400).json({ success: false, message: "환불 가능한 결제 내역이 아닙니다." });
+      }
+
+      if (transaction.status === 'refunded' || transaction.status === 'refund_pending') {
+        return res.status(400).json({ success: false, message: "이미 환불 처리되었거나 대기 중인 결제입니다." });
+      }
+
+      // Check for usage after purchase
+      const usageAfterPurchase: any = db.prepare("SELECT COUNT(*) as count FROM transactions WHERE user_id = ? AND type = 'usage' AND created_at > ?").get(decoded.userId, transaction.created_at);
+      
+      const hasUsage = usageAfterPurchase.count > 0;
+      const isDuplicateOrError = reason === 'duplicate' || reason === 'error';
+
+      if (hasUsage && !isDuplicateOrError) {
+        return res.status(400).json({ success: false, message: "이미 사용 이력이 있어 직접 환불이 불가능합니다. 고객센터로 문의해주세요." });
+      }
+
+      if (isDuplicateOrError || hasUsage) {
+        // Operator review required
+        db.prepare("UPDATE transactions SET status = 'refund_pending' WHERE id = ?").run(transactionId);
+        return res.json({ success: true, status: 'refund_pending', message: "환불 검토가 접수되었습니다. 운영자 확인 후 처리됩니다." });
+      } else {
+        // Direct refund possible
+        db.prepare("UPDATE transactions SET status = 'refunded' WHERE id = ?").run(transactionId);
+        // Also update user subscription status to free
+        db.prepare("UPDATE users SET subscription_status = 'free' WHERE id = ?").run(decoded.userId);
+        
+        const user: any = db.prepare("SELECT id, email, name, subscription_status, subscription_expires_at, remaining_scans, pregnancy_weeks FROM users WHERE id = ?").get(decoded.userId);
+        
+        return res.json({ success: true, status: 'refunded', message: "전액 환불이 완료되었습니다.", user });
+      }
+      
     } catch (error) {
       res.status(401).json({ success: false, message: "유효하지 않은 토큰입니다." });
     }
@@ -340,7 +434,9 @@ async function startServer() {
       }
 
       if (passType === 'premium') {
-        db.prepare("UPDATE users SET subscription_status = 'premium' WHERE id = ?").run(user.id);
+        const expiresAt = new Date();
+        expiresAt.setMonth(expiresAt.getMonth() + 1);
+        db.prepare("UPDATE users SET subscription_status = 'premium', subscription_expires_at = ? WHERE id = ?").run(expiresAt.toISOString(), user.id);
         db.prepare("INSERT INTO transactions (user_id, type, amount, description) VALUES (?, ?, ?, ?)").run(user.id, 'purchase', 0, '1개월 무제한 이용권 구매');
       } else if (passType === '5scans') {
         db.prepare("UPDATE users SET remaining_scans = remaining_scans + 5 WHERE id = ?").run(user.id);

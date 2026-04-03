@@ -206,7 +206,19 @@ export function Settings() {
                 {user.subscription_status === 'premium' ? (
                   <>
                     <p className="font-bold text-primary mb-1">무제한 이용권 사용 중</p>
-                    <p className="text-sm text-text-secondary">횟수 제한 없이 스캔 가능합니다.</p>
+                    <p className="text-sm text-text-secondary">
+                      횟수 제한 없이 스캔 가능합니다.
+                      {user.subscription_expires_at && (
+                        <span className="block mt-2 space-y-1">
+                          <span className="block text-xs text-text-secondary">
+                            이용기간: ~ {new Date(user.subscription_expires_at).toLocaleDateString('ko-KR')}
+                          </span>
+                          <span className="block font-medium text-text-primary">
+                            남은 기간: {Math.max(0, Math.ceil((new Date(user.subscription_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))}일
+                          </span>
+                        </span>
+                      )}
+                    </p>
                   </>
                 ) : (
                   <>
