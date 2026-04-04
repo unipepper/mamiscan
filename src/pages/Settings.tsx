@@ -1,14 +1,43 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowLeft, User, Calendar, Bell, ChevronRight, LogOut, Lock, Search, Clock } from "lucide-react"
+import { ArrowLeft, User, Calendar, Bell, ChevronRight, LogOut, Lock, Search, Clock, Loader2 } from "lucide-react"
 import { Button } from "@/src/components/ui/button"
 import { Card, CardContent } from "@/src/components/ui/card"
 import { useAuth } from "@/src/lib/AuthContext"
 
 export function Settings() {
   const navigate = useNavigate()
-  const [week, setWeek] = useState<string>("12")
-  const { user, isLoading, logout, login } = useAuth()
+  const [week, setWeek] = useState<string>("")
+  const [weekSaveStatus, setWeekSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [showWeekDial, setShowWeekDial] = useState(false)
+  const [dialWeek, setDialWeek] = useState<string>("12")
+  const { user, isLoading, logout, login, updateUser } = useAuth()
+  const weekPickerRef = useRef<HTMLDivElement>(null)
+  const ITEM_H = 56
+
+  useEffect(() => {
+    if (showWeekDial) {
+      const initial = week || "12"
+      setDialWeek(initial)
+      setTimeout(() => {
+        if (weekPickerRef.current) {
+          weekPickerRef.current.scrollTop = (parseInt(initial) - 1) * ITEM_H
+        }
+      }, 50)
+    }
+  }, [showWeekDial])
+
+  const handlePickerScroll = () => {
+    if (weekPickerRef.current) {
+      const idx = Math.round(weekPickerRef.current.scrollTop / ITEM_H)
+      setDialWeek(String(Math.min(42, Math.max(1, idx + 1))))
+    }
+  }
+
+  const handleDialSave = async () => {
+    await handleWeekChange(dialWeek)
+    setShowWeekDial(false)
+  }
 
   // Listen for OAuth messages
   useEffect(() => {
@@ -18,7 +47,7 @@ export function Settings() {
         return;
       }
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
-        const { token, user, isNewUser } = event.data.payload;
+        const { token, user, isNewUser } = event.data;
         if (token && user) {
           login(token, user);
           if (isNewUser) {
@@ -30,6 +59,36 @@ export function Settings() {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [login, navigate]);
+
+  // Sync week from user data
+  useEffect(() => {
+    if (user?.pregnancy_weeks) {
+      setWeek(String(user.pregnancy_weeks));
+    }
+  }, [user?.pregnancy_weeks]);
+
+  const handleWeekChange = async (newWeek: string) => {
+    setWeek(newWeek);
+    setWeekSaveStatus('saving');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/user/pregnancy-weeks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ weeks: parseInt(newWeek, 10) })
+      });
+      const data = await res.json();
+      if (data.success) {
+        updateUser(data.user);
+        setWeekSaveStatus('saved');
+        setTimeout(() => setWeekSaveStatus('idle'), 2000);
+      } else {
+        setWeekSaveStatus('idle');
+      }
+    } catch {
+      setWeekSaveStatus('idle');
+    }
+  };
 
   const handleOAuth = async (provider: 'google' | 'kakao') => {
     try {
@@ -240,32 +299,45 @@ export function Settings() {
 
         {/* Pregnancy Info */}
         <section className="space-y-4 mb-8">
-          <h3 className="text-[18px] font-bold text-text-primary px-1">
-            임신 정보
-          </h3>
-          <Card className="bg-bg-surface border-border-subtle shadow-sm">
+          <h3 className="text-[18px] font-bold text-text-primary px-1">임신 정보</h3>
+          <Card className="bg-bg-surface border-border-subtle shadow-sm overflow-hidden">
             <CardContent className="p-0">
-              <div className="p-4 border-b border-border-subtle flex items-center justify-between">
+              <button
+                onClick={() => setShowWeekDial(true)}
+                className="w-full p-5 flex items-center justify-between hover:bg-neutral-bg transition-colors"
+              >
                 <div className="flex items-center space-x-3">
-                  <Calendar className="w-5 h-5 text-text-secondary" />
-                  <span className="font-medium text-text-primary">현재 임신 주차</span>
+                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                    <Calendar className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs text-text-secondary mb-0.5">현재 임신 주차</p>
+                    {week ? (
+                      <p className="text-lg font-bold text-text-primary">{week}주차</p>
+                    ) : (
+                      <p className="text-sm font-medium text-text-secondary">주차를 입력해주세요</p>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <select 
-                    value={week}
-                    onChange={(e) => setWeek(e.target.value)}
-                    className="bg-neutral-bg border-none text-sm font-medium rounded-md px-3 py-1.5 focus:ring-1 focus:ring-primary outline-none"
-                  >
-                    {Array.from({ length: 42 }, (_, i) => i + 1).map(w => (
-                      <option key={w} value={w}>{w}주차</option>
-                    ))}
-                  </select>
+                  {weekSaveStatus === 'saving' && <span className="text-xs text-text-secondary">저장 중...</span>}
+                  {weekSaveStatus === 'saved' && <span className="text-xs text-primary font-medium">저장됨 ✓</span>}
+                  <ChevronRight className="w-5 h-5 text-text-secondary" />
                 </div>
-              </div>
-              <div className="p-4 bg-accent/50">
-                <p className="text-xs text-text-secondary leading-relaxed">
-                  입력하신 주차 정보는 <strong>이용권</strong> 구매 시 스캔 결과에 반영되어 더욱 정밀한 맞춤 분석을 제공합니다.
-                </p>
+              </button>
+              <div className={`mx-5 mb-5 rounded-xl px-4 py-3 flex items-center space-x-2 ${week ? 'bg-primary/5' : 'bg-neutral-bg'}`}>
+                {week ? (
+                  <>
+                    <span className="text-sm shrink-0">✨</span>
+                    <p className="text-xs text-primary font-medium leading-relaxed">
+                      {week}주차 맞춤 분석이 스캔 결과에 반영돼요
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    주차를 입력하면 스캔 결과에 주차별 맞춤 분석을 드려요
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -298,6 +370,61 @@ export function Settings() {
           </Card>
         </section>
       </main>
+
+      {/* Week Dial Bottom Sheet */}
+      {showWeekDial && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowWeekDial(false)}
+        >
+          <div
+            className="bg-bg-canvas w-full rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-border-subtle rounded-full" />
+            </div>
+            <div className="px-6 pt-3 pb-2 text-center">
+              <h3 className="text-lg font-bold text-text-primary">몇 주차이세요?</h3>
+              <p className="text-xs text-text-secondary mt-1">주차에 맞는 맞춤 분석을 드릴게요</p>
+            </div>
+
+            <div className="relative mx-auto w-48 h-[168px] overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-14 bg-gradient-to-b from-bg-canvas to-transparent pointer-events-none z-10" />
+              <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-bg-canvas to-transparent pointer-events-none z-10" />
+              <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-14 border-y-2 border-primary/30 bg-primary/5 pointer-events-none z-10 rounded-xl" />
+              <div
+                ref={weekPickerRef}
+                onScroll={handlePickerScroll}
+                className="h-full overflow-y-scroll"
+                style={{ scrollSnapType: 'y mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none', paddingTop: 56, paddingBottom: 56 }}
+              >
+                {Array.from({ length: 42 }, (_, i) => i + 1).map((w) => (
+                  <div
+                    key={w}
+                    style={{ scrollSnapAlign: 'center', height: ITEM_H }}
+                    className={`flex items-center justify-center text-2xl font-bold transition-colors ${
+                      parseInt(dialWeek) === w ? 'text-primary' : 'text-text-secondary/40'
+                    }`}
+                  >
+                    {w}주차
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="px-6 pb-8 pt-4">
+              <Button
+                onClick={handleDialSave}
+                disabled={weekSaveStatus === 'saving'}
+                className="w-full font-bold h-12 rounded-2xl text-base"
+              >
+                {weekSaveStatus === 'saving' ? <Loader2 className="w-5 h-5 animate-spin" /> : "저장하기"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -9,6 +9,13 @@ export function Scan() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [isScanning, setIsScanning] = useState(false)
+
+  const hasCredits = !user || user.subscription_status === 'premium' || (user.remaining_scans ?? 0) > 0
+
+  const handleNoCredits = () => {
+    setToastMessage("남은 스캔 횟수가 없어요. 이용권을 충전해주세요.")
+    setTimeout(() => { setToastMessage(null); navigate("/pricing") }, 2000)
+  }
   const isScanningRef = useRef(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [showPermissionGuide, setShowPermissionGuide] = useState(false)
@@ -54,12 +61,16 @@ export function Scan() {
               
               // Process barcode if found
               if (result && !isScanningRef.current) {
+                if (!hasCredits) {
+                  handleNoCredits()
+                  return
+                }
                 isScanningRef.current = true
                 setIsScanning(true)
                 console.log("Scanned Barcode:", result.getText())
-                
+                const barcodeValue = result.getText()
                 setTimeout(() => {
-                  navigate("/result")
+                  navigate("/result", { state: { barcode: barcodeValue } })
                 }, 1500)
               }
               
@@ -106,6 +117,7 @@ export function Scan() {
 
   const handleCapture = async () => {
     if (isScanningRef.current || !videoRef.current) return
+    if (!hasCredits) { handleNoCredits(); return }
     isScanningRef.current = true
     setIsScanning(true)
 
@@ -135,6 +147,7 @@ export function Scan() {
     if (!file) return
 
     if (isScanningRef.current) return
+    if (!hasCredits) { handleNoCredits(); return }
     isScanningRef.current = true
     setIsScanning(true)
 
@@ -156,8 +169,9 @@ export function Scan() {
           try {
             const result = await codeReaderRef.current!.decodeFromImageElement(img)
             console.log("Scanned Barcode from image:", result.getText())
+            const barcodeValue = result.getText()
             setTimeout(() => {
-              navigate("/result")
+              navigate("/result", { state: { barcode: barcodeValue } })
             }, 1500)
           } catch (err) {
             // 바코드를 찾을 수 없으면 식료품 이미지로 간주

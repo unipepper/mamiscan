@@ -75,4 +75,33 @@ try {
   // Column might already exist
 }
 
+try {
+  db.exec(`ALTER TABLE transactions ADD COLUMN price_krw INTEGER DEFAULT 0;`);
+} catch (e) {
+  // Column might already exist
+}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS scan_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    product_name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    result_json TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS product_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cache_key TEXT UNIQUE NOT NULL,
+    product_name TEXT NOT NULL,
+    result_json TEXT NOT NULL,
+    hit_count INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 export default db;

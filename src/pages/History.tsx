@@ -6,10 +6,22 @@ import { Badge } from "@/src/components/ui/badge"
 import { useAuth } from "@/src/lib/AuthContext"
 import { Button } from "@/src/components/ui/button"
 
+function getRelativeDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return '오늘'
+  if (diffDays === 1) return '어제'
+  if (diffDays <= 7) return '이번 주'
+  return date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
+}
+
 export function History() {
   const navigate = useNavigate()
   const { user, login } = useAuth()
   const [isNewUser, setIsNewUser] = useState(false)
+  const [apiHistory, setApiHistory] = useState<any[]>([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
 
   // Listen for OAuth messages
   useEffect(() => {
@@ -19,14 +31,12 @@ export function History() {
         return;
       }
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
-        const { token, user, isNewUser } = event.data.payload;
+        const { token, user, isNewUser } = event.data;
         if (token && user) {
           login(token, user);
           if (isNewUser) {
             setIsNewUser(true);
             navigate('/login', { replace: true });
-          } else {
-            // Stay on history page, it will re-render with user state
           }
         }
       }
@@ -51,22 +61,6 @@ export function History() {
       alert('로그인 서버 연결에 실패했습니다.');
     }
   };
-
-  const historyData = [
-    { id: 1, date: "오늘", items: [
-      { name: "매콤달콤 떡볶이 스낵", brand: "오리온", status: "caution", time: "오후 2:30" },
-      { name: "유기농 바나나 우유", brand: "상하목장", status: "success", time: "오전 10:15" },
-    ]},
-    { id: 2, date: "어제", items: [
-      { name: "무알콜 맥주 제로", brand: "하이트", status: "success", time: "오후 8:45" },
-      { name: "매운 불닭 볶음면", brand: "삼양", status: "danger", time: "오후 1:20" },
-    ]},
-    { id: 3, date: "이번 주", items: [
-      { name: "디카페인 아메리카노", brand: "스타벅스", status: "caution", time: "수요일" },
-      { name: "초코파이 정", brand: "오리온", status: "caution", time: "화요일" },
-      { name: "제주 삼다수", brand: "광동제약", status: "success", time: "월요일" },
-    ]}
-  ]
 
   const [tempHistory, setTempHistory] = useState<any[]>([])
 
@@ -98,9 +92,37 @@ export function History() {
   }, [user]);
 
   const isPremium = user?.subscription_status === 'premium'
-  
-  // If not logged in, show temporary history or a limited fake history
-  const displayData = user ? (isPremium ? historyData : historyData.slice(0, 1)) : (tempHistory.length > 0 ? tempHistory : historyData.slice(0, 2))
+
+  useEffect(() => {
+    if (!user || !isPremium) return
+    setIsLoadingHistory(true)
+    const token = localStorage.getItem('token')
+    fetch('/api/scan/history', { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          // Group by relative date
+          const grouped: Record<string, any[]> = {}
+          data.history.forEach((row: any) => {
+            const label = getRelativeDate(row.created_at)
+            if (!grouped[label]) grouped[label] = []
+            grouped[label].push({
+              name: row.product_name,
+              brand: '',
+              status: row.status,
+              time: new Date(row.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+              resultData: (() => { try { return JSON.parse(row.result_json) } catch { return null } })()
+            })
+          })
+          const formatted = Object.entries(grouped).map(([date, items], idx) => ({ id: idx, date, items }))
+          setApiHistory(formatted)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingHistory(false))
+  }, [user, isPremium])
+
+  const displayData = isPremium ? apiHistory : (user ? [] : (tempHistory.length > 0 ? tempHistory : []))
 
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas">
@@ -128,7 +150,18 @@ export function History() {
         {/* History List */}
         <div className="relative flex-1 flex flex-col pb-32">
           <div className="flex-1">
-            {displayData.map((group) => (
+            {isLoadingHistory && (
+              <div className="flex justify-center py-10">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+            {!isLoadingHistory && isPremium && apiHistory.length === 0 && (
+              <div className="text-center py-20">
+                <Clock className="w-12 h-12 text-border-subtle mx-auto mb-4" />
+                <p className="text-text-secondary font-medium">아직 스캔 기록이 없어요.</p>
+              </div>
+            )}
+            {!isLoadingHistory && displayData.map((group) => (
               <section key={group.id} className="space-y-3 mb-6">
                 <h3 className="text-sm font-bold text-text-secondary px-1">{group.date}</h3>
                 <div className="grid gap-3">

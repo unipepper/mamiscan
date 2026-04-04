@@ -8,6 +8,7 @@ interface Transaction {
   id: number;
   type: 'purchase' | 'usage' | 'bonus';
   amount: number;
+  price_krw: number;
   description: string;
   created_at: string;
   status: 'completed' | 'refunded' | 'refund_pending' | 'refund_rejected';
@@ -238,11 +239,11 @@ export function BillingHistory() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-text-secondary">결제 금액</span>
-                  <span className="text-sm font-medium text-text-primary">{selectedTx.amount.toLocaleString()}원</span>
+                  <span className="text-sm font-medium text-text-primary">{(selectedTx.price_krw || 0).toLocaleString()}원</span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-border-subtle">
                   <span className="text-xs font-bold text-text-primary">환불 예정 금액</span>
-                  <span className="text-sm font-bold text-primary">{selectedTx.amount.toLocaleString()}원</span>
+                  <span className="text-sm font-bold text-primary">{(selectedTx.price_krw || 0).toLocaleString()}원</span>
                 </div>
               </div>
 

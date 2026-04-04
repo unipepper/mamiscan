@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { ArrowLeft, AlertTriangle, CheckCircle, Info, ChevronRight, ShoppingBag, Lock, Loader2, Flag, X } from "lucide-react"
 import { Button } from "@/src/components/ui/button"
 import { Card, CardContent } from "@/src/components/ui/card"
 import { Badge } from "@/src/components/ui/badge"
 import { useAuth } from "@/src/lib/AuthContext"
-import { GoogleGenAI, Type } from "@google/genai"
 
 export function Result() {
   const navigate = useNavigate()
@@ -16,6 +15,7 @@ export function Result() {
   const hasWeekInfo = pregnancyWeeks !== undefined && pregnancyWeeks !== null
 
   const imageBase64 = location.state?.imageBase64 as string | undefined
+  const barcode = location.state?.barcode as string | undefined
   const existingResultData = location.state?.resultData as any | undefined
 
   const [result, setResult] = useState<any>(existingResultData || null)
@@ -30,9 +30,29 @@ export function Result() {
 
   // Pregnancy Weeks Modal State
   const [showWeekModal, setShowWeekModal] = useState(false)
-  const [inputWeeks, setInputWeeks] = useState<string>("")
+  const [inputWeeks, setInputWeeks] = useState<string>("12")
   const [isSubmittingWeeks, setIsSubmittingWeeks] = useState(false)
   const { updateUser } = useAuth()
+  const weekPickerRef = useRef<HTMLDivElement>(null)
+  const ITEM_H = 56
+
+  useEffect(() => {
+    if (showWeekModal) {
+      setTimeout(() => {
+        if (weekPickerRef.current) {
+          const week = parseInt(inputWeeks) || 12
+          weekPickerRef.current.scrollTop = (week - 1) * ITEM_H
+        }
+      }, 50)
+    }
+  }, [showWeekModal])
+
+  const handlePickerScroll = () => {
+    if (weekPickerRef.current) {
+      const idx = Math.round(weekPickerRef.current.scrollTop / ITEM_H)
+      setInputWeeks(String(Math.min(42, Math.max(1, idx + 1))))
+    }
+  }
 
   const handleWeekSubmit = async () => {
     const weeks = parseInt(inputWeeks, 10)
@@ -109,146 +129,46 @@ export function Result() {
       return; // Skip analysis if we already have data
     }
     async function analyzeFood() {
-      if (!imageBase64) {
-        // Fallback to mock data if no image is provided (e.g., barcode scan)
-        const mockResult = {
-          status: "caution", // "success" | "caution" | "danger"
-          productName: "매콤달콤 떡볶이 스낵",
-          headline: "주의해서 확인해 주세요",
-          description: "임신 중 사용을 한 번 더 확인하는 것이 좋은 성분이 포함되어 있어요.",
-          ingredients: [
-            { name: "L-글루탐산나트륨", status: "caution", reason: "과다 섭취 시 임산부에게 두통이나 메스꺼움을 유발할 수 있어 주의가 필요해요." },
-            { name: "합성착향료", status: "caution", reason: "일부 합성착향료는 알레르기 반응을 일으킬 수 있어요." },
-            { name: "밀가루", status: "success", reason: "" },
-            { name: "정제염", status: "success", reason: "" },
-          ],
-          alternatives: [
-            { name: "우리밀 떡볶이 과자", brand: "자연드림", price: "2,500원" },
-            { name: "현미 떡볶이 스낵", brand: "올가홀푸드", price: "3,200원" },
-          ],
-          weekAnalysis: "현재 임신 16주차(중기)에는 나트륨 배출이 원활하지 않을 수 있어 짠 음식 섭취에 더욱 주의가 필요합니다. 해당 제품은 나트륨 함량이 높아 섭취량을 조절하시는 것을 권장합니다."
-        };
-        setResult(mockResult)
-        saveToTemporaryHistory(mockResult)
-        setIsLoading(false)
-        return
-      }
-
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
-        
-        // Extract base64 data without the prefix (e.g., "data:image/jpeg;base64,...")
-        const base64Data = imageBase64.includes(",") ? imageBase64.split(",")[1] : imageBase64
-        const mimeTypeMatch = imageBase64.match(/data:([^;]+);/)
-        const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : "image/jpeg"
-
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: {
-            parts: [
-              {
-                inlineData: {
-                  data: base64Data,
-                  mimeType: mimeType,
-                },
-              },
-              {
-                text: `이 사진에 있는 제품이 무엇인지 식별하고, 임산부가 섭취해도 안전한지 분석해줘.
-                만약 사진이 식료품이 아니거나 식별이 불가능하다면, 다음 중 가장 적절한 status를 선택해줘:
-                - "error_future_category": 일반 화장품, 일반의약품 등 마미스캔이 추후 지원할 예정인 카테고리인 경우
-                - "error_unsupported_category": 전문의약품, 식당 조리 음식 등 성분 판정 기준이 달라 지원하지 않는 카테고리인 경우
-                - "error_image_quality": 사진이 너무 흐리거나, 너무 어둡거나, 여러 제품이 찍혔거나, 제품이 없는 경우
-                - "error_db_mismatch": 바코드는 인식되나 제품을 도저히 알 수 없는 경우
-                
-                정상적으로 식별된 식료품인 경우 status를 "success", "caution", "danger" 중 하나로 설정해줘.
-                
-                ★중요★: 만약 위의 error_* status를 선택하더라도, 이미지 속 제품/음식이 무엇인지 대략적으로라도 식별할 수 있다면, productName, headline, description, ingredients, weekAnalysis에 정상적인 분석 정보를 최대한 작성해줘. 완전히 식별 불가능한 경우에만 description에 그 이유를 적어줘.
-                
-                ${hasWeekInfo ? `현재 사용자는 임신 ${pregnancyWeeks}주차입니다. description 작성 시, 이 주차의 임산부에게 맞는 맞춤형 섭취 조언을 자연스럽게 포함하여 하나의 문단으로 작성해줘. weekAnalysis 필드는 빈 문자열("")로 남겨둬.` : `일반적인 임산부 기준으로 섭취 조언을 weekAnalysis에 작성해줘.`}
-                다음 JSON 형식으로 응답해줘:
-                {
-                  "status": "success" | "caution" | "danger" | "error_future_category" | "error_unsupported_category" | "error_image_quality" | "error_db_mismatch",
-                  "productName": "식별된 식료품 이름 (식별 불가시 '알 수 없음')",
-                  "headline": "요약 헤드라인 (주의/위험 성분명 직접 언급 절대 금지. 예: 안심하고 드셔도 좋아요, 주의가 필요한 성분이 있어요 등)",
-                  "description": "임산부 섭취와 관련된 전반적인 설명 (주의/위험 성분명 직접 언급 절대 금지. 식별 불가시 그 이유를 짧게 작성. 예: '너무 어두워요', '여러 제품이 찍혔어요')",
-                  "ingredients": [
-                    { "name": "주요 성분/특징 1", "status": "success" | "caution" | "danger", "reason": "이유" }
-                  ],
-                  "alternatives": [
-                    { "name": "대체 식품 이름", "brand": "브랜드명 (없으면 일반명칭)", "price": "예상 가격대" }
-                  ],
-                  "weekAnalysis": "임신 주차에 따른 섭취 조언"
-                }`
-              }
-            ]
-          },
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                status: { type: Type.STRING, description: "success, caution, danger, error_future_category, error_unsupported_category, error_image_quality, error_db_mismatch" },
-                productName: { type: Type.STRING },
-                headline: { type: Type.STRING },
-                description: { type: Type.STRING },
-                ingredients: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      name: { type: Type.STRING },
-                      status: { type: Type.STRING },
-                      reason: { type: Type.STRING }
-                    },
-                    required: ["name", "status", "reason"]
-                  }
-                },
-                alternatives: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      name: { type: Type.STRING },
-                      brand: { type: Type.STRING },
-                      price: { type: Type.STRING }
-                    },
-                    required: ["name", "brand", "price"]
-                  }
-                },
-                weekAnalysis: { type: Type.STRING }
-              },
-              required: ["status", "productName", "headline", "description", "ingredients", "alternatives", "weekAnalysis"]
-            }
-          }
+        const token = localStorage.getItem('token')
+        const res = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64: imageBase64 || null,
+            barcode: barcode || null,
+            pregnancyWeeks: hasWeekInfo ? pregnancyWeeks : null
+          })
         })
-
-        const jsonStr = response.text?.trim()
-        if (jsonStr) {
-          const parsedResult = JSON.parse(jsonStr)
-          if (parsedResult.status.startsWith('error_')) {
-            setResult(parsedResult)
-          } else {
-            // Deduct scan if user is logged in
-            if (user) {
-              try {
-                const token = localStorage.getItem('token');
-                await fetch('/api/user/deduct-scan', {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${token}`
-                  }
-                });
-              } catch (e) {
-                console.error("Failed to deduct scan:", e);
-              }
-            } else {
-              saveToTemporaryHistory(parsedResult);
+        if (!res.ok) throw new Error("Server error")
+        const data = await res.json()
+        if (!data.success) throw new Error(data.message || "Analysis failed")
+        const parsedResult = data.result
+        if (!parsedResult.status.startsWith('error_')) {
+          if (user) {
+            const deductRes = await fetch('/api/user/deduct-scan', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` }
+            })
+            if (deductRes.status === 403) {
+              navigate('/pricing', { replace: true, state: { message: '남은 스캔 횟수가 없어요. 이용권을 충전해주세요.' } })
+              return
             }
-            setResult(parsedResult)
+            // Save to scan history
+            fetch('/api/scan/history', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({
+                productName: parsedResult.productName || '알 수 없는 제품',
+                status: parsedResult.status,
+                resultJson: parsedResult
+              })
+            }).catch(() => {})
+          } else {
+            saveToTemporaryHistory(parsedResult)
           }
-        } else {
-          throw new Error("No response from AI")
         }
+        setResult(parsedResult)
       } catch (err) {
         console.error("Analysis failed:", err)
         setError("분석 중 오류가 발생했습니다. 다시 시도해주세요.")
@@ -258,7 +178,7 @@ export function Result() {
     }
 
     analyzeFood()
-  }, [imageBase64])
+  }, [imageBase64, barcode])
 
   if (isLoading) {
     return (
@@ -392,7 +312,7 @@ export function Result() {
         </button>
       </header>
 
-      <main className="px-4 py-4 space-y-6">
+      <main className="px-4 py-5 space-y-5">
         {isError && (
           <div className="bg-neutral-bg rounded-xl p-4 flex items-start space-x-3 border border-border-subtle">
             <Info className="w-5 h-5 text-text-secondary shrink-0 mt-0.5" />
@@ -416,53 +336,101 @@ export function Result() {
         {/* Result Summary Card */}
         <Card className={`border-none shadow-none overflow-hidden ${
           isError ? 'bg-bg-surface border border-border-subtle' :
-          result.status === 'success' ? 'bg-success-bg' : 
+          result.status === 'success' ? 'bg-success-bg' :
           result.status === 'danger' ? 'bg-danger-bg' : 'bg-caution-bg'
         }`}>
-          <CardContent className="p-6 flex flex-col items-start">
-            <div className="flex items-center flex-wrap gap-2 mb-4">
-              <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent text-white ${
-                isError ? 'bg-text-secondary hover:bg-text-secondary/80' :
-                result.status === 'success' ? 'bg-success-fg hover:bg-success-fg/80' : 
-                result.status === 'danger' ? 'bg-danger-fg hover:bg-danger-fg/80' : 'bg-caution-fg hover:bg-caution-fg/80'
-              }`}>
-                {isError ? <Info className="w-3.5 h-3.5 mr-1" /> :
-                 result.status === 'success' ? <CheckCircle className="w-3.5 h-3.5 mr-1" /> : <AlertTriangle className="w-3.5 h-3.5 mr-1" />}
-                {isError ? '참고 정보' :
-                 result.status === 'success' ? '안전' : 
-                 result.status === 'danger' ? '위험' : '주의 필요'}
-              </div>
-              {hasWeekInfo && (
-                <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold shadow-sm ${
-                  isError ? 'bg-neutral-bg text-text-secondary' : 'bg-white/60 text-primary'
+          <CardContent className="p-5 flex flex-col">
+
+            {/* 상단: 뱃지 + 제품 이미지 */}
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center flex-wrap gap-2">
+                <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border-transparent text-white ${
+                  isError ? 'bg-text-secondary' :
+                  result.status === 'success' ? 'bg-success-fg' :
+                  result.status === 'danger' ? 'bg-danger-fg' : 'bg-caution-fg'
                 }`}>
-                  임신 {pregnancyWeeks}주차 맞춤
+                  {isError ? <Info className="w-3.5 h-3.5 mr-1" /> :
+                   result.status === 'success' ? <CheckCircle className="w-3.5 h-3.5 mr-1" /> :
+                   <AlertTriangle className="w-3.5 h-3.5 mr-1" />}
+                  {isError ? '참고 정보' : result.status === 'success' ? '안전' : result.status === 'danger' ? '위험' : '주의 필요'}
+                </div>
+                {hasWeekInfo && (
+                  <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                    isError ? 'bg-neutral-bg text-text-secondary' : 'bg-white/60 text-primary'
+                  }`}>
+                    임신 {pregnancyWeeks}주차 맞춤
+                  </div>
+                )}
+              </div>
+
+              {/* 제품 이미지 */}
+              {(result.imageUrl || imageBase64) && (
+                <div className="w-16 h-16 rounded-xl overflow-hidden bg-white/40 border border-white/40 shrink-0 ml-3">
+                  <img
+                    src={result.imageUrl || imageBase64}
+                    alt={result.productName}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                  />
                 </div>
               )}
             </div>
-            <h1 className={`text-[26px] leading-[35px] font-bold mb-2 ${
+
+            {/* 헤드라인 */}
+            <h1 className={`text-[24px] leading-[32px] font-bold mb-1 ${
               isError ? 'text-text-primary' :
-              result.status === 'success' ? 'text-success-fg' : 
+              result.status === 'success' ? 'text-success-fg' :
               result.status === 'danger' ? 'text-danger-fg' : 'text-caution-fg'
             }`}>
               {result.headline}
             </h1>
+
+            {/* 제품명 */}
             <p className={`text-sm font-medium mb-4 ${
               isError ? 'text-text-secondary' :
-              result.status === 'success' ? 'text-success-fg/80' : 
-              result.status === 'danger' ? 'text-danger-fg/80' : 'text-caution-fg/80'
+              result.status === 'success' ? 'text-success-fg/70' :
+              result.status === 'danger' ? 'text-danger-fg/70' : 'text-caution-fg/70'
             }`}>
               {result.productName}
             </p>
-            <p className="text-sm text-text-primary leading-relaxed">
+
+            {/* 설명 */}
+            <p className="text-sm text-text-primary leading-[1.75] tracking-tight">
               {result.description}
-              {hasWeekInfo && result.weekAnalysis && ` ${result.weekAnalysis}`}
             </p>
+
+            {/* 주차별 맞춤 조언 */}
+            {hasWeekInfo && result.weekAnalysis && (
+              <div className="mt-4 pt-4 border-t border-black/10 w-full space-y-1.5">
+                <div className="flex items-center space-x-1.5">
+                  <span className="text-sm">✨</span>
+                  <p className="text-xs font-bold text-primary">임신 {pregnancyWeeks}주차 맞춤 조언</p>
+                </div>
+                <p className="text-sm text-text-primary leading-[1.75] tracking-tight">{result.weekAnalysis}</p>
+              </div>
+            )}
+
+            {/* 주차 입력 CTA */}
+            {!hasWeekInfo && user && (
+              <button
+                onClick={() => setShowWeekModal(true)}
+                className="mt-4 w-full flex items-center justify-between px-4 py-3.5 bg-white/75 hover:bg-white/95 border border-white/80 rounded-2xl transition-all shadow-sm group"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0 text-lg">✨</div>
+                  <div className="text-left">
+                    <p className="text-sm font-bold text-text-primary">주차별 맞춤 분석 받기</p>
+                    <p className="text-[11px] text-text-secondary mt-0.5">임신 주차를 입력하면 딱 맞는 조언을 드려요</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-primary shrink-0 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            )}
           </CardContent>
         </Card>
 
         {/* Locked Content Area */}
-        <div className="relative mt-6">
+        <div className="relative">
           {!user && (
             <div className="absolute inset-0 z-20 flex flex-col items-center pt-12 pb-8 bg-gradient-to-b from-transparent via-bg-canvas/60 to-bg-canvas backdrop-blur-[2px]">
               <div className="bg-white/95 p-6 rounded-2xl shadow-xl border border-gray-100 flex flex-col items-center max-w-[280px] text-center sticky top-32">
@@ -482,7 +450,7 @@ export function Result() {
 
           <div className={!user ? "opacity-30 pointer-events-none select-none overflow-hidden max-h-[400px]" : ""}>
             {/* Ingredients Detail */}
-            <section className="space-y-4">
+            <section className="space-y-3">
               <div className="flex items-center justify-between px-1">
                 <h2 className="text-[18px] font-bold text-text-primary">
                   어떤 성분/특징 때문인가요?
@@ -494,7 +462,7 @@ export function Result() {
                 )}
               </div>
             
-            <div className="space-y-3 mt-4">
+            <div className="space-y-3">
               {!user ? (
                 // Fake data for non-logged-in users to keep it short and visually appealing
                 <>
@@ -559,52 +527,8 @@ export function Result() {
             </section>
 
         {/* Premium Features: Week Analysis & Alternatives */}
-        <section className="space-y-6 pt-4 border-t border-border-subtle">
+        <section className="space-y-3 mt-6">
           <div>
-            {/* Week Analysis */}
-            {!hasWeekInfo && (
-              <div className="space-y-3 mb-8 relative">
-                <div className="flex items-center justify-between px-1">
-                  <h2 className="text-[18px] font-bold text-text-primary">
-                    임신 주차별 맞춤 분석
-                  </h2>
-                </div>
-                <div className="relative">
-                  <div className={user ? "opacity-30 blur-[4px] pointer-events-none select-none" : ""}>
-                    <Card className="bg-primary/5 border-primary/20 shadow-sm">
-                      <CardContent className="p-4">
-                        <p className="text-sm text-text-primary leading-relaxed">
-                          현재 임신 주차에 따른 맞춤형 섭취 가이드와 주의사항을 상세하게 분석하여 제공해 드립니다. 개인화된 리포트를 확인해보세요.
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  {user && (
-                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-4">
-                      <div className="bg-white/90 p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center max-w-[260px]">
-                        <div className="bg-primary/10 p-2 rounded-full mb-2">
-                          <Info className="w-5 h-5 text-primary" />
-                        </div>
-                        <p className="text-[15px] font-bold text-gray-900 mb-1">
-                          임신 주차를 알려주세요
-                        </p>
-                        <p className="text-xs text-gray-600 mb-4 leading-relaxed">
-                          주차를 입력하면 우리 아이 발달 단계에 맞춘<br/>더 정확한 섭취 가이드를 제공해드려요.
-                        </p>
-                        <Button 
-                          size="sm" 
-                          onClick={() => setShowWeekModal(true)}
-                          className="w-full h-9 text-xs font-bold rounded-xl"
-                        >
-                          주차 입력하기
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Alternatives Section */}
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
@@ -670,7 +594,7 @@ export function Result() {
       </div>
 
         {/* Disclaimer */}
-        <section className="pt-6 pb-8">
+        <section className="pt-3 pb-4">
           <div className="bg-neutral-bg rounded-xl p-4 flex items-start space-x-3">
             <Info className="w-5 h-5 text-text-secondary shrink-0 mt-0.5" />
             <p className="text-[12px] leading-relaxed text-text-secondary">
@@ -733,47 +657,62 @@ export function Result() {
         </div>
       )}
 
-      {/* Pregnancy Weeks Modal */}
+      {/* Pregnancy Weeks Modal — Bottom Sheet Dial */}
       {showWeekModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-bg-canvas w-full max-w-sm rounded-2xl p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
-            <button 
-              onClick={() => setShowWeekModal(false)}
-              className="absolute top-4 right-4 p-1 text-text-secondary hover:text-text-primary transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <h3 className="text-lg font-bold text-text-primary mb-2 flex items-center">
-              <Info className="w-5 h-5 mr-2 text-primary" />
-              임신 주차 입력
-            </h3>
-            <p className="text-sm text-text-secondary mb-6 leading-relaxed">
-              현재 임신 주차를 알려주시면, 우리 아이 발달 단계에 맞춘 더 정확하고 개인화된 섭취 가이드를 제공해드려요.
-            </p>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-text-primary mb-2">현재 임신 주차 (1~42주)</label>
-                <div className="flex items-center space-x-2">
-                  <input 
-                    type="number"
-                    min="1"
-                    max="42"
-                    value={inputWeeks}
-                    onChange={(e) => setInputWeeks(e.target.value)}
-                    placeholder="예: 16"
-                    className="flex-1 h-12 px-4 bg-bg-surface border border-border-subtle rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                  <span className="text-text-secondary font-medium">주차</span>
-                </div>
-              </div>
-              
-              <Button 
-                onClick={handleWeekSubmit}
-                disabled={isSubmittingWeeks || !inputWeeks}
-                className="w-full font-bold py-3 rounded-xl mt-2"
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowWeekModal(false)}
+        >
+          <div
+            className="bg-bg-canvas w-full rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-border-subtle rounded-full" />
+            </div>
+
+            <div className="px-6 pt-3 pb-2 text-center">
+              <h3 className="text-lg font-bold text-text-primary">몇 주차이세요?</h3>
+              <p className="text-xs text-text-secondary mt-1">주차에 맞는 맞춤 분석을 드릴게요</p>
+            </div>
+
+            {/* Dial */}
+            <div className="relative mx-auto w-48 h-[168px] overflow-hidden">
+              {/* Top fade */}
+              <div className="absolute top-0 left-0 right-0 h-14 bg-gradient-to-b from-bg-canvas to-transparent pointer-events-none z-10" />
+              {/* Bottom fade */}
+              <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-bg-canvas to-transparent pointer-events-none z-10" />
+              {/* Selection band */}
+              <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-14 border-y-2 border-primary/30 bg-primary/5 pointer-events-none z-10 rounded-xl" />
+
+              <div
+                ref={weekPickerRef}
+                onScroll={handlePickerScroll}
+                className="h-full overflow-y-scroll"
+                style={{ scrollSnapType: 'y mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none', paddingTop: 56, paddingBottom: 56 }}
               >
-                {isSubmittingWeeks ? <Loader2 className="w-5 h-5 animate-spin" /> : "입력 완료"}
+                {Array.from({ length: 42 }, (_, i) => i + 1).map((w) => (
+                  <div
+                    key={w}
+                    style={{ scrollSnapAlign: 'center', height: ITEM_H }}
+                    className={`flex items-center justify-center text-2xl font-bold transition-colors ${
+                      parseInt(inputWeeks) === w ? 'text-primary' : 'text-text-secondary/40'
+                    }`}
+                  >
+                    {w}주차
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="px-6 pb-8 pt-4">
+              <Button
+                onClick={handleWeekSubmit}
+                disabled={isSubmittingWeeks}
+                className="w-full font-bold h-12 rounded-2xl text-base"
+              >
+                {isSubmittingWeeks ? <Loader2 className="w-5 h-5 animate-spin" /> : "저장하기"}
               </Button>
             </div>
           </div>
