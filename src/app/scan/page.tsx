@@ -82,7 +82,7 @@ export default function ScanPage() {
               if (!isMounted) return;
               if (result && !isScanningRef.current) {
                 const barcode = result.getText().trim();
-                if (!barcode) return; // 빈 문자열 바코드 무시
+                if (!barcode || barcode.length < 8) return; // 빈 문자열 또는 부분 읽기 무시 (EAN/UPC 최소 8자리)
                 if (!hasCredits) { handleNoCredits(); return; }
                 isScanningRef.current = true;
                 setIsScanning(true);
