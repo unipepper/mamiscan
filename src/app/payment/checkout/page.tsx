@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { PLANS, type PlanType } from '@/lib/toss/plans';
@@ -27,7 +27,7 @@ interface TossWidgets {
   }) => Promise<void>;
 }
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const planType = (searchParams.get('plan') ?? 'scan5') as PlanType;
@@ -103,6 +103,7 @@ export default function CheckoutPage() {
   if (!plan) return null;
 
   return (
+
     <div className="min-h-screen bg-white">
       <div className="max-w-md mx-auto px-4 py-8">
         <button onClick={() => router.back()} className="text-sm text-gray-500 mb-6">← 뒤로</button>
@@ -130,5 +131,17 @@ export default function CheckoutPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <CheckoutContent />
+    </Suspense>
   );
 }

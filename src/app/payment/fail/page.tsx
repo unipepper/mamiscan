@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 const MESSAGES: Record<string, { title: string; desc: string }> = {
@@ -13,7 +14,7 @@ const MESSAGES: Record<string, { title: string; desc: string }> = {
   },
 };
 
-export default function PaymentFailPage() {
+function PaymentFailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const code = searchParams.get('code') ?? '';
@@ -49,5 +50,13 @@ export default function PaymentFailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PaymentFailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <PaymentFailContent />
+    </Suspense>
   );
 }

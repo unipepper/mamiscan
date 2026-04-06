@@ -78,7 +78,7 @@ export default function ScanPage() {
           videoRef.current.setAttribute('playsinline', 'true');
           try { await videoRef.current.play(); } catch (e: any) { if (e.name !== 'AbortError') console.error(e); }
           if (isMounted) {
-            codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result, err) => {
+            codeReader.decodeFromVideoDevice(null, videoRef.current, (result, err) => {
               if (!isMounted) return;
               if (result && !isScanningRef.current) {
                 const barcode = result.getText().trim();

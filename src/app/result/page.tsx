@@ -66,8 +66,10 @@ function ResultContent() {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       setAuthUser(user);
+      let prof: any = null;
       if (user) {
-        const { data: prof } = await supabase.from('users').select('*').eq('id', user.id).single();
+        const { data: profData } = await supabase.from('users').select('*').eq('id', user.id).single();
+        prof = profData;
         setUserProfile(prof);
       }
 
