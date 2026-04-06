@@ -73,13 +73,22 @@ export async function POST(req: Request) {
   // 스캔 크레딧/구독 회수
   const planType = tx.order_id?.split('-')[0];
   if (planType === 'scan5') {
-    await supabase
+    // scan_credits는 transactions보다 먼저 INSERT되므로 created_at이 더 이른 시각임
+    // SELECT로 ID를 특정한 뒤 DELETE (PostgREST DELETE는 order/limit 미지원)
+    const tenSecondsEarlier = new Date(new Date(tx.created_at).getTime() - 10000).toISOString();
+    const { data: credit } = await supabase
       .from('scan_credits')
-      .delete()
+      .select('id')
       .eq('user_id', user.id)
-      .gte('created_at', tx.created_at)
+      .gte('created_at', tenSecondsEarlier)
+      .lte('created_at', tx.created_at)
       .order('created_at', { ascending: false })
-      .limit(1);
+      .limit(1)
+      .single();
+
+    if (credit) {
+      await supabase.from('scan_credits').delete().eq('id', credit.id);
+    }
   } else if (planType === 'monthly') {
     await supabase
       .from('users')
