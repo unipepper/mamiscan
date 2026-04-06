@@ -84,6 +84,19 @@ export default function ScanPage() {
                 const barcode = result.getText().trim();
                 if (!barcode || barcode.length < 8) return; // 빈 문자열 또는 부분 읽기 무시 (EAN/UPC 최소 8자리)
                 if (!hasCredits) { handleNoCredits(); return; }
+                // 바코드 감지와 동시에 현재 프레임 캡처 (DB 미스 시 Gemini 폴백용)
+                try {
+                  if (videoRef.current && videoRef.current.videoWidth > 0) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = videoRef.current.videoWidth;
+                    canvas.height = videoRef.current.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                      ctx.drawImage(videoRef.current, 0, 0);
+                      sessionStorage.setItem('scanImage', canvas.toDataURL('image/jpeg', 0.6));
+                    }
+                  }
+                } catch {}
                 isScanningRef.current = true;
                 setIsScanning(true);
                 setTimeout(() => router.push('/result?barcode=' + encodeURIComponent(barcode)), 1500);

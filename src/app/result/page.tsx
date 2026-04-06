@@ -26,6 +26,7 @@ function ResultContent() {
   const [inputWeeks, setInputWeeks] = useState('12');
   const [isSubmittingWeeks, setIsSubmittingWeeks] = useState(false);
   const weekPickerRef = useRef<HTMLDivElement>(null);
+  const hasAnalyzedRef = useRef(false);
   const ITEM_H = 56;
 
   useEffect(() => {
@@ -39,6 +40,9 @@ function ResultContent() {
   }, [showWeekModal]);
 
   useEffect(() => {
+    if (hasAnalyzedRef.current) return;
+    hasAnalyzedRef.current = true;
+
     // Check for existing result data (from history navigation)
     const existing = sessionStorage.getItem('resultData');
     if (existing) {

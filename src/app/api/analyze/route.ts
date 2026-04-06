@@ -197,8 +197,8 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id ?? null;
 
-    // ── 바코드 전용 분석 ──
-    if (!imageBase64 && barcode) {
+    // ── 바코드 우선 분석 (이미지가 함께 있어도 바코드 먼저 시도) ──
+    if (barcode) {
       const cacheKey = `barcode:${barcode}`;
 
       // 1. 캐시 확인
@@ -242,51 +242,57 @@ export async function POST(req: Request) {
       const product = await lookupBarcode(barcode, supabase);
 
       if (!product) {
-        // 판정 불가 로그 저장 (fire-and-forget)
-        saveUnsupportedLog(supabase, {
-          userId,
-          uploadType: 'barcode',
-          failureReason: 'db_no_match',
-          productHint: barcode,
-        }).catch(() => {});
+        if (!imageBase64) {
+          // 이미지 폴백 없음 → error_db_mismatch
+          saveUnsupportedLog(supabase, {
+            userId,
+            uploadType: 'barcode',
+            failureReason: 'db_no_match',
+            productHint: barcode,
+          }).catch(() => {});
 
-        return NextResponse.json({
-          success: true,
-          result: {
-            status: 'error_db_mismatch',
-            productName: '알 수 없는 제품',
-            headline: '데이터베이스에 없는 제품이에요',
-            description: '바코드가 인식되었지만 식품 DB에 등록되지 않은 제품이에요. 사진 촬영으로 다시 시도해 보세요.',
-            ingredients: [],
-            alternatives: [],
-            weekAnalysis: '',
-          },
-        });
+          return NextResponse.json({
+            success: true,
+            result: {
+              status: 'error_db_mismatch',
+              productName: '알 수 없는 제품',
+              headline: '데이터베이스에 없는 제품이에요',
+              description: '바코드가 인식되었지만 식품 DB에 등록되지 않은 제품이에요. 사진 촬영으로 다시 시도해 보세요.',
+              ingredients: [],
+              alternatives: [],
+              weekAnalysis: '',
+            },
+          });
+        }
+        // imageBase64 있음 → 이미지 분석으로 폴백 (fall through)
+      } else {
+        // 3. 룰 매칭 1차 판정 + Gemini 분석
+        const matchedIngredients = product.rawIngredients
+          ? await matchIngredientRules(supabase, product.rawIngredients)
+          : [];
+        const result = await callGeminiBarcode(product, pregnancyWeeks, matchedIngredients);
+        if (product.imageUrl) result.imageUrl = product.imageUrl;
+
+        // 4. 캐시 저장 (weekAnalysis 제외, imageUrl 제외)
+        const cacheResult = { ...result };
+        delete cacheResult.weekAnalysis;
+        delete cacheResult.imageUrl;
+
+        supabase.from('product_cache').insert({
+          cache_key: cacheKey,
+          product_name: product.productName,
+          result_json: cacheResult,
+          hit_count: 0,
+        }).then(() => {});
+
+        return NextResponse.json({ success: true, result });
       }
-
-      // 3. 룰 매칭 1차 판정 + Gemini 분석
-      const matchedIngredients = product.rawIngredients
-        ? await matchIngredientRules(supabase, product.rawIngredients)
-        : [];
-      const result = await callGeminiBarcode(product, pregnancyWeeks, matchedIngredients);
-      if (product.imageUrl) result.imageUrl = product.imageUrl;
-
-      // 4. 캐시 저장 (weekAnalysis 제외, imageUrl 제외)
-      const cacheResult = { ...result };
-      delete cacheResult.weekAnalysis;
-      delete cacheResult.imageUrl;
-
-      supabase.from('product_cache').insert({
-        cache_key: cacheKey,
-        product_name: product.productName,
-        result_json: cacheResult,
-        hit_count: 0,
-      }).then(() => {});
-
-      return NextResponse.json({ success: true, result });
     }
 
-    // ── 이미지 분석 ──
+    // ── 이미지 분석 (순수 이미지 촬영 또는 바코드 DB 미스 폴백) ──
+    if (!imageBase64) {
+      return NextResponse.json({ error: 'no_input' }, { status: 400 });
+    }
     const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
     const mimeTypeMatch = imageBase64.match(/data:([^;]+);/);
     const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
