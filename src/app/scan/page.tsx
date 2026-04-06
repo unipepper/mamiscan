@@ -81,10 +81,11 @@ export default function ScanPage() {
             codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result, err) => {
               if (!isMounted) return;
               if (result && !isScanningRef.current) {
+                const barcode = result.getText().trim();
+                if (!barcode) return; // 빈 문자열 바코드 무시
                 if (!hasCredits) { handleNoCredits(); return; }
                 isScanningRef.current = true;
                 setIsScanning(true);
-                const barcode = result.getText();
                 setTimeout(() => router.push('/result?barcode=' + encodeURIComponent(barcode)), 1500);
               }
               if (err && !(err instanceof NotFoundException)) {

@@ -11,7 +11,7 @@ import { Suspense } from 'react';
 function ResultContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const barcode = searchParams.get('barcode');
+  const barcode = searchParams.get('barcode') || null; // 빈 문자열을 null로 처리
 
   const [authUser, setAuthUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
