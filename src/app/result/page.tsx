@@ -29,6 +29,15 @@ function ResultContent() {
   const hasAnalyzedRef = useRef(false);
   const ITEM_H = 56;
 
+  // sessionStorage 읽기를 동기적으로 수행 (useState 초기화 함수는 React 18에서 한 번만 실행됨)
+  // 비동기 체인 내부에서 읽으면 StrictMode 이중 실행 시 두 번째 콜백이 이미 삭제된 값을 읽는 레이스 컨디션 발생
+  const [scanImage] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const img = sessionStorage.getItem('scanImage');
+    if (img) sessionStorage.removeItem('scanImage');
+    return img;
+  });
+
   useEffect(() => {
     if (showWeekModal) {
       setTimeout(() => {
@@ -62,10 +71,7 @@ function ResultContent() {
         setUserProfile(prof);
       }
 
-      const imageBase64 = sessionStorage.getItem('scanImage');
-      if (imageBase64) sessionStorage.removeItem('scanImage');
-
-      if (!barcode && !imageBase64) {
+      if (!barcode && !scanImage) {
         setError('스캔 데이터가 없어요. 다시 촬영해 주세요.');
         setIsLoading(false);
         return;
@@ -77,7 +83,7 @@ function ResultContent() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             barcode: barcode || null,
-            imageBase64: imageBase64 || null,
+            imageBase64: scanImage || null,
             pregnancyWeeks: prof?.pregnancy_weeks ?? null,
           }),
         });
@@ -120,7 +126,7 @@ function ResultContent() {
         setIsLoading(false);
       }
     });
-  }, [barcode]);
+  }, [barcode, scanImage]);
 
   const isPremium = userProfile?.subscription_status === 'active';
   const pregnancyWeeks = userProfile?.pregnancy_weeks;
