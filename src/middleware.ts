@@ -37,8 +37,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // 이미 로그인된 상태에서 /login 접근 → 홈으로
-  if (pathname === '/login' && user) {
+  // 이미 로그인된 상태에서 /login 또는 /onboarding 접근 → 홈으로
+  if ((pathname === '/login' || pathname === '/onboarding') && user) {
     return NextResponse.redirect(new URL('/home', request.url));
   }
 

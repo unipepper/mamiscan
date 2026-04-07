@@ -6,7 +6,7 @@ export default async function RootPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect('/login');
+    redirect('/onboarding');
   }
 
   // 로그인된 경우 홈으로 (Day 2에 실제 홈 페이지 구현)
