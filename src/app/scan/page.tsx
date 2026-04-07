@@ -53,6 +53,13 @@ export default function ScanPage() {
   const guestRemaining = GUEST_LIMIT - guestScansUsed;
   const hasCredits = authUser ? (isActive || remainingScans > 0) : guestRemaining > 0;
 
+  const incrementGuestCount = () => {
+    if (authUser) return;
+    const next = guestScansUsed + 1;
+    localStorage.setItem(GUEST_KEY, String(next));
+    setGuestScansUsed(next);
+  };
+
   const handleNoCredits = () => {
     if (!authUser) {
       setToastMessage('무료 체험 3회를 모두 사용했어요. 로그인하고 계속 이용해보세요!');
@@ -99,6 +106,7 @@ export default function ScanPage() {
                 } catch {}
                 isScanningRef.current = true;
                 setIsScanning(true);
+                incrementGuestCount();
                 setTimeout(() => router.push('/result?barcode=' + encodeURIComponent(barcode)), 1500);
               }
               if (err && !(err instanceof NotFoundException)) {
@@ -145,6 +153,7 @@ export default function ScanPage() {
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         const base64Image = canvas.toDataURL('image/jpeg', 0.8);
         sessionStorage.setItem('scanImage', base64Image);
+        incrementGuestCount();
         router.push('/result');
       }
     } catch {
@@ -171,10 +180,12 @@ export default function ScanPage() {
           try {
             const result = await codeReaderRef.current!.decodeFromImageElement(img);
             const barcode = result.getText();
+            incrementGuestCount();
             setTimeout(() => router.push('/result?barcode=' + encodeURIComponent(barcode)), 1500);
           } catch {
             setToastMessage('바코드를 찾지 못해 식료품 AI 분석으로 전환합니다.');
             sessionStorage.setItem('scanImage', dataUrl);
+            incrementGuestCount();
             setTimeout(() => router.push('/result'), 2000);
           }
         };
