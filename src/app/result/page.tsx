@@ -370,6 +370,7 @@ function ResultContent() {
 
           <div className={!authUser ? 'opacity-30 pointer-events-none select-none overflow-hidden max-h-[400px]' : ''}>
             {/* Ingredients */}
+            {!isError && (
             <section className="space-y-3">
               <div className="flex items-center justify-between px-1">
                 <h2 className="text-[18px] font-bold text-text-primary">어떤 성분/특징 때문인가요?</h2>
@@ -420,6 +421,7 @@ function ResultContent() {
                 )}
               </div>
             </section>
+            )}
 
             {/* Alternatives */}
             <section className="space-y-3 mt-6">
