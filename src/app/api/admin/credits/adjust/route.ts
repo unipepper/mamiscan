@@ -39,6 +39,7 @@ export async function POST(req: Request) {
         user_id: userId,
         count: delta,
         expires_at: expiresAt.toISOString(),
+        source: 'admin_adjust',
       });
     }
   } else {

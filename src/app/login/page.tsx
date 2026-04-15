@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const supabase = createClient();
+  const router = useRouter();
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loading, setLoading] = useState<'google' | 'kakao' | null>(null);
 
@@ -80,6 +82,13 @@ export default function LoginPage() {
             <p className="text-center text-sm text-red-500">{loginError}</p>
           )}
         </div>
+
+        <button
+          onClick={() => router.push('/home')}
+          className="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition py-1"
+        >
+          로그인 없이 둘러보기
+        </button>
       </div>
     </div>
   );

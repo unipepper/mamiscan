@@ -58,12 +58,34 @@ export async function POST(req: Request) {
     new Date(prof.subscription_expires_at) > new Date();
 
   // 6. DB 업데이트
+  // scan5는 transaction INSERT 후 ID를 받아 scan_credits에 연결
+  let transactionId: number | null = null;
+
   if (planType === 'scan5') {
     const grant = plan.grant as { type: 'scan'; count: number; validDays: number };
 
+    // transaction 먼저 INSERT → ID 획득
+    const scanCount = grant.count;
+    const { data: txData, error: txError } = await supabase.from('transactions').insert({
+      user_id: user.id,
+      order_id: orderId,
+      payment_key: paymentKey,
+      type: 'purchase',
+      amount,
+      description: plan.orderName,
+      price_krw: amount,
+      count: scanCount,
+      status: 'completed',
+    }).select('id').single();
+
+    if (txError || !txData) {
+      console.error('transactions insert error:', txError);
+      return NextResponse.json({ error: 'db_error' }, { status: 500 });
+    }
+    transactionId = txData.id;
+
     let expiresAt: Date;
     if (isActiveSub) {
-      // Case 2: 무제한 이용 중 스캔권 구매 → 무제한 만료 후 14일
       expiresAt = new Date(prof!.subscription_expires_at!);
       expiresAt.setDate(expiresAt.getDate() + grant.validDays);
     } else {
@@ -75,6 +97,7 @@ export async function POST(req: Request) {
       user_id: user.id,
       count: grant.count,
       expires_at: expiresAt.toISOString(),
+      transaction_id: transactionId,
     });
     if (insertError) {
       console.error('scan_credits insert error:', insertError);
@@ -136,22 +159,20 @@ export async function POST(req: Request) {
     }
   }
 
-  // 6. transactions INSERT
-  const scanCount = planType === 'scan5'
-    ? (plan.grant as { type: 'scan'; count: number; validDays: number }).count
-    : null; // null = 무제한
-
-  await supabase.from('transactions').insert({
-    user_id: user.id,
-    order_id: orderId,
-    payment_key: paymentKey,
-    type: 'purchase',
-    amount,
-    description: plan.orderName,
-    price_krw: amount,
-    count: scanCount,
-    status: 'completed',
-  });
+  // scan5는 위에서 이미 INSERT 완료, monthly만 여기서 INSERT
+  if (planType !== 'scan5') {
+    await supabase.from('transactions').insert({
+      user_id: user.id,
+      order_id: orderId,
+      payment_key: paymentKey,
+      type: 'purchase',
+      amount,
+      description: plan.orderName,
+      price_krw: amount,
+      count: null,
+      status: 'completed',
+    });
+  }
 
   return NextResponse.json({ success: true, planType });
 }

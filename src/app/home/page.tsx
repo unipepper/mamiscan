@@ -27,7 +27,7 @@ export default function HomePage() {
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) { router.replace('/login'); return; }
+      if (!user) { setLoading(false); return; }
 
       const [{ data: prof }, { data: credits }] = await Promise.all([
         supabase.from('users').select('*').eq('id', user.id).single(),
@@ -60,27 +60,60 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Scan Status Banner */}
+      {/* Top Utility Area */}
       <div className="px-4 pt-4 space-y-2">
-        {isActive ? (
-          <div className="bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-center space-x-2">
-            <ShieldCheck className="w-5 h-5 text-primary" />
-            <span className="text-sm font-medium text-text-primary">무제한 스캔 이용 중</span>
-          </div>
-        ) : (
+        {!profile ? (
           <div
-            className="bg-secondary/10 border border-secondary/20 rounded-xl p-3 flex items-center justify-between cursor-pointer"
-            onClick={() => router.push('/pricing')}
+            className="bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-center justify-between cursor-pointer"
+            onClick={() => router.push('/login')}
           >
             <div className="flex items-center space-x-2">
-              <Scan className="w-5 h-5 text-secondary" />
-              <span className="text-sm font-medium text-text-primary">
-                남은 스캔 횟수: <strong className="text-secondary">{remainingScans}회</strong>
-              </span>
+              <ShieldCheck className="w-5 h-5 text-primary" />
+              <span className="text-sm font-medium text-text-primary">로그인하고 무료로 시작하기</span>
             </div>
-            <span className="text-xs font-bold text-secondary bg-white px-2 py-1 rounded-full shadow-sm">충전하기</span>
+            <span className="text-xs font-bold text-primary bg-white px-2 py-1 rounded-full shadow-sm">시작하기</span>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            {/* 임신 주차 */}
+            <button
+              onClick={() => router.push('/settings')}
+              className="flex-1 flex items-center gap-2 bg-bg-surface border border-border-subtle rounded-xl px-3 py-2.5 hover:bg-neutral-bg transition-colors"
+            >
+              <Calendar className="w-4 h-4 text-primary shrink-0" />
+              <div className="text-left min-w-0">
+                <p className="text-[10px] text-text-secondary leading-none mb-0.5">임신 주차</p>
+                <p className="text-sm font-bold text-text-primary leading-none truncate">
+                  {profile.pregnancy_weeks ? `${profile.pregnancy_weeks}주차` : '설정하기'}
+                </p>
+              </div>
+            </button>
+
+            {/* 남은 스캔 / 무제한 */}
+            <button
+              onClick={() => router.push(isActive ? '/billing-history' : '/pricing')}
+              className="flex-1 flex items-center justify-between gap-2 bg-bg-surface border border-border-subtle rounded-xl px-3 py-2.5 hover:bg-neutral-bg transition-colors"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                {isActive ? (
+                  <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+                ) : (
+                  <Scan className="w-4 h-4 text-secondary shrink-0" />
+                )}
+                <div className="text-left min-w-0">
+                  <p className="text-[10px] text-text-secondary leading-none mb-0.5">남은 스캔</p>
+                  <p className={`text-sm font-bold leading-none truncate ${isActive ? 'text-primary' : 'text-secondary'}`}>
+                    {isActive ? '무제한' : `${remainingScans}회`}
+                  </p>
+                </div>
+              </div>
+              {!isActive && (
+                <span className="text-[10px] font-bold text-secondary bg-secondary/10 px-1.5 py-0.5 rounded-full shrink-0">충전</span>
+              )}
+            </button>
           </div>
         )}
+
         {hasPendingMonthly && (
           <div className="bg-caution/10 border border-caution/20 rounded-xl p-3 flex items-center space-x-2">
             <CheckCircle2 className="w-5 h-5 text-caution shrink-0" />
@@ -102,7 +135,7 @@ export default function HomePage() {
             <p className="text-sm text-text-secondary mb-5 max-w-[240px]">
               임산부 기준 성분 분석부터 안전한 대체 제품 추천까지 5초면 충분해요.
             </p>
-            <Button className="w-full h-12 text-base font-semibold shadow-md" onClick={() => router.push('/scan')}>
+            <Button className="w-full h-12 text-base font-semibold shadow-md" onClick={() => router.push(profile ? '/scan' : '/login')}>
               <Scan className="mr-2 h-5 w-5" />
               5초 안에 확인하기
             </Button>
@@ -154,61 +187,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* My Info */}
-      <section className="px-4 py-6 space-y-4">
-        <h3 className="text-[18px] font-bold text-text-primary px-1">내 정보</h3>
-
-        <Card
-          className="bg-bg-surface border-border-subtle shadow-sm cursor-pointer hover:bg-neutral-bg transition-colors"
-          onClick={() => router.push('/settings')}
-        >
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="bg-primary/10 p-2 rounded-full">
-                <Calendar className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <span className="font-medium text-text-primary block">현재 임신 주차</span>
-                <span className="text-sm text-text-secondary">
-                  {profile?.pregnancy_weeks ? `${profile.pregnancy_weeks}주차` : '설정하기'}
-                </span>
-              </div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-text-secondary" />
-          </CardContent>
-        </Card>
-
-        <Card
-          className="bg-bg-surface border-border-subtle shadow-sm cursor-pointer hover:bg-neutral-bg transition-colors"
-          onClick={() => router.push('/pricing')}
-        >
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="bg-secondary/10 p-2 rounded-full">
-                <Star className="w-5 h-5 text-secondary" />
-              </div>
-              <div>
-                {isActive ? (
-                  <>
-                    <span className="font-medium text-text-primary block mb-1">1개월 무제한 이용권</span>
-                    {profile?.subscription_expires_at && (
-                      <p className="text-xs text-text-secondary">
-                        남은 기간: {Math.max(0, Math.ceil((new Date(profile.subscription_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))}일
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <span className="font-medium text-text-primary block">남은 스캔 횟수</span>
-                    <span className="text-sm font-bold text-secondary">{remainingScans}회</span>
-                  </>
-                )}
-              </div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-text-secondary" />
-          </CardContent>
-        </Card>
-      </section>
 
       <BottomNav />
     </div>

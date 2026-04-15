@@ -28,6 +28,7 @@ export async function GET(request: Request) {
             user_id: user.id,
             count: 3,
             expires_at: expiresAt.toISOString(),
+            source: 'signup_bonus',
           }),
           supabase.from('transactions').insert({
             user_id: user.id,
