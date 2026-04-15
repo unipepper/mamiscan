@@ -45,11 +45,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err.code, message: err.message }, { status: 400 });
   }
 
-  // 5. DB 업데이트
+  // 5. 현재 유저 구독 상태 조회 (중첩 케이스 처리용)
+  const { data: prof } = await supabase
+    .from('users')
+    .select('subscription_status, subscription_expires_at')
+    .eq('id', user.id)
+    .single();
+
+  const isActiveSub =
+    prof?.subscription_status === 'active' &&
+    prof?.subscription_expires_at &&
+    new Date(prof.subscription_expires_at) > new Date();
+
+  // 6. DB 업데이트
   if (planType === 'scan5') {
     const grant = plan.grant as { type: 'scan'; count: number; validDays: number };
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + grant.validDays);
+
+    let expiresAt: Date;
+    if (isActiveSub) {
+      // Case 2: 무제한 이용 중 스캔권 구매 → 무제한 만료 후 14일
+      expiresAt = new Date(prof!.subscription_expires_at!);
+      expiresAt.setDate(expiresAt.getDate() + grant.validDays);
+    } else {
+      expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + grant.validDays);
+    }
 
     const { error: insertError } = await supabase.from('scan_credits').insert({
       user_id: user.id,
@@ -62,19 +82,57 @@ export async function POST(req: Request) {
     }
   } else if (planType === 'monthly') {
     const grant = plan.grant as { type: 'subscription'; days: number };
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + grant.days);
 
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({
-        subscription_status: 'active',
-        subscription_expires_at: expiresAt.toISOString(),
-      })
-      .eq('id', user.id);
-    if (updateError) {
-      console.error('users update error:', updateError);
-      return NextResponse.json({ error: 'db_error' }, { status: 500 });
+    if (isActiveSub) {
+      // Case 3: 무제한 이용 중 무제한 구매 → 현재 만료일에 30일 추가 (스택)
+      const newExpiresAt = new Date(prof!.subscription_expires_at!);
+      newExpiresAt.setDate(newExpiresAt.getDate() + grant.days);
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ subscription_expires_at: newExpiresAt.toISOString() })
+        .eq('id', user.id);
+      if (updateError) {
+        console.error('users update error (case3):', updateError);
+        return NextResponse.json({ error: 'db_error' }, { status: 500 });
+      }
+    } else {
+      // 유효한 스캔권이 있는지 확인 (Case 1)
+      const { data: activeCredits } = await supabase
+        .from('scan_credits')
+        .select('id')
+        .eq('user_id', user.id)
+        .gt('expires_at', new Date().toISOString())
+        .gt('count', 0)
+        .limit(1);
+
+      if (activeCredits && activeCredits.length > 0) {
+        // Case 1: 스캔권 잔여 중 무제한 구매 → 대기 등록 (스캔권 소진/만료 후 자동 활성화)
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ pending_monthly_at: new Date().toISOString() })
+          .eq('id', user.id);
+        if (updateError) {
+          console.error('users update error (case1):', updateError);
+          return NextResponse.json({ error: 'db_error' }, { status: 500 });
+        }
+      } else {
+        // 일반 케이스: 즉시 활성화
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + grant.days);
+
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            subscription_status: 'active',
+            subscription_expires_at: expiresAt.toISOString(),
+          })
+          .eq('id', user.id);
+        if (updateError) {
+          console.error('users update error:', updateError);
+          return NextResponse.json({ error: 'db_error' }, { status: 500 });
+        }
+      }
     }
   }
 

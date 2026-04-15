@@ -15,6 +15,7 @@ interface UserProfile {
   pregnancy_weeks: number | null;
   subscription_status: string;
   subscription_expires_at: string | null;
+  pending_monthly_at: string | null;
 }
 
 export default function HomePage() {
@@ -48,6 +49,7 @@ export default function HomePage() {
   }
 
   const isActive = profile?.subscription_status === 'active';
+  const hasPendingMonthly = !!profile?.pending_monthly_at;
 
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas pb-20">
@@ -59,7 +61,7 @@ export default function HomePage() {
       </header>
 
       {/* Scan Status Banner */}
-      <div className="px-4 pt-4">
+      <div className="px-4 pt-4 space-y-2">
         {isActive ? (
           <div className="bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-center space-x-2">
             <ShieldCheck className="w-5 h-5 text-primary" />
@@ -77,6 +79,14 @@ export default function HomePage() {
               </span>
             </div>
             <span className="text-xs font-bold text-secondary bg-white px-2 py-1 rounded-full shadow-sm">충전하기</span>
+          </div>
+        )}
+        {hasPendingMonthly && (
+          <div className="bg-caution/10 border border-caution/20 rounded-xl p-3 flex items-center space-x-2">
+            <CheckCircle2 className="w-5 h-5 text-caution shrink-0" />
+            <span className="text-sm text-text-primary">
+              스캔권 소진 후 <strong>1개월 무제한 이용권</strong>이 자동으로 시작돼요
+            </span>
           </div>
         )}
       </div>

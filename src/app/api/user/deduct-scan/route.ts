@@ -9,7 +9,7 @@ export async function POST() {
   // 무제한 이용권이면 차감 불필요
   const { data: prof } = await supabase
     .from('users')
-    .select('subscription_status, subscription_expires_at')
+    .select('subscription_status, subscription_expires_at, pending_monthly_at')
     .eq('id', user.id)
     .single();
 
@@ -33,6 +33,20 @@ export async function POST() {
     .limit(1);
 
   if (!credits || credits.length === 0) {
+    // Case 1: 스캔권 소진/만료 후 대기 중인 무제한 이용권 자동 활성화
+    if (prof?.pending_monthly_at) {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+      await supabase
+        .from('users')
+        .update({
+          subscription_status: 'active',
+          subscription_expires_at: expiresAt.toISOString(),
+          pending_monthly_at: null,
+        })
+        .eq('id', user.id);
+      return NextResponse.json({ success: true, type: 'subscription' });
+    }
     return NextResponse.json({ error: 'no_credits' }, { status: 403 });
   }
 
@@ -40,7 +54,21 @@ export async function POST() {
   if (credit.count > 1) {
     await supabase.from('scan_credits').update({ count: credit.count - 1 }).eq('id', credit.id);
   } else {
+    // 마지막 횟수 사용: 크레딧 삭제 후 pending monthly 확인
     await supabase.from('scan_credits').delete().eq('id', credit.id);
+
+    if (prof?.pending_monthly_at) {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+      await supabase
+        .from('users')
+        .update({
+          subscription_status: 'active',
+          subscription_expires_at: expiresAt.toISOString(),
+          pending_monthly_at: null,
+        })
+        .eq('id', user.id);
+    }
   }
 
   return NextResponse.json({ success: true, type: 'credit' });

@@ -83,6 +83,7 @@ export default function SettingsPage() {
   }
 
   const isActive = profile?.subscription_status === 'active';
+  const hasPendingMonthly = !!profile?.pending_monthly_at;
 
   // Not logged in
   if (!authUser) {
@@ -157,6 +158,14 @@ export default function SettingsPage() {
               )}
             </CardContent>
           </Card>
+          {hasPendingMonthly && (
+            <Card className="bg-caution/5 border-caution/20 shadow-sm">
+              <CardContent className="p-4">
+                <p className="text-sm font-medium text-text-primary mb-1">1개월 무제한 이용권 대기 중</p>
+                <p className="text-xs text-text-secondary">스캔권을 모두 소진하시면 무제한 이용권이 자동으로 시작돼요 (30일)</p>
+              </CardContent>
+            </Card>
+          )}
         </section>
 
         {/* Pregnancy Info */}
