@@ -54,8 +54,8 @@ export async function POST() {
   if (credit.count > 1) {
     await supabase.from('scan_credits').update({ count: credit.count - 1 }).eq('id', credit.id);
   } else {
-    // 마지막 횟수 사용: 크레딧 삭제 후 pending monthly 확인
-    await supabase.from('scan_credits').delete().eq('id', credit.id);
+    // 마지막 횟수 사용: count = 0으로 소진 처리 (row 유지, 감사 이력 보존)
+    await supabase.from('scan_credits').update({ count: 0 }).eq('id', credit.id);
 
     if (prof?.pending_monthly_at) {
       const expiresAt = new Date();

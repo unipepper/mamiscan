@@ -41,7 +41,7 @@ export default function ScanPage() {
       if (user) {
         const [{ data: prof }, { data: credits }] = await Promise.all([
           supabase.from('users').select('subscription_status').eq('id', user.id).single(),
-          supabase.from('scan_credits').select('count').eq('user_id', user.id).gt('expires_at', new Date().toISOString()),
+          supabase.from('scan_credits').select('count').eq('user_id', user.id).gt('expires_at', new Date().toISOString()).gt('count', 0),
         ]);
         setUserProfile(prof);
         setRemainingScans(credits?.reduce((s: number, c: any) => s + c.count, 0) ?? 0);
@@ -199,15 +199,15 @@ export default function ScanPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const holeWidth = 320, holeHeight = 380, holeRadius = 24, yOffset = '60px';
+  const holeWidth = 360, holeHeight = 440, holeRadius = 24, yOffset = '60px';
   const svgMask = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${holeWidth}' height='${holeHeight}'%3E%3Crect width='${holeWidth}' height='${holeHeight}' rx='${holeRadius}' fill='black'/%3E%3C/svg%3E`;
   const overlayStyle = {
     backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
     WebkitMaskImage: `linear-gradient(black, black), url("${svgMask}")`,
-    WebkitMaskPosition: `center calc(50% - ${yOffset})`, WebkitMaskRepeat: 'no-repeat',
+    WebkitMaskPosition: `0 0, center calc(50% - ${yOffset})`, WebkitMaskRepeat: 'no-repeat',
     WebkitMaskSize: `100% 100%, ${holeWidth}px ${holeHeight}px`, WebkitMaskComposite: 'destination-out',
     maskImage: `linear-gradient(black, black), url("${svgMask}")`,
-    maskPosition: `center calc(50% - ${yOffset})`, maskRepeat: 'no-repeat',
+    maskPosition: `0 0, center calc(50% - ${yOffset})`, maskRepeat: 'no-repeat',
     maskSize: `100% 100%, ${holeWidth}px ${holeHeight}px`, maskComposite: 'exclude',
   };
 
@@ -237,7 +237,7 @@ export default function ScanPage() {
 
         {/* Viewfinder */}
         <div className="absolute inset-0 flex justify-center items-center pointer-events-none">
-          <div className="relative w-[320px] h-[380px] -translate-y-[60px]">
+          <div className="relative w-[360px] h-[440px] -translate-y-[60px]">
             <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-[24px]" />
             <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-[24px]" />
             <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-[24px]" />

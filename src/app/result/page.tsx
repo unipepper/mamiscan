@@ -258,8 +258,8 @@ function ResultContent() {
           <button onClick={() => router.back()} className="p-2 -ml-2 text-text-primary"><ArrowLeft className="w-6 h-6" /></button>
           <span className="font-medium ml-2 text-text-primary">분석 결과</span>
         </div>
-        <button onClick={() => setShowReportModal(true)} className="p-2 -mr-2 text-text-secondary hover:text-text-primary transition-colors">
-          <Flag className="w-5 h-5" />
+        <button onClick={() => setShowReportModal(true)} className="px-2 py-1 text-sm text-text-secondary hover:text-text-primary transition-colors">
+          오류 제보
         </button>
       </header>
 
