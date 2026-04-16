@@ -6,6 +6,7 @@ import { ArrowLeft, AlertTriangle, CheckCircle, Info, ChevronRight, ShoppingBag,
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
+import { compressThumbnail } from '@/lib/compressImage';
 import { Suspense } from 'react';
 
 function ResultContent() {
@@ -21,6 +22,7 @@ function ResultContent() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportText, setReportText] = useState('');
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [savedImageUrl, setSavedImageUrl] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showWeekModal, setShowWeekModal] = useState(false);
   const [inputWeeks, setInputWeeks] = useState('12');
@@ -52,27 +54,49 @@ function ResultContent() {
     if (hasAnalyzedRef.current) return;
     hasAnalyzedRef.current = true;
 
-    // Check for existing result data (from history navigation)
+    const supabase = createClient();
+
+    // 인증은 항상 먼저 로드 (히스토리 진입 포함)
+    const authPromise = supabase.auth.getUser().then(async ({ data: { user } }) => {
+      setAuthUser(user);
+      if (user) {
+        const { data: profData } = await supabase.from('users').select('*').eq('id', user.id).single();
+        setUserProfile(profData);
+        return { user, prof: profData };
+      }
+      return { user: null, prof: null };
+    });
+
+    // 히스토리에서 진입한 경우: 캐시된 결과 사용 (분석 API 호출 생략)
     const existing = sessionStorage.getItem('resultData');
     if (existing) {
       try {
-        setResult(JSON.parse(existing));
+        const parsed = JSON.parse(existing);
         sessionStorage.removeItem('resultData');
-        setIsLoading(false);
-        return;
+        setResult(parsed);
+
+        // Storage path → Signed URL 변환
+        if (parsed.userImageUrl && !parsed.userImageUrl.startsWith('http')) {
+          const supabaseClient = createClient();
+          supabaseClient.storage
+            .from('scan-images')
+            .createSignedUrl(parsed.userImageUrl, 3600)
+            .then(({ data }) => {
+              if (data?.signedUrl) {
+                setSavedImageUrl(data.signedUrl);
+                setResult((r: any) => r ? { ...r, userImageUrl: data.signedUrl } : r);
+              }
+            });
+        } else if (parsed.userImageUrl) {
+          setSavedImageUrl(parsed.userImageUrl);
+        }
       } catch {}
+      authPromise.finally(() => setIsLoading(false));
+      return;
     }
 
-    const supabase = createClient();
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      setAuthUser(user);
-      let prof: any = null;
-      if (user) {
-        const { data: profData } = await supabase.from('users').select('*').eq('id', user.id).single();
-        prof = profData;
-        setUserProfile(prof);
-      }
-
+    // 일반 스캔 진입: 인증 후 분석 API 호출
+    authPromise.then(async ({ user, prof }) => {
       if (!barcode && !scanImage) {
         setError('스캔 데이터가 없어요. 다시 촬영해 주세요.');
         setIsLoading(false);
@@ -110,15 +134,29 @@ function ResultContent() {
         }
 
         if (!parsedResult.status.startsWith('error_') && user) {
-          fetch('/api/scan/history', {
+          // 이미지 압축 (실패해도 계속)
+          const thumbnail = scanImage
+            ? await compressThumbnail(scanImage).catch(() => null)
+            : null;
+
+          const historyRes = await fetch('/api/scan/history', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               productName: parsedResult.productName || '알 수 없는 제품',
               status: parsedResult.status,
               resultJson: parsedResult,
+              imageBase64: thumbnail,
             }),
-          }).catch(() => {});
+          }).catch(() => null);
+
+          if (historyRes?.ok) {
+            const historyData = await historyRes.json().catch(() => null);
+            if (historyData?.imagePath) {
+              parsedResult.userImageUrl = historyData.imagePath;
+              setSavedImageUrl(historyData.imagePath);
+            }
+          }
         }
 
         setResult(parsedResult);
@@ -130,6 +168,7 @@ function ResultContent() {
     });
   }, [barcode, scanImage]);
 
+  const displayImageSrc = scanImage ?? result?.userImageUrl ?? null;
   const isPremium = userProfile?.subscription_status === 'active';
   const pregnancyWeeks = userProfile?.pregnancy_weeks;
   const hasWeekInfo = pregnancyWeeks !== undefined && pregnancyWeeks !== null;
@@ -309,9 +348,14 @@ function ResultContent() {
                   </div>
                 )}
               </div>
-              {result.imageUrl && (
+              {(displayImageSrc || result.imageUrl) && (
                 <div className="w-16 h-16 rounded-xl overflow-hidden bg-white/40 border border-white/40 shrink-0 ml-3">
-                  <img src={result.imageUrl} alt={result.productName} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  <img
+                    src={displayImageSrc ?? result.imageUrl}
+                    alt={result.productName}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
                 </div>
               )}
             </div>
@@ -498,6 +542,17 @@ function ResultContent() {
               <Flag className="w-5 h-5 mr-2 text-primary" />정보 오류 제보
             </h3>
             <p className="text-sm text-text-secondary mb-4 leading-relaxed">AI가 분석한 결과가 실제 제품과 다르다면 알려주세요.</p>
+            {(displayImageSrc || savedImageUrl) && (
+              <div className="mb-4 rounded-xl overflow-hidden bg-neutral-bg flex items-center gap-3 p-2">
+                <img
+                  src={displayImageSrc ?? savedImageUrl!}
+                  alt="촬영 이미지"
+                  className="w-16 h-16 rounded-lg object-cover shrink-0"
+                  onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }}
+                />
+                <p className="text-xs text-text-secondary">촬영 사진이 함께 전달됩니다</p>
+              </div>
+            )}
             <textarea
               value={reportText}
               onChange={(e) => setReportText(e.target.value)}

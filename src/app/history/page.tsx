@@ -62,7 +62,13 @@ export default function HistoryPage() {
               name: row.product_name,
               status: row.status,
               time: new Date(row.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-              resultData: (() => { try { return JSON.parse(row.result_json); } catch { return null; } })(),
+              resultData: (() => {
+                try {
+                  const parsed = JSON.parse(row.result_json);
+                  if (row.image_url) parsed.userImageUrl = row.image_url;
+                  return parsed;
+                } catch { return null; }
+              })(),
             });
           });
           setGroupedHistory(Object.entries(grouped).map(([date, items], id) => ({ id, date, items })));
