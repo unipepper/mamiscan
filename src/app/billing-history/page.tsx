@@ -5,15 +5,21 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Receipt, MinusCircle, Gift, AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+interface Lot {
+  count: number;
+  expires_at: string;
+}
+
 interface Transaction {
   id: string;
-  type: 'purchase' | 'usage' | 'bonus';
+  type: 'purchase' | 'deduct' | 'trial';
   amount: number;
   count: number | null;
   price_krw: number;
   description: string;
   created_at: string;
   status: 'completed' | 'refunded' | 'refund_pending' | 'refund_rejected';
+  lot: Lot | null;
 }
 
 export default function BillingHistoryPage() {
@@ -21,6 +27,7 @@ export default function BillingHistoryPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
+  const [expandedDeducts, setExpandedDeducts] = useState<Set<string> | null>(null); // null = all expanded
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [refundReason, setRefundReason] = useState<'simple' | 'duplicate'>('simple');
@@ -71,13 +78,13 @@ export default function BillingHistoryPage() {
   };
 
   const getIcon = (type: string) => {
-    if (type === 'usage') return <MinusCircle className="w-5 h-5 text-secondary" />;
+    if (type === 'deduct') return <MinusCircle className="w-5 h-5 text-secondary" />;
     if (type === 'bonus') return <Gift className="w-5 h-5 text-green-500" />;
     return <Receipt className="w-5 h-5 text-primary" />;
   };
 
   const getAmountDisplay = (tx: Transaction) => {
-    if (tx.type === 'usage') return tx.count != null ? `-${tx.count}회` : '무제한';
+    if (tx.type === 'deduct') return tx.count != null ? `-${Math.abs(tx.count)}회` : '-1회';
     if (tx.count != null) return `+${tx.count}회`;
     // count 없는 레거시 데이터: description에서 파싱
     if (tx.description?.includes('무제한')) return '무제한';
@@ -88,8 +95,32 @@ export default function BillingHistoryPage() {
   const getAmountColor = (type: string, status: string) => {
     if (status === 'refunded') return 'text-text-disabled line-through';
     if (type === 'purchase' || type === 'bonus') return 'text-primary';
-    if (type === 'usage') return 'text-secondary';
+    if (type === 'deduct') return 'text-secondary';
     return 'text-text-primary';
+  };
+
+  // 구매 트랜잭션별 연관 차감 내역: 구매 순서 기준 chronological 그룹핑
+  const getDeductsForPurchase = (tx: Transaction) => {
+    const purchases = [...transactions]
+      .filter(t => t.type === 'purchase')
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const idx = purchases.findIndex(p => p.id === tx.id);
+    const from = new Date(tx.created_at).getTime();
+    const to = purchases[idx + 1] ? new Date(purchases[idx + 1].created_at).getTime() : Infinity;
+    return transactions
+      .filter(t => t.type === 'deduct' && new Date(t.created_at).getTime() >= from && new Date(t.created_at).getTime() < to)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  };
+
+  const toggleDeducts = (id: string) => {
+    setExpandedDeducts(prev => {
+      // null = all expanded → 첫 toggle 시 현재 모든 purchase ID를 Set으로 초기화
+      const base = prev ?? new Set(transactions.filter(t => t.type === 'purchase').map(t => t.id));
+      const next = new Set(base);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   return (
@@ -120,39 +151,105 @@ export default function BillingHistoryPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {transactions.map((tx) => (
-              <div key={tx.id} className="bg-bg-surface border border-border-subtle rounded-xl p-4 shadow-sm flex flex-col">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-bg-canvas p-2 rounded-full">{getIcon(tx.type)}</div>
-                    <div>
-                      <p className={`font-bold text-sm ${tx.status === 'refunded' ? 'text-text-disabled line-through' : 'text-text-primary'}`}>
-                        {tx.description}
-                      </p>
-                      <p className="text-xs text-text-secondary mt-1">
-                        {new Date(tx.created_at).toLocaleString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      </p>
+            {transactions.filter(tx => tx.type !== 'deduct').map((tx) => {
+              const deducts = tx.type === 'purchase' ? getDeductsForPurchase(tx) : [];
+              const isExpanded = expandedDeducts === null || expandedDeducts.has(tx.id);
+              const usedCount = tx.count != null && tx.lot != null ? tx.count - tx.lot.count : null;
+              return (
+                <div key={tx.id} className="bg-bg-surface border border-border-subtle rounded-xl p-4 shadow-sm flex flex-col">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-bg-canvas p-2 rounded-full">{getIcon(tx.type)}</div>
+                      <div>
+                        <p className={`font-bold text-sm ${tx.status === 'refunded' ? 'text-text-disabled line-through' : 'text-text-primary'}`}>
+                          {tx.description}
+                        </p>
+                        <p className="text-xs text-text-secondary mt-1">
+                          {new Date(tx.created_at).toLocaleString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
                     </div>
+                    <div className={`font-bold ${getAmountColor(tx.type, tx.status)}`}>{getAmountDisplay(tx)}</div>
                   </div>
-                  <div className={`font-bold ${getAmountColor(tx.type, tx.status)}`}>{getAmountDisplay(tx)}</div>
-                </div>
-                {tx.type === 'purchase' && (
-                  <div className="mt-4 pt-3 border-t border-border-subtle flex justify-end items-center">
-                    {tx.status === 'refunded' ? (
-                      <span className="text-xs font-bold text-danger-fg bg-danger-bg px-2 py-1 rounded-md">환불 완료</span>
-                    ) : tx.status === 'refund_pending' ? (
-                      <span className="text-xs font-bold text-caution-fg bg-caution-bg px-2 py-1 rounded-md">환불 검토 중</span>
-                    ) : tx.status === 'refund_rejected' ? (
-                      <span className="text-xs font-bold text-text-secondary bg-neutral-bg px-2 py-1 rounded-md">환불 거절</span>
-                    ) : (
-                      <button onClick={() => { setSelectedTx(tx); setRefundReason('simple'); setRefundMessage(null); setIsRefundModalOpen(true); }} className="text-xs font-medium text-text-secondary hover:text-text-primary underline underline-offset-2">
-                        환불 요청
+
+                  {/* 사용 현황 — 닷 시각화 */}
+                  {tx.type === 'purchase' && tx.count != null && tx.lot && tx.status !== 'refunded' && (
+                    <div className="mt-3 pt-3 border-t border-border-subtle">
+                      <div className="flex items-center justify-between text-xs text-text-secondary mb-2">
+                        <span>사용 현황</span>
+                        <span>{new Date(tx.lot.expires_at) < new Date() ? '만료' : `${new Date(tx.lot.expires_at).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 만료`}</span>
+                      </div>
+                      <div className="flex gap-2 mb-2">
+                        {Array.from({ length: tx.count }).map((_, i) => (
+                          <div
+                            key={i}
+                            className={`w-4 h-4 rounded-full border-2 transition-all ${
+                              i < (usedCount ?? 0)
+                                ? 'bg-primary border-primary'
+                                : 'bg-transparent border-border-subtle'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-text-secondary">사용 <strong className="text-text-primary">{usedCount}회</strong></span>
+                        <span className="text-text-secondary">잔여 <strong className={tx.lot.count === 0 ? 'text-danger-fg' : 'text-primary'}>{tx.lot.count}회</strong></span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 스캔 사용 내역 — deduct 트랜잭션이 있을 때만 표시 */}
+                  {tx.type === 'purchase' && tx.count != null && tx.lot && tx.status !== 'refunded' && deducts.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-border-subtle">
+                      <button
+                        onClick={() => toggleDeducts(tx.id)}
+                        className="flex items-center justify-between w-full text-xs text-text-secondary mb-2"
+                      >
+                        <span className="font-medium">스캔 사용 내역</span>
+                        <span>{isExpanded ? '▲ 접기' : '▼ 펼치기'}</span>
                       </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
+                      {isExpanded && (
+                        <div className="space-y-1.5">
+                          {deducts.map((d) => (
+                            <div key={d.id} className="flex items-center justify-between py-1.5 px-2.5 bg-bg-canvas rounded-lg">
+                              <div className="flex items-center space-x-2">
+                                <MinusCircle className="w-3.5 h-3.5 text-secondary shrink-0" />
+                                <span className="text-xs text-text-primary">{d.description}</span>
+                              </div>
+                              <span className="text-xs text-text-secondary">
+                                {new Date(d.created_at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 환불 버튼 */}
+                  {tx.type === 'purchase' && (
+                    <div className="mt-3 pt-3 border-t border-border-subtle flex justify-end items-center">
+                      {tx.status === 'refunded' ? (
+                        <span className="text-xs font-bold text-danger-fg bg-danger-bg px-2 py-1 rounded-md">환불 완료</span>
+                      ) : tx.status === 'refund_pending' ? (
+                        <span className="text-xs font-bold text-caution-fg bg-caution-bg px-2 py-1 rounded-md">환불 검토 중</span>
+                      ) : tx.status === 'refund_rejected' ? (
+                        <span className="text-xs font-bold text-text-secondary bg-neutral-bg px-2 py-1 rounded-md">환불 거절</span>
+                      ) : (usedCount ?? 0) > 0 ? (
+                        <div className="flex items-center gap-1.5 text-xs text-text-secondary bg-neutral-bg px-3 py-1.5 rounded-lg">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>1회 이상 사용한 이용권은 환불이 불가해요</span>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setSelectedTx(tx); setRefundReason('simple'); setRefundMessage(null); setIsRefundModalOpen(true); }} className="text-xs font-medium text-text-secondary hover:text-text-primary underline underline-offset-2">
+                          환불 요청
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </main>

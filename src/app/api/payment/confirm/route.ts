@@ -139,6 +139,29 @@ export async function POST(req: Request) {
           console.error('users update error (case1):', updateError);
           return NextResponse.json({ error: 'db_error' }, { status: 500 });
         }
+
+        // 잔여 스캔 총합 계산 (팝업 안내용)
+        const { data: allCredits } = await supabase
+          .from('scan_credits')
+          .select('count')
+          .eq('user_id', user.id)
+          .gt('expires_at', new Date().toISOString())
+          .gt('count', 0);
+        const remainingCredits = (allCredits ?? []).reduce((sum, c) => sum + c.count, 0);
+
+        // transaction INSERT 후 pending 응답 반환
+        await supabase.from('transactions').insert({
+          user_id: user.id,
+          order_id: orderId,
+          payment_key: paymentKey,
+          type: 'purchase',
+          amount,
+          description: plan.orderName,
+          price_krw: amount,
+          count: null,
+          status: 'completed',
+        });
+        return NextResponse.json({ success: true, planType, isPending: true, remainingCredits });
       } else {
         // 일반 케이스: 즉시 활성화
         const expiresAt = new Date();

@@ -51,6 +51,16 @@ export async function POST() {
   }
 
   const credit = credits[0];
+  // 차감 트랜잭션 기록
+  await supabase.from('transactions').insert({
+    user_id: user.id,
+    type: 'deduct',
+    amount: 0,
+    count: -1,
+    description: '스캔 사용',
+    status: 'completed',
+  });
+
   if (credit.count > 1) {
     await supabase.from('scan_credits').update({ count: credit.count - 1 }).eq('id', credit.id);
   } else {

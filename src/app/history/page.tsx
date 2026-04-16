@@ -11,7 +11,10 @@ import { BottomNav } from '@/components/BottomNav';
 function getRelativeDate(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  // 시간을 제거하고 날짜만 비교
+  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((nowOnly.getTime() - dateOnly.getTime()) / (1000 * 60 * 60 * 24));
   if (diffDays === 0) return '오늘';
   if (diffDays === 1) return '어제';
   if (diffDays <= 7) return '이번 주';
