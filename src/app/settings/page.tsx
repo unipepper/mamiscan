@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Calendar, ChevronRight, LogOut, Loader2, MessageSquare, Pencil, X } from 'lucide-react';
+import { User, Calendar, ChevronRight, LogOut, Loader2, MessageSquare, Pencil, X, Shield, Bell, Trash2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
@@ -18,6 +18,7 @@ export default function SettingsPage() {
   const [activeSubExpiresAt, setActiveSubExpiresAt] = useState<string | null>(null);
   const [hasPendingMonthly, setHasPendingMonthly] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [unreadNoticeCount, setUnreadNoticeCount] = useState(0);
   const [showWeekDial, setShowWeekDial] = useState(false);
   const [dialWeek, setDialWeek] = useState('12');
   const [weekSaveStatus, setWeekSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -26,6 +27,8 @@ export default function SettingsPage() {
   const [showNicknameSheet, setShowNicknameSheet] = useState(false);
   const [nicknameInput, setNicknameInput] = useState('');
   const [nicknameSaveStatus, setNicknameSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [showDeleteSheet, setShowDeleteSheet] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState<'idle' | 'deleting'>('idle');
 
   useEffect(() => {
     const supabase = createClient();
@@ -46,6 +49,15 @@ export default function SettingsPage() {
         setHasPendingMonthly(!!pendingSub);
         if (prof?.pregnancy_weeks) setDialWeek(String(prof.pregnancy_weeks));
         if (prof?.name) setNicknameInput(prof.name);
+
+        // 미읽음 공지 수 조회
+        const { data: allNotices } = await supabase.from('notices').select('id');
+        const { data: readNotices } = await supabase
+          .from('user_notice_reads')
+          .select('notice_id')
+          .eq('user_id', user.id);
+        const readSet = new Set((readNotices ?? []).map((r: any) => r.notice_id));
+        setUnreadNoticeCount((allNotices ?? []).filter((n: any) => !readSet.has(n.id)).length);
       }
       setLoading(false);
     });
@@ -104,6 +116,19 @@ export default function SettingsPage() {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/');
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteStatus === 'deleting') return;
+    setDeleteStatus('deleting');
+    try {
+      const res = await fetch('/api/user/delete', { method: 'POST' });
+      if (!res.ok) throw new Error('delete failed');
+      router.push('/home');
+    } catch {
+      setDeleteStatus('idle');
+      alert('탈퇴 처리 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.');
+    }
   };
 
   if (loading) {
@@ -254,10 +279,31 @@ export default function SettingsPage() {
           <h3 className="text-[18px] font-bold text-text-primary px-1">앱 설정</h3>
           <Card className="bg-bg-surface border-border-subtle shadow-sm overflow-hidden">
             <CardContent className="p-0">
-<button className="w-full p-4 border-b border-border-subtle flex items-center justify-between hover:bg-neutral-bg transition-colors" onClick={() => router.push('/support')}>
+<button className="w-full p-4 border-b border-border-subtle flex items-center justify-between hover:bg-neutral-bg transition-colors" onClick={() => router.push('/notices')}>
+                <div className="flex items-center space-x-3">
+                  <Bell className="w-5 h-5 text-text-secondary" />
+                  <span className="font-medium text-text-primary">공지사항</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {unreadNoticeCount > 0 && (
+                    <span className="bg-danger-fg text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                      {unreadNoticeCount}
+                    </span>
+                  )}
+                  <ChevronRight className="w-5 h-5 text-text-secondary" />
+                </div>
+              </button>
+              <button className="w-full p-4 border-b border-border-subtle flex items-center justify-between hover:bg-neutral-bg transition-colors" onClick={() => router.push('/support')}>
                 <div className="flex items-center space-x-3">
                   <MessageSquare className="w-5 h-5 text-text-secondary" />
                   <span className="font-medium text-text-primary">고객센터 / 문의하기</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-text-secondary" />
+              </button>
+              <button className="w-full p-4 border-b border-border-subtle flex items-center justify-between hover:bg-neutral-bg transition-colors" onClick={() => router.push('/privacy')}>
+                <div className="flex items-center space-x-3">
+                  <Shield className="w-5 h-5 text-text-secondary" />
+                  <span className="font-medium text-text-primary">개인정보처리방침</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-text-secondary" />
               </button>
@@ -270,7 +316,72 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </section>
+
+        {/* 계정 탈퇴 */}
+        <section className="pb-4">
+          <button
+            onClick={() => setShowDeleteSheet(true)}
+            className="w-full text-center text-xs text-text-tertiary underline underline-offset-2 hover:text-danger-fg transition-colors py-2"
+          >
+            회원 탈퇴
+          </button>
+        </section>
       </main>
+
+      {/* 회원 탈퇴 확인 Bottom Sheet */}
+      {showDeleteSheet && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowDeleteSheet(false)}>
+          <div className="bg-bg-canvas w-full rounded-t-3xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-border-subtle rounded-full" />
+            </div>
+            <div className="px-6 pt-4 pb-2">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-danger-fg/10 rounded-full flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-danger-fg" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-text-primary">정말 탈퇴하시겠어요?</h3>
+                  <p className="text-xs text-text-secondary mt-0.5">탈퇴 후에는 복구가 불가능해요</p>
+                </div>
+              </div>
+
+              <div className="bg-neutral-bg rounded-2xl p-4 space-y-2.5 mb-6">
+                {[
+                  '스캔 기록, 임신 주차 등 모든 데이터가 즉시 삭제돼요',
+                  '남은 스캔권 및 월간 이용권은 환불 없이 소멸돼요',
+                  '결제·거래 기록은 전자상거래법에 따라 5년간 보관돼요',
+                ].map((text) => (
+                  <div key={text} className="flex items-start gap-2">
+                    <span className="text-danger-fg text-xs mt-0.5 shrink-0">•</span>
+                    <p className="text-xs text-text-secondary leading-relaxed">{text}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-2 pb-10">
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleteStatus === 'deleting'}
+                  className="w-full h-12 rounded-2xl bg-danger-fg text-white font-bold text-sm hover:bg-danger-fg/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {deleteStatus === 'deleting'
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> 탈퇴 처리 중...</>
+                    : <><Trash2 className="w-4 h-4" /> 탈퇴하기</>
+                  }
+                </button>
+                <button
+                  onClick={() => setShowDeleteSheet(false)}
+                  disabled={deleteStatus === 'deleting'}
+                  className="w-full h-12 rounded-2xl bg-bg-surface border border-border-subtle text-text-primary font-bold text-sm hover:bg-neutral-bg transition-colors disabled:opacity-50"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Week Dial Bottom Sheet */}
       {showWeekDial && (

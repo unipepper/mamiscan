@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Scan, ShieldCheck, Search, ChevronRight, CheckCircle2, Star, Calendar } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -193,6 +194,12 @@ export default function HomePage() {
         </div>
       </section>
 
+
+      <footer className="py-4 text-center">
+        <Link href="/privacy" className="text-xs text-text-tertiary hover:text-text-secondary transition-colors underline underline-offset-2">
+          개인정보처리방침
+        </Link>
+      </footer>
 
       <BottomNav />
     </div>
