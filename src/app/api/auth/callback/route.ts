@@ -11,9 +11,9 @@ export async function GET(request: Request) {
     const { data: { user }, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && user) {
-      // 신규 가입 여부 확인: trial 크레딧이 없으면 지급
+      // 신규 가입 여부 확인: trial 이용권이 없으면 지급
       const { data: existingTrial } = await supabase
-        .from('transactions')
+        .from('user_entitlements')
         .select('id')
         .eq('user_id', user.id)
         .eq('type', 'trial')
@@ -23,23 +23,13 @@ export async function GET(request: Request) {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 30);
 
-        await Promise.all([
-          supabase.from('scan_credits').insert({
-            user_id: user.id,
-            count: 3,
-            expires_at: expiresAt.toISOString(),
-            source: 'signup_bonus',
-          }),
-          supabase.from('transactions').insert({
-            user_id: user.id,
-            order_id: `trial-${user.id}`,
-            type: 'trial',
-            amount: 0,
-            description: '가입 보상 크레딧 3회',
-            price_krw: 0,
-            status: 'completed',
-          }),
-        ]);
+        await supabase.from('user_entitlements').insert({
+          user_id: user.id,
+          type: 'trial',
+          status: 'active',
+          scan_count: 3,
+          expires_at: expiresAt.toISOString(),
+        });
       }
 
       return NextResponse.redirect(`${origin}${next}`);

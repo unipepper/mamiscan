@@ -4,6 +4,27 @@ import { createClient } from '@/lib/supabase/server';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
+/** 503(UNAVAILABLE) 에러에 한해 최대 3회 지수 백오프 재시도 */
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const is503 =
+        err?.status === 503 ||
+        String(err?.message ?? '').includes('503') ||
+        String(err?.message ?? '').includes('UNAVAILABLE');
+      if (!is503) throw err;
+      lastErr = err;
+      if (attempt < maxAttempts - 1) {
+        await new Promise(r => setTimeout(r, 1000 * 2 ** attempt)); // 1s → 2s
+      }
+    }
+  }
+  throw lastErr;
+}
+
 const RESPONSE_SCHEMA = {
   type: Type.OBJECT,
   properties: {
@@ -109,7 +130,7 @@ async function callGeminiBarcode(
 ) {
   const hasWeekInfo = pregnancyWeeks !== undefined && pregnancyWeeks !== null;
   const hasMatched = matchedIngredients.length > 0;
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: {
       parts: [
@@ -149,7 +170,7 @@ ${hasWeekInfo
       responseMimeType: 'application/json',
       responseSchema: RESPONSE_SCHEMA,
     },
-  });
+  }));
   return JSON.parse(response.text?.trim() ?? '{}');
 }
 
@@ -221,7 +242,7 @@ export async function POST(req: Request) {
         // 주차 있으면 weekAnalysis만 경량 재생성
         if (hasWeekInfo) {
           try {
-            const weekRes = await ai.models.generateContent({
+            const weekRes = await withRetry(() => ai.models.generateContent({
               model: 'gemini-2.5-flash',
               contents: {
                 parts: [{
@@ -229,7 +250,7 @@ export async function POST(req: Request) {
                 }],
               },
               config: { responseMimeType: 'application/json' },
-            });
+            }));
             const weekData = JSON.parse(weekRes.text?.trim() ?? '{}');
             if (weekData.weekAnalysis) (result as any).weekAnalysis = weekData.weekAnalysis;
           } catch {}
@@ -297,7 +318,7 @@ export async function POST(req: Request) {
     const mimeTypeMatch = imageBase64.match(/data:([^;]+);/);
     const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
 
-    const response = await ai.models.generateContent({
+    const response = await withRetry(() => ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: {
         parts: [
@@ -335,7 +356,7 @@ ${hasWeekInfo
         responseMimeType: 'application/json',
         responseSchema: RESPONSE_SCHEMA,
       },
-    });
+    }));
 
     const result = JSON.parse(response.text?.trim() ?? '{}');
     const detectedBarcode = result.detectedBarcode?.trim();
@@ -380,8 +401,15 @@ ${hasWeekInfo
     }
 
     return NextResponse.json({ success: true, result });
-  } catch (err) {
+  } catch (err: any) {
     console.error('[analyze] error:', err);
-    return NextResponse.json({ success: false, message: '분석 중 오류가 발생했어요.' }, { status: 500 });
+    const is503 =
+      err?.status === 503 ||
+      String(err?.message ?? '').includes('503') ||
+      String(err?.message ?? '').includes('UNAVAILABLE');
+    const message = is503
+      ? '지금 분석이 많이 몰려 있어요. 잠시 후 다시 시도해주세요.'
+      : '분석 중 오류가 발생했어요.';
+    return NextResponse.json({ success: false, message }, { status: 500 });
   }
 }

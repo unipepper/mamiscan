@@ -6,7 +6,7 @@ export async function compressThumbnail(dataUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      const MAX = 480;
+      const MAX = 720;
       let { width, height } = img;
 
       if (width > height) {

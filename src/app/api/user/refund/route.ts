@@ -70,26 +70,33 @@ export async function POST(req: Request) {
     }, { status: 400 });
   }
 
-  // 스캔 크레딧/구독 회수
-  const planType = tx.order_id?.split('-')[0];
-  if (planType === 'scan5') {
-    const { data: credit } = await supabase
-      .from('scan_credits')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('transaction_id', tx.id)
-      .single();
+  // 연결된 이용권 회수
+  const { data: entitlement } = await supabase
+    .from('user_entitlements')
+    .select('id, type, scan_count')
+    .eq('transaction_id', transactionId)
+    .eq('user_id', user.id)
+    .maybeSingle();
 
-    if (credit) {
-      await supabase.from('scan_credits').delete().eq('id', credit.id);
-    }
-  } else if (planType === 'monthly') {
+  if (entitlement) {
+    const revokedCount = entitlement.scan_count ?? 0;
+
     await supabase
-      .from('users')
-      .update({ subscription_status: 'free', subscription_expires_at: null })
-      .eq('id', user.id);
+      .from('user_entitlements')
+      .update({ status: 'expired', scan_count: 0 })
+      .eq('id', entitlement.id);
+
+    await supabase.from('scan_usage_logs').insert({
+      user_id: user.id,
+      type: 'refund_revoke',
+      count: -revokedCount,
+      entitlement_id: entitlement.id,
+      transaction_id: transactionId,
+      description: '환불로 인한 이용권 회수',
+    });
   }
 
+  // transactions 상태 환불 처리
   await supabase
     .from('transactions')
     .update({ status: 'refunded' })

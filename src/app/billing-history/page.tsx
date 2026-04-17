@@ -2,32 +2,45 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Receipt, MinusCircle, Gift, AlertCircle, X } from 'lucide-react';
+import { ArrowLeft, Receipt, MinusCircle, AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-interface Lot {
-  count: number;
+interface Entitlement {
+  id: string;
+  type: 'scan5' | 'monthly' | 'trial' | 'admin';
+  status: 'pending' | 'active' | 'expired';
+  scan_count: number | null;
+  started_at: string | null;
   expires_at: string;
 }
 
 interface Transaction {
   id: string;
-  type: 'purchase' | 'deduct' | 'trial';
+  type: 'purchase' | 'trial';
   amount: number;
-  count: number | null;
   price_krw: number;
   description: string;
   created_at: string;
   status: 'completed' | 'refunded' | 'refund_pending' | 'refund_rejected';
-  lot: Lot | null;
+  entitlement: Entitlement | null;
+}
+
+interface ScanLog {
+  id: string;
+  type: string;
+  count: number;
+  entitlement_id: string;
+  description: string;
+  created_at: string;
 }
 
 export default function BillingHistoryPage() {
   const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [scanLogs, setScanLogs] = useState<ScanLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
-  const [expandedDeducts, setExpandedDeducts] = useState<Set<string> | null>(null); // null = all expanded
+  const [expandedIds, setExpandedIds] = useState<Set<string> | null>(null); // null = all expanded
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [refundReason, setRefundReason] = useState<'simple' | 'duplicate'>('simple');
@@ -39,8 +52,10 @@ export default function BillingHistoryPage() {
       const res = await fetch('/api/user/transactions');
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
-      if (data.success) setTransactions(data.transactions);
-      else throw new Error('api error');
+      if (data.success) {
+        setTransactions(data.transactions);
+        setScanLogs(data.scanLogs ?? []);
+      } else throw new Error('api error');
     } catch {
       setFetchError(true);
     } finally {
@@ -77,45 +92,51 @@ export default function BillingHistoryPage() {
     }
   };
 
-  const getIcon = (type: string) => {
-    if (type === 'deduct') return <MinusCircle className="w-5 h-5 text-secondary" />;
-    if (type === 'bonus') return <Gift className="w-5 h-5 text-green-500" />;
-    return <Receipt className="w-5 h-5 text-primary" />;
+  // purchase_grant 로그에서 원래 지급 횟수 조회
+  // migration으로 생성된 grant 로그가 count=0인 경우 대비: scan_use 수 + 잔여로 계산
+  const getGrantCount = (ent: Entitlement): number => {
+    const entId = String(ent.id);
+    const grantLog = scanLogs.find(
+      l => String(l.entitlement_id) === entId &&
+           (l.type === 'purchase_grant' || l.type === 'trial_grant' || l.type === 'admin_grant')
+    );
+    if (grantLog && Math.abs(grantLog.count) > 0) return Math.abs(grantLog.count);
+    // grant 로그가 없거나 0인 경우: 사용 로그 수 + 잔여로 역산
+    const usedFromLogs = scanLogs.filter(
+      l => String(l.entitlement_id) === entId && l.type === 'scan_use'
+    ).length;
+    const fromLogs = (ent.scan_count ?? 0) + usedFromLogs;
+    if (fromLogs > 0) return fromLogs;
+    // 최종 fallback: 이용권 타입 기본값 (migration 데이터 불일치 대비)
+    if (ent.type === 'scan5') return 5;
+    if (ent.type === 'trial') return 3;
+    return 0;
   };
 
+  // 이용권 타입별 지급 횟수 표시
   const getAmountDisplay = (tx: Transaction) => {
-    if (tx.type === 'deduct') return tx.count != null ? `-${Math.abs(tx.count)}회` : '-1회';
-    if (tx.count != null) return `+${tx.count}회`;
-    // count 없는 레거시 데이터: description에서 파싱
-    if (tx.description?.includes('무제한')) return '무제한';
-    const match = tx.description?.match(/(\d+)회/);
-    return match ? `+${match[1]}회` : '-';
+    if (!tx.entitlement) return '-';
+    if (tx.entitlement.type === 'monthly') return '무제한';
+    return `+${getGrantCount(tx.entitlement)}회`;
   };
 
-  const getAmountColor = (type: string, status: string) => {
+  const getAmountColor = (status: string) => {
     if (status === 'refunded') return 'text-text-disabled line-through';
-    if (type === 'purchase' || type === 'bonus') return 'text-primary';
-    if (type === 'deduct') return 'text-secondary';
-    return 'text-text-primary';
+    return 'text-primary';
   };
 
-  // 구매 트랜잭션별 연관 차감 내역: 구매 순서 기준 chronological 그룹핑
-  const getDeductsForPurchase = (tx: Transaction) => {
-    const purchases = [...transactions]
-      .filter(t => t.type === 'purchase')
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    const idx = purchases.findIndex(p => p.id === tx.id);
-    const from = new Date(tx.created_at).getTime();
-    const to = purchases[idx + 1] ? new Date(purchases[idx + 1].created_at).getTime() : Infinity;
-    return transactions
-      .filter(t => t.type === 'deduct' && new Date(t.created_at).getTime() >= from && new Date(t.created_at).getTime() < to)
+  // 이 결제에 연결된 이용권의 scan_use 로그 (사용 내역 목록 표시용)
+  const getScanLogsForTx = (tx: Transaction): ScanLog[] => {
+    if (!tx.entitlement) return [];
+    const entId = String(tx.entitlement.id);
+    return scanLogs
+      .filter(l => String(l.entitlement_id) === entId && l.type === 'scan_use')
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   };
 
-  const toggleDeducts = (id: string) => {
-    setExpandedDeducts(prev => {
-      // null = all expanded → 첫 toggle 시 현재 모든 purchase ID를 Set으로 초기화
-      const base = prev ?? new Set(transactions.filter(t => t.type === 'purchase').map(t => t.id));
+  const toggleExpanded = (id: string) => {
+    setExpandedIds(prev => {
+      const base = prev ?? new Set(transactions.map(t => t.id));
       const next = new Set(base);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -151,15 +172,22 @@ export default function BillingHistoryPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {transactions.filter(tx => tx.type !== 'deduct').map((tx) => {
-              const deducts = tx.type === 'purchase' ? getDeductsForPurchase(tx) : [];
-              const isExpanded = expandedDeducts === null || expandedDeducts.has(tx.id);
-              const usedCount = tx.count != null && tx.lot != null ? tx.count - tx.lot.count : null;
+            {transactions.map((tx) => {
+              const ent = tx.entitlement;
+              const isCreditTx = ent?.type === 'scan5' || ent?.type === 'trial' || ent?.type === 'admin';
+              const isMonthlyTx = ent?.type === 'monthly';
+              const useLogs = getScanLogsForTx(tx);
+              const totalCount = isCreditTx && ent ? getGrantCount(ent) : null;
+              const usedCount = totalCount != null ? totalCount - (ent?.scan_count ?? 0) : 0;
+              const isExpanded = expandedIds === null || expandedIds.has(tx.id);
+
               return (
                 <div key={tx.id} className="bg-bg-surface border border-border-subtle rounded-xl p-4 shadow-sm flex flex-col">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className="bg-bg-canvas p-2 rounded-full">{getIcon(tx.type)}</div>
+                      <div className="bg-bg-canvas p-2 rounded-full">
+                        <Receipt className="w-5 h-5 text-primary" />
+                      </div>
                       <div>
                         <p className={`font-bold text-sm ${tx.status === 'refunded' ? 'text-text-disabled line-through' : 'text-text-primary'}`}>
                           {tx.description}
@@ -169,40 +197,71 @@ export default function BillingHistoryPage() {
                         </p>
                       </div>
                     </div>
-                    <div className={`font-bold ${getAmountColor(tx.type, tx.status)}`}>{getAmountDisplay(tx)}</div>
+                    <div className={`font-bold ${getAmountColor(tx.status)}`}>{getAmountDisplay(tx)}</div>
                   </div>
 
-                  {/* 사용 현황 — 닷 시각화 */}
-                  {tx.type === 'purchase' && tx.count != null && tx.lot && tx.status !== 'refunded' && (
+                  {/* 횟수권 사용 현황 — 닷 시각화 */}
+                  {isCreditTx && totalCount != null && ent && tx.status !== 'refunded' && (
                     <div className="mt-3 pt-3 border-t border-border-subtle">
-                      <div className="flex items-center justify-between text-xs text-text-secondary mb-2">
-                        <span>사용 현황</span>
-                        <span>{new Date(tx.lot.expires_at) < new Date() ? '만료' : `${new Date(tx.lot.expires_at).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} 만료`}</span>
-                      </div>
+                      <p className="text-xs text-text-secondary mb-2">사용 현황</p>
                       <div className="flex gap-2 mb-2">
-                        {Array.from({ length: tx.count }).map((_, i) => (
+                        {Array.from({ length: totalCount }).map((_, i) => (
                           <div
                             key={i}
                             className={`w-4 h-4 rounded-full border-2 transition-all ${
-                              i < (usedCount ?? 0)
+                              i < usedCount
                                 ? 'bg-primary border-primary'
                                 : 'bg-transparent border-border-subtle'
                             }`}
                           />
                         ))}
                       </div>
-                      <div className="flex justify-between text-xs">
+                      <div className="flex justify-between text-xs mb-2">
                         <span className="text-text-secondary">사용 <strong className="text-text-primary">{usedCount}회</strong></span>
-                        <span className="text-text-secondary">잔여 <strong className={tx.lot.count === 0 ? 'text-danger-fg' : 'text-primary'}>{tx.lot.count}회</strong></span>
+                        <span className="text-text-secondary">잔여 <strong className={ent.scan_count === 0 ? 'text-danger-fg' : 'text-primary'}>{ent.scan_count}회</strong></span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-text-secondary">이용 기한</span>
+                        <span className={new Date(ent.expires_at) < new Date() ? 'text-danger-fg font-medium' : 'text-text-primary'}>
+                          {new Date(ent.expires_at) < new Date()
+                            ? `${new Date(ent.expires_at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} (만료)`
+                            : `${new Date(ent.expires_at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}까지`}
+                        </span>
                       </div>
                     </div>
                   )}
 
-                  {/* 스캔 사용 내역 — deduct 트랜잭션이 있을 때만 표시 */}
-                  {tx.type === 'purchase' && tx.count != null && tx.lot && tx.status !== 'refunded' && deducts.length > 0 && (
+                  {/* 무제한 이용권 상태 */}
+                  {isMonthlyTx && ent && tx.status !== 'refunded' && (() => {
+                    const statusLabel = ent.status === 'active' ? '이용 중' : ent.status === 'pending' ? '미사용' : '만료';
+                    const statusColor = ent.status === 'active' ? 'text-primary bg-primary/10' : ent.status === 'pending' ? 'text-caution bg-caution/10' : 'text-text-disabled bg-neutral-bg';
+                    const fmtDate = (d: string) => new Date(d).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    const startedAt = ent.started_at ?? (ent.status !== 'pending' ? tx.created_at : null);
+                    return (
+                      <div className="mt-3 pt-3 border-t border-border-subtle space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-text-secondary">이용권 상태</span>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-text-secondary">이용 기간</span>
+                          <span className="text-xs text-text-primary">
+                            {ent.status === 'pending'
+                              ? '첫 스캔 시 30일'
+                              : startedAt
+                                ? `${fmtDate(startedAt)} ~ ${fmtDate(ent.expires_at)}`
+                                : fmtDate(ent.expires_at)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 스캔 사용 내역 */}
+                  {isCreditTx && ent && tx.status !== 'refunded' && useLogs.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-border-subtle">
                       <button
-                        onClick={() => toggleDeducts(tx.id)}
+                        onClick={() => toggleExpanded(tx.id)}
                         className="flex items-center justify-between w-full text-xs text-text-secondary mb-2"
                       >
                         <span className="font-medium">스캔 사용 내역</span>
@@ -210,14 +269,14 @@ export default function BillingHistoryPage() {
                       </button>
                       {isExpanded && (
                         <div className="space-y-1.5">
-                          {deducts.map((d) => (
-                            <div key={d.id} className="flex items-center justify-between py-1.5 px-2.5 bg-bg-canvas rounded-lg">
+                          {useLogs.map((log) => (
+                            <div key={log.id} className="flex items-center justify-between py-1.5 px-2.5 bg-bg-canvas rounded-lg">
                               <div className="flex items-center space-x-2">
                                 <MinusCircle className="w-3.5 h-3.5 text-secondary shrink-0" />
-                                <span className="text-xs text-text-primary">{d.description}</span>
+                                <span className="text-xs text-text-primary">{log.description}</span>
                               </div>
                               <span className="text-xs text-text-secondary">
-                                {new Date(d.created_at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                {new Date(log.created_at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
                           ))}
@@ -226,8 +285,8 @@ export default function BillingHistoryPage() {
                     </div>
                   )}
 
-                  {/* 환불 버튼 */}
-                  {tx.type === 'purchase' && (
+                  {/* 환불 버튼 (무료 지급 항목은 환불 대상 아님) */}
+                  {tx.type !== 'trial' && tx.price_krw > 0 && (
                     <div className="mt-3 pt-3 border-t border-border-subtle flex justify-end items-center">
                       {tx.status === 'refunded' ? (
                         <span className="text-xs font-bold text-danger-fg bg-danger-bg px-2 py-1 rounded-md">환불 완료</span>
@@ -235,13 +294,16 @@ export default function BillingHistoryPage() {
                         <span className="text-xs font-bold text-caution-fg bg-caution-bg px-2 py-1 rounded-md">환불 검토 중</span>
                       ) : tx.status === 'refund_rejected' ? (
                         <span className="text-xs font-bold text-text-secondary bg-neutral-bg px-2 py-1 rounded-md">환불 거절</span>
-                      ) : (usedCount ?? 0) > 0 ? (
+                      ) : usedCount > 0 ? (
                         <div className="flex items-center gap-1.5 text-xs text-text-secondary bg-neutral-bg px-3 py-1.5 rounded-lg">
                           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                           <span>1회 이상 사용한 이용권은 환불이 불가해요</span>
                         </div>
                       ) : (
-                        <button onClick={() => { setSelectedTx(tx); setRefundReason('simple'); setRefundMessage(null); setIsRefundModalOpen(true); }} className="text-xs font-medium text-text-secondary hover:text-text-primary underline underline-offset-2">
+                        <button
+                          onClick={() => { setSelectedTx(tx); setRefundReason('simple'); setRefundMessage(null); setIsRefundModalOpen(true); }}
+                          className="text-xs font-medium text-text-secondary hover:text-text-primary underline underline-offset-2"
+                        >
                           환불 요청
                         </button>
                       )}
@@ -286,7 +348,7 @@ export default function BillingHistoryPage() {
                   { value: 'duplicate', label: '중복 결제 / 장애 결제', desc: '운영자 확인 후 전액 환불됩니다. (1~2일 소요)' },
                 ].map(({ value, label, desc }) => (
                   <label key={value} className="flex items-start space-x-3 p-3 border border-border-subtle rounded-xl cursor-pointer hover:bg-bg-canvas transition-colors">
-                    <input type="radio" name="refundReason" value={value} checked={refundReason === value} onChange={() => setRefundReason(value as any)} className="mt-0.5" />
+                    <input type="radio" name="refundReason" value={value} checked={refundReason === value} onChange={() => setRefundReason(value as 'simple' | 'duplicate')} className="mt-0.5" />
                     <div>
                       <p className="text-sm font-medium text-text-primary">{label}</p>
                       <p className="text-xs text-text-secondary mt-1">{desc}</p>

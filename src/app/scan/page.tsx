@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 
 interface UserProfile {
-  subscription_status: string;
+  isActive: boolean;
 }
 
 export default function ScanPage() {
@@ -23,6 +23,8 @@ export default function ScanPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const bottomControlsRef = useRef<HTMLDivElement>(null);
   const [authUser, setAuthUser] = useState<any>(null);
   const [guestScansUsed, setGuestScansUsed] = useState(0);
 
@@ -39,17 +41,18 @@ export default function ScanPage() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       setAuthUser(user);
       if (user) {
-        const [{ data: prof }, { data: credits }] = await Promise.all([
-          supabase.from('users').select('subscription_status').eq('id', user.id).single(),
-          supabase.from('scan_credits').select('count').eq('user_id', user.id).gt('expires_at', new Date().toISOString()).gt('count', 0),
+        const now = new Date().toISOString();
+        const [{ data: credits }, { data: activeSub }] = await Promise.all([
+          supabase.from('user_entitlements').select('scan_count').eq('user_id', user.id).in('type', ['scan5', 'trial', 'admin']).eq('status', 'active').gt('expires_at', now).gt('scan_count', 0),
+          supabase.from('user_entitlements').select('id').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'active').gt('expires_at', now).maybeSingle(),
         ]);
-        setUserProfile(prof);
-        setRemainingScans(credits?.reduce((s: number, c: any) => s + c.count, 0) ?? 0);
+        setUserProfile({ isActive: !!activeSub });
+        setRemainingScans(credits?.reduce((s: number, c: any) => s + c.scan_count, 0) ?? 0);
       }
     });
   }, []);
 
-  const isActive = userProfile?.subscription_status === 'active';
+  const isActive = userProfile?.isActive ?? false;
   const guestRemaining = GUEST_LIMIT - guestScansUsed;
   const hasCredits = authUser ? (isActive || remainingScans > 0) : guestRemaining > 0;
 
@@ -91,17 +94,11 @@ export default function ScanPage() {
                 const barcode = result.getText().trim();
                 if (!barcode || barcode.length < 8) return; // 빈 문자열 또는 부분 읽기 무시 (EAN/UPC 최소 8자리)
                 if (!hasCredits) { handleNoCredits(); return; }
-                // 바코드 감지와 동시에 현재 프레임 캡처 (DB 미스 시 Gemini 폴백용)
+                // 바코드 감지와 동시에 콘텐츠 영역 크롭 캡처 (DB 미스 시 Gemini 폴백용)
                 try {
                   if (videoRef.current && videoRef.current.videoWidth > 0) {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = videoRef.current.videoWidth;
-                    canvas.height = videoRef.current.videoHeight;
-                    const ctx = canvas.getContext('2d');
-                    if (ctx) {
-                      ctx.drawImage(videoRef.current, 0, 0);
-                      sessionStorage.setItem('scanImage', canvas.toDataURL('image/jpeg', 0.6));
-                    }
+                    const cropped = captureContentArea(videoRef.current, 0.6);
+                    if (cropped) sessionStorage.setItem('scanImage', cropped);
                   }
                 } catch {}
                 isScanningRef.current = true;
@@ -145,14 +142,9 @@ export default function ScanPage() {
     isScanningRef.current = true;
     setIsScanning(true);
     try {
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const base64Image = canvas.toDataURL('image/jpeg', 0.8);
-        sessionStorage.setItem('scanImage', base64Image);
+      const cropped = captureContentArea(videoRef.current, 0.8);
+      if (cropped) {
+        sessionStorage.setItem('scanImage', cropped);
         incrementGuestCount();
         router.push('/result');
       }
@@ -199,27 +191,46 @@ export default function ScanPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const holeWidth = 360, holeHeight = 440, holeRadius = 24, yOffset = '60px';
-  const svgMask = `data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${holeWidth}' height='${holeHeight}'%3E%3Crect width='${holeWidth}' height='${holeHeight}' rx='${holeRadius}' fill='black'/%3E%3C/svg%3E`;
-  const overlayStyle = {
-    backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-    WebkitMaskImage: `linear-gradient(black, black), url("${svgMask}")`,
-    WebkitMaskPosition: `0 0, center calc(50% - ${yOffset})`, WebkitMaskRepeat: 'no-repeat',
-    WebkitMaskSize: `100% 100%, ${holeWidth}px ${holeHeight}px`, WebkitMaskComposite: 'destination-out',
-    maskImage: `linear-gradient(black, black), url("${svgMask}")`,
-    maskPosition: `0 0, center calc(50% - ${yOffset})`, maskRepeat: 'no-repeat',
-    maskSize: `100% 100%, ${holeWidth}px ${holeHeight}px`, maskComposite: 'exclude',
-  };
+
+  /**
+   * 헤더 아래 ~ 하단 컨트롤 위 영역만 크롭해 base64 반환
+   * object-cover 비디오의 스케일을 역산해 정확한 비디오 픽셀 좌표로 매핑
+   */
+  function captureContentArea(video: HTMLVideoElement, quality = 0.8): string | null {
+    const displayW = window.innerWidth;
+    const displayH = window.innerHeight;
+    const videoW = video.videoWidth;
+    const videoH = video.videoHeight;
+    if (!videoW || !videoH) return null;
+
+    const scale = Math.max(displayW / videoW, displayH / videoH);
+    const offsetX = (videoW * scale - displayW) / 2;
+    const offsetY = (videoH * scale - displayH) / 2;
+
+    const topCss    = headerRef.current?.getBoundingClientRect().bottom ?? 64;
+    const bottomCss = bottomControlsRef.current?.getBoundingClientRect().top ?? (displayH - 260);
+
+    const srcX = offsetX / scale;
+    const srcY = (topCss + offsetY) / scale;
+    const srcW = displayW / scale;
+    const srcH = (bottomCss - topCss) / scale;
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.round(srcW);
+    canvas.height = Math.round(srcH);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', quality);
+  }
 
   return (
     <div className="flex flex-col flex-1 bg-black text-white relative overflow-hidden">
       <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover z-0" />
-      <div className="absolute inset-0 z-10 pointer-events-none transition-all duration-300" style={overlayStyle} />
-
       <div className="absolute inset-0 z-20 pointer-events-none">
         {/* Top */}
         <div className="absolute top-0 left-0 right-0 flex flex-col pointer-events-auto">
-          <header className="flex items-center justify-between p-4">
+          <header ref={headerRef} className="flex items-center justify-between p-4">
             <button onClick={() => router.push('/home')} className="p-2 rounded-full bg-black/40 hover:bg-black/60 transition-colors backdrop-blur-md">
               <X className="w-6 h-6" />
             </button>
@@ -235,25 +246,16 @@ export default function ScanPage() {
           )}
         </div>
 
-        {/* Viewfinder */}
-        <div className="absolute inset-0 flex justify-center items-center pointer-events-none">
-          <div className="relative w-[360px] h-[440px] -translate-y-[60px]">
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-[24px]" />
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-[24px]" />
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-[24px]" />
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-[24px]" />
-            <div className="absolute top-0 left-0 w-full h-0.5 bg-primary shadow-[0_0_8px_2px_rgba(242,140,130,0.5)] animate-[scan_2s_ease-in-out_infinite]" />
-            {isScanning && (
-              <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center backdrop-blur-md rounded-[24px]">
-                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-                <p className="text-sm font-medium text-white drop-shadow-md">분석하고 있어요...</p>
-              </div>
-            )}
+        {/* Scanning overlay */}
+        {isScanning && (
+          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center backdrop-blur-sm">
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-sm font-medium text-white drop-shadow-md">분석하고 있어요...</p>
           </div>
-        </div>
+        )}
 
         {/* Bottom */}
-        <div className="absolute bottom-0 left-0 right-0 flex flex-col justify-end pb-8 pointer-events-auto">
+        <div ref={bottomControlsRef} className="absolute bottom-0 left-0 right-0 flex flex-col justify-end pb-8 pointer-events-auto">
           <div className="px-4 mb-6">
             {!authUser ? (
               <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center justify-between cursor-pointer" onClick={() => router.push('/login')}>
@@ -362,13 +364,7 @@ export default function ScanPage() {
         </div>
       )}
 
-      <style>{`
-        @keyframes scan {
-          0% { top: 0%; }
-          50% { top: 100%; }
-          100% { top: 0%; }
-        }
-      `}</style>
+
     </div>
   );
 }

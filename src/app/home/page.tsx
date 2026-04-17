@@ -13,15 +13,14 @@ interface UserProfile {
   email: string;
   full_name: string | null;
   pregnancy_weeks: number | null;
-  subscription_status: string;
-  subscription_expires_at: string | null;
-  pending_monthly_at: string | null;
 }
 
 export default function HomePage() {
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [remainingScans, setRemainingScans] = useState(0);
+  const [isActive, setIsActive] = useState(false);
+  const [hasPendingMonthly, setHasPendingMonthly] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,13 +28,18 @@ export default function HomePage() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { setLoading(false); return; }
 
-      const [{ data: prof }, { data: credits }] = await Promise.all([
-        supabase.from('users').select('*').eq('id', user.id).single(),
-        supabase.from('scan_credits').select('count').eq('user_id', user.id).gt('expires_at', new Date().toISOString()),
+      const now = new Date().toISOString();
+      const [{ data: prof }, { data: credits }, { data: activeSub }, { data: pendingSub }] = await Promise.all([
+        supabase.from('users').select('id, email, full_name, pregnancy_weeks').eq('id', user.id).single(),
+        supabase.from('user_entitlements').select('scan_count').eq('user_id', user.id).in('type', ['scan5', 'trial', 'admin']).eq('status', 'active').gt('expires_at', now).gt('scan_count', 0),
+        supabase.from('user_entitlements').select('expires_at').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'active').gt('expires_at', now).maybeSingle(),
+        supabase.from('user_entitlements').select('id').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'pending').maybeSingle(),
       ]);
 
       setProfile(prof);
-      setRemainingScans(credits?.reduce((sum: number, c: any) => sum + c.count, 0) ?? 0);
+      setRemainingScans(credits?.reduce((sum: number, c: any) => sum + c.scan_count, 0) ?? 0);
+      setIsActive(!!activeSub);
+      setHasPendingMonthly(!!pendingSub);
       setLoading(false);
     });
   }, [router]);
@@ -48,8 +52,6 @@ export default function HomePage() {
     );
   }
 
-  const isActive = profile?.subscription_status === 'active';
-  const hasPendingMonthly = !!profile?.pending_monthly_at;
 
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas pb-20">

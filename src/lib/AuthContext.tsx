@@ -4,8 +4,6 @@ interface User {
   id: number;
   email: string;
   name: string;
-  subscription_status?: string;
-  subscription_expires_at?: string;
   remaining_scans?: number;
   pregnancy_weeks?: number;
 }

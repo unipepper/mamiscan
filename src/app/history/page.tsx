@@ -35,14 +35,16 @@ export default function HistoryPage() {
       setAuthUser(user);
       if (!user) { setIsLoading(false); return; }
 
-      const [{ data: prof }, { data: purchaseTx }] = await Promise.all([
-        supabase.from('users').select('subscription_status, pending_monthly_at').eq('id', user.id).single(),
-        supabase.from('transactions').select('id').eq('user_id', user.id).eq('type', 'purchase').limit(1),
-      ]);
-      const active =
-        prof?.subscription_status === 'active' ||
-        !!prof?.pending_monthly_at ||
-        (purchaseTx && purchaseTx.length > 0);
+      const now = new Date().toISOString();
+      const { data: subscription } = await supabase
+        .from('user_entitlements')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('type', 'monthly')
+        .or(`status.eq.pending,and(status.eq.active,expires_at.gt.${now})`)
+        .limit(1)
+        .maybeSingle();
+      const active = !!subscription;
       setIsActive(active);
 
       if (active) {

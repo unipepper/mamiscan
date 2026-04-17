@@ -17,87 +17,85 @@ export async function POST(req: Request) {
   const now = new Date().toISOString();
 
   if (delta > 0) {
-    // 증가: 항상 신규 lot 생성 (transaction_id 연결로 충전수량 추적 가능)
+    // 증가: 신규 이용권 lot 생성 (30일 유효)
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    const { data: txData, error: txError } = await supabase
-      .from('transactions')
+    const { data: entData, error: entError } = await supabase
+      .from('user_entitlements')
       .insert({
         user_id: userId,
-        type: 'deduct',
-        amount: 0,
-        count: delta,
-        description: reason || '관리자 수동 조정',
-        status: 'completed',
+        type: 'admin',
+        status: 'active',
+        scan_count: delta,
+        expires_at: expiresAt.toISOString(),
       })
       .select('id')
       .single();
 
-    if (txError || !txData) {
+    if (entError || !entData) {
       return NextResponse.json({ error: 'db_error' }, { status: 500 });
     }
 
-    await supabase.from('scan_credits').insert({
+    await supabase.from('scan_usage_logs').insert({
       user_id: userId,
+      type: 'admin_grant',
       count: delta,
-      expires_at: expiresAt.toISOString(),
-      source: 'admin_adjust',
-      transaction_id: txData.id,
+      entitlement_id: entData.id,
+      description: reason || '관리자 수동 지급',
     });
+
   } else {
-    // 차감: FIFO (가장 먼저 만료되는 row부터)
+    // 차감: FIFO (만료 임박 순)
     const absDelta = Math.abs(delta);
-    const { data: credits } = await supabase
-      .from('scan_credits')
-      .select('id, count')
+    const { data: entitlements } = await supabase
+      .from('user_entitlements')
+      .select('id, scan_count')
       .eq('user_id', userId)
+      .in('type', ['scan5', 'admin', 'trial'])
+      .eq('status', 'active')
       .gt('expires_at', now)
-      .gt('count', 0)
+      .gt('scan_count', 0)
       .order('expires_at', { ascending: true });
 
-    if (!credits || credits.length === 0) {
+    if (!entitlements || entitlements.length === 0) {
       return NextResponse.json({ error: 'no_credits' }, { status: 400 });
     }
 
     let remaining = absDelta;
-    for (const credit of credits) {
+    for (const ent of entitlements) {
       if (remaining <= 0) break;
-      if (credit.count > remaining) {
-        await supabase
-          .from('scan_credits')
-          .update({ count: credit.count - remaining })
-          .eq('id', credit.id);
-        remaining = 0;
-      } else {
-        // 소진: count = 0으로 업데이트 (row 유지, 감사 이력 보존)
-        await supabase.from('scan_credits').update({ count: 0 }).eq('id', credit.id);
-        remaining -= credit.count;
-      }
-    }
-  }
+      const deduct = Math.min(ent.scan_count!, remaining);
+      const newCount = ent.scan_count! - deduct;
 
-  // transactions 기록 (차감만 — 증가는 위에서 lot 생성 전에 이미 insert)
-  if (delta < 0) {
-    await supabase.from('transactions').insert({
-      user_id: userId,
-      type: 'deduct',
-      amount: 0,
-      count: delta,
-      description: reason || '관리자 수동 조정',
-      status: 'completed',
-    });
+      await supabase
+        .from('user_entitlements')
+        .update({ scan_count: newCount })
+        .eq('id', ent.id);
+
+      await supabase.from('scan_usage_logs').insert({
+        user_id: userId,
+        type: 'admin_deduct',
+        count: -deduct,
+        entitlement_id: ent.id,
+        description: reason || '관리자 수동 차감',
+      });
+
+      remaining -= deduct;
+    }
   }
 
   // 최종 잔여 크레딧 합산
   const { data: remaining } = await supabase
-    .from('scan_credits')
-    .select('count')
+    .from('user_entitlements')
+    .select('scan_count')
     .eq('user_id', userId)
+    .in('type', ['scan5', 'admin', 'trial'])
+    .eq('status', 'active')
     .gt('expires_at', now)
-    .gt('count', 0);
+    .gt('scan_count', 0);
 
-  const totalCount = remaining?.reduce((sum, r) => sum + r.count, 0) ?? 0;
+  const totalCount = remaining?.reduce((sum, r) => sum + (r.scan_count ?? 0), 0) ?? 0;
 
   return NextResponse.json({ success: true, updatedCount: totalCount });
 }

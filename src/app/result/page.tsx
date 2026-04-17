@@ -60,8 +60,12 @@ function ResultContent() {
     const authPromise = supabase.auth.getUser().then(async ({ data: { user } }) => {
       setAuthUser(user);
       if (user) {
-        const { data: profData } = await supabase.from('users').select('*').eq('id', user.id).single();
-        setUserProfile(profData);
+        const now = new Date().toISOString();
+        const [{ data: profData }, { data: activeSub }] = await Promise.all([
+          supabase.from('users').select('id, pregnancy_weeks').eq('id', user.id).single(),
+          supabase.from('user_entitlements').select('id').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'active').gt('expires_at', now).maybeSingle(),
+        ]);
+        setUserProfile({ ...profData, isActive: !!activeSub });
         return { user, prof: profData };
       }
       return { user: null, prof: null };
@@ -90,7 +94,7 @@ function ResultContent() {
         } else if (parsed.userImageUrl) {
           setSavedImageUrl(parsed.userImageUrl);
         }
-      } catch {}
+      } catch { }
       authPromise.finally(() => setIsLoading(false));
       return;
     }
@@ -169,7 +173,6 @@ function ResultContent() {
   }, [barcode, scanImage]);
 
   const displayImageSrc = scanImage ?? result?.userImageUrl ?? null;
-  const isPremium = userProfile?.subscription_status === 'active';
   const pregnancyWeeks = userProfile?.pregnancy_weeks;
   const hasWeekInfo = pregnancyWeeks !== undefined && pregnancyWeeks !== null;
 
@@ -304,223 +307,232 @@ function ResultContent() {
 
       <main className="px-4 py-5 space-y-5">
         {isError && (
-          <div className="bg-neutral-bg rounded-xl p-4 flex items-start space-x-3 border border-border-subtle">
-            <Info className="w-5 h-5 text-text-secondary shrink-0 mt-0.5" />
-            <div>
-              <h3 className="text-sm font-bold text-text-primary mb-1">
-                {result.status === 'error_future_category' ? '아직 이 카테고리는 준비 중이에요' :
-                 result.status === 'error_unsupported_category' ? '이 종류는 마미스캔이 판정하기 어려워요' :
-                 result.status === 'error_image_quality' ? '사진이 선명하지 않아 정확하지 않을 수 있어요' :
-                 '데이터베이스에 없는 제품이에요'}
-              </h3>
-              <p className="text-xs text-text-secondary leading-relaxed">
-                {result.status === 'error_future_category' ? '아래 정보는 AI 추정 기반 참고용이에요. 곧 정식 지원할게요!' :
-                 result.status === 'error_unsupported_category' ? '처방약·조리 음식은 성분 기준이 달라요. 담당 의료진에게 문의하세요.' :
-                 result.status === 'error_image_quality' ? '제품 하나만 가까이서, 밝은 곳에서 다시 찍어주시면 더 정확해요.' :
-                 '이미지 기반으로 분석한 참고용 정보예요. 정확한 확인은 다시 스캔해 주세요.'}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Result Summary Card */}
-        <Card className={`border-none shadow-none overflow-hidden ${
-          isError ? 'bg-bg-surface border border-border-subtle' :
-          result.status === 'success' ? 'bg-success-bg' :
-          result.status === 'danger' ? 'bg-danger-bg' : 'bg-caution-bg'
-        }`}>
-          <CardContent className="p-5 flex flex-col">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center flex-wrap gap-2">
-                <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${
-                  isError ? 'bg-text-secondary' :
-                  result.status === 'success' ? 'bg-success-fg' :
-                  result.status === 'danger' ? 'bg-danger-fg' : 'bg-caution-fg'
-                }`}>
-                  {isError ? <Info className="w-3.5 h-3.5 mr-1" /> :
-                   result.status === 'success' ? <CheckCircle className="w-3.5 h-3.5 mr-1" /> :
-                   <AlertTriangle className="w-3.5 h-3.5 mr-1" />}
-                  {isError ? '참고 정보' : result.status === 'success' ? '안전' : result.status === 'danger' ? '위험' : '주의 필요'}
-                </div>
-                {hasWeekInfo && (
-                  <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${isError ? 'bg-neutral-bg text-text-secondary' : 'bg-white/60 text-primary'}`}>
-                    임신 {pregnancyWeeks}주차 맞춤
-                  </div>
-                )}
-              </div>
-              {(displayImageSrc || result.imageUrl) && (
-                <div className="w-16 h-16 rounded-xl overflow-hidden bg-white/40 border border-white/40 shrink-0 ml-3">
-                  <img
-                    src={displayImageSrc ?? result.imageUrl}
-                    alt={result.productName}
-                    className="w-full h-full object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                </div>
-              )}
-            </div>
-            <h1 className={`text-[24px] leading-[32px] font-bold mb-1 ${
-              isError ? 'text-text-primary' :
-              result.status === 'success' ? 'text-success-fg' :
-              result.status === 'danger' ? 'text-danger-fg' : 'text-caution-fg'
-            }`}>{result.headline}</h1>
-            <p className={`text-sm font-medium mb-4 ${
-              isError ? 'text-text-secondary' :
-              result.status === 'success' ? 'text-success-fg/70' :
-              result.status === 'danger' ? 'text-danger-fg/70' : 'text-caution-fg/70'
-            }`}>{result.productName}</p>
-            <p className="text-sm text-text-primary leading-[1.75]">{result.description}</p>
-
-            {hasWeekInfo && result.weekAnalysis && (
-              <div className="mt-4 pt-4 border-t border-black/10 space-y-1.5">
-                <div className="flex items-center space-x-1.5">
-                  <span className="text-sm">✨</span>
-                  <p className="text-xs font-bold text-primary">임신 {pregnancyWeeks}주차 맞춤 조언</p>
-                </div>
-                <p className="text-sm text-text-primary leading-[1.75]">{result.weekAnalysis}</p>
-              </div>
-            )}
-
-            {!hasWeekInfo && authUser && (
-              <button
-                onClick={() => setShowWeekModal(true)}
-                className="mt-4 w-full flex items-center justify-between px-4 py-3.5 bg-white/75 hover:bg-white/95 border border-white/80 rounded-2xl transition-all shadow-sm group"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0 text-lg">✨</div>
-                  <div className="text-left">
-                    <p className="text-sm font-bold text-text-primary">주차별 맞춤 분석 받기</p>
-                    <p className="text-[11px] text-text-secondary mt-0.5">임신 주차를 입력하면 딱 맞는 조언을 드려요</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-primary shrink-0" />
-              </button>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Locked / Detail */}
-        <div className="relative">
-          {!authUser && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center pt-12 pb-8 bg-gradient-to-b from-transparent via-bg-canvas/60 to-bg-canvas backdrop-blur-[2px]">
-              <div className="bg-white/95 p-6 rounded-2xl shadow-xl border border-gray-100 flex flex-col items-center max-w-[280px] text-center sticky top-32">
-                <div className="bg-primary/10 p-3 rounded-full mb-3"><Lock className="w-6 h-6 text-primary" /></div>
-                <h3 className="font-bold text-text-primary mb-2">회원 전용 기능</h3>
-                <p className="text-sm text-text-secondary mb-4 leading-relaxed">상세 성분 분석부터 주차별 맞춤 가이드까지 모두 확인해보세요.</p>
-                <Button onClick={() => router.push('/login')} className="w-full font-bold rounded-xl py-5 shadow-sm">로그인 / 회원가입 하기</Button>
+            <div className="bg-neutral-bg rounded-xl p-4 flex items-start space-x-3 border border-border-subtle">
+              <Info className="w-5 h-5 text-text-secondary shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-bold text-text-primary mb-1">
+                  {result.status === 'error_future_category' ? '아직 이 카테고리는 준비 중이에요' :
+                    result.status === 'error_unsupported_category' ? '이 종류는 마미스캔이 판정하기 어려워요' :
+                      result.status === 'error_image_quality' ? '사진이 선명하지 않아 정확하지 않을 수 있어요' :
+                        '데이터베이스에 없는 제품이에요'}
+                </h3>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  {result.status === 'error_future_category' ? '아래 정보는 AI 추정 기반 참고용이에요. 곧 정식 지원할게요!' :
+                    result.status === 'error_unsupported_category' ? '처방약·조리 음식은 성분 기준이 달라요. 담당 의료진에게 문의하세요.' :
+                      result.status === 'error_image_quality' ? '제품 하나만 가까이서, 밝은 곳에서 다시 찍어주시면 더 정확해요.' :
+                        '이미지 기반으로 분석한 참고용 정보예요. 정확한 확인은 다시 스캔해 주세요.'}
+                </p>
               </div>
             </div>
           )}
 
-          <div className={!authUser ? 'opacity-30 pointer-events-none select-none overflow-hidden max-h-[400px]' : ''}>
-            {/* Ingredients */}
-            {!isError && (
-            <section className="space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <h2 className="text-[18px] font-bold text-text-primary">어떤 성분/특징 때문인가요?</h2>
-                {hasWeekInfo && <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded-md font-medium">{pregnancyWeeks}주차 기준</span>}
-              </div>
-              <div className="space-y-3">
-                {!authUser ? (
-                  <>
-                    {['주의 성분 A', '위험 성분 B'].map((name, i) => (
-                      <Card key={name} className="bg-bg-surface border-border-subtle shadow-sm">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-bold text-text-primary">{name}</span>
-                            <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${i === 0 ? 'bg-caution-fg' : 'bg-danger-fg'}`}>
-                              {i === 0 ? '주의' : '위험'}
-                            </div>
-                          </div>
-                          <div className="bg-neutral-bg rounded-lg p-3 mt-3">
-                            <p className="text-sm text-text-secondary leading-relaxed">임산부에게 영향을 줄 수 있는 성분으로 섭취량 조절이 필요합니다.</p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </>
-                ) : result.ingredients?.filter((i: any) => i.status !== 'success').length > 0 ? (
-                  result.ingredients.filter((i: any) => i.status !== 'success').map((ingredient: any, idx: number) => (
-                    <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-bold text-text-primary">{ingredient.name}</span>
-                          <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${ingredient.status === 'caution' ? 'bg-caution-fg' : 'bg-danger-fg'}`}>
-                            {ingredient.status === 'caution' ? '주의' : '위험'}
-                          </div>
-                        </div>
-                        <div className="bg-neutral-bg rounded-lg p-3 mt-3">
-                          <p className="text-sm text-text-secondary leading-relaxed">{ingredient.reason}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <Card className="bg-bg-surface border-border-subtle shadow-sm">
-                    <CardContent className="p-6 text-center">
-                      <CheckCircle className="w-8 h-8 text-success-fg mx-auto mb-3" />
-                      <p className="text-text-primary font-medium">주의해야 할 성분이나 특징이 발견되지 않았어요.</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </section>
-            )}
-
-            {/* Alternatives */}
-            <section className="space-y-3 mt-6">
-              <div className="flex items-center justify-between px-1">
-                <h2 className="text-[18px] font-bold text-text-primary">안전한 대체 제품</h2>
-                <span className="text-xs text-text-secondary bg-neutral-bg px-2 py-1 rounded-md">광고 아님</span>
-              </div>
-              <p className="text-sm text-text-secondary px-1">주의할 특징이 없는 비슷한 제품을 찾아봤어요.</p>
-              <div className="relative">
-                <div className={!authUser ? 'opacity-30 blur-[3px] pointer-events-none select-none grid gap-3' : 'grid gap-3'}>
-                  {result.alternatives?.length > 0 ? result.alternatives.map((alt: any, idx: number) => (
-                    <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm">
-                      <CardContent className="p-4 flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 bg-neutral-bg rounded-md flex items-center justify-center shrink-0">
-                            <ShoppingBag className="w-5 h-5 text-text-secondary" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-text-secondary mb-0.5">{alt.brand}</p>
-                            <p className="font-semibold text-text-primary text-sm">{alt.name}</p>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-text-secondary" />
-                      </CardContent>
-                    </Card>
-                  )) : (
-                    <Card className="bg-bg-surface border-border-subtle shadow-sm">
-                      <CardContent className="p-6 text-center">
-                        <p className="text-text-secondary text-sm">추천할 만한 대체 제품이 없습니다.</p>
-                      </CardContent>
-                    </Card>
+          {/* Result Summary Card */}
+          <Card className={`border-none shadow-none overflow-hidden ${isError ? 'bg-bg-surface border border-border-subtle' :
+            result.status === 'success' ? 'bg-success-bg' :
+              result.status === 'danger' ? 'bg-danger-bg' : 'bg-caution-bg'
+            }`}>
+            <CardContent className="p-5 flex flex-col">
+              {/* 배지 + 헤드라인 + 제품명 */}
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center flex-wrap gap-2">
+                  <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${
+                    isError ? 'bg-text-secondary' :
+                    result.status === 'success' ? 'bg-success-fg' :
+                    result.status === 'danger' ? 'bg-danger-fg' : 'bg-caution-fg'
+                  }`}>
+                    {isError ? <Info className="w-3.5 h-3.5 mr-1" /> :
+                      result.status === 'success' ? <CheckCircle className="w-3.5 h-3.5 mr-1" /> :
+                      <AlertTriangle className="w-3.5 h-3.5 mr-1" />}
+                    {isError ? '참고 정보' : result.status === 'success' ? '안전' : result.status === 'danger' ? '위험' : '주의 필요'}
+                  </div>
+                  {hasWeekInfo && (
+                    <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${isError ? 'bg-neutral-bg text-text-secondary' : 'bg-white/60 text-primary'}`}>
+                      임신 {pregnancyWeeks}주차 맞춤
+                    </div>
                   )}
                 </div>
-                {!authUser && (
-                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center">
-                    <div className="bg-primary/10 p-3 rounded-full mb-3"><Lock className="w-6 h-6 text-primary" /></div>
-                    <h3 className="font-bold text-text-primary mb-2">회원 전용 기능</h3>
-                    <p className="text-sm text-text-secondary mb-4">로그인하면 안전한 대체 제품을 확인할 수 있어요.</p>
-                    <Button onClick={() => router.push('/login')} className="font-bold shadow-md">로그인 / 회원가입</Button>
+                {!displayImageSrc && result.imageUrl && (
+                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-white/40 border border-white/40 shrink-0 ml-3">
+                    <img src={result.imageUrl} alt={result.productName} className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   </div>
                 )}
               </div>
-            </section>
-          </div>
-        </div>
+              <h1 className={`text-[24px] leading-[32px] font-bold mb-1 ${
+                isError ? 'text-text-primary' :
+                result.status === 'success' ? 'text-success-fg' :
+                result.status === 'danger' ? 'text-danger-fg' : 'text-caution-fg'
+              }`}>{result.headline}</h1>
+              <p className={`text-sm font-medium ${displayImageSrc ? 'mb-3' : 'mb-4'} ${
+                isError ? 'text-text-secondary' :
+                result.status === 'success' ? 'text-success-fg/70' :
+                result.status === 'danger' ? 'text-danger-fg/70' : 'text-caution-fg/70'
+              }`}>{result.productName}</p>
 
-        {/* Disclaimer */}
-        <section className="pt-3 pb-4">
-          <div className="bg-neutral-bg rounded-xl p-4 flex items-start space-x-3">
-            <Info className="w-5 h-5 text-text-secondary shrink-0 mt-0.5" />
-            <p className="text-[12px] leading-relaxed text-text-secondary">
-              본 서비스의 분석 결과는 식약처 및 관련 기관의 가이드라인을 바탕으로 제공되나, <strong>의료적 진단이나 조언을 대체할 수 없습니다.</strong> 불안하다면 담당 의료진의 안내를 우선해 주세요.
-            </p>
+              {/* 촬영 이미지 (제품명 아래, 설명 위) */}
+              {displayImageSrc && (
+                <div className="-mx-5 mb-4 overflow-hidden">
+                  <img
+                    src={displayImageSrc}
+                    alt="촬영 이미지"
+                    className="w-full aspect-square object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }}
+                  />
+                </div>
+              )}
+
+              <p className="text-sm text-text-primary leading-[1.75]">{result.description}</p>
+
+              {hasWeekInfo && result.weekAnalysis && (
+                <div className="mt-4 pt-4 border-t border-black/10 space-y-1.5">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-sm">✨</span>
+                    <p className="text-xs font-bold text-primary">임신 {pregnancyWeeks}주차 맞춤 조언</p>
+                  </div>
+                  <p className="text-sm text-text-primary leading-[1.75]">{result.weekAnalysis}</p>
+                </div>
+              )}
+
+              {!hasWeekInfo && authUser && (
+                <button
+                  onClick={() => setShowWeekModal(true)}
+                  className="mt-4 w-full flex items-center justify-between px-4 py-3.5 bg-white/75 hover:bg-white/95 border border-white/80 rounded-2xl transition-all shadow-sm group"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0 text-lg">✨</div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-text-primary">주차별 맞춤 분석 받기</p>
+                      <p className="text-[11px] text-text-secondary mt-0.5">임신 주차를 입력하면 딱 맞는 조언을 드려요</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-primary shrink-0" />
+                </button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Locked / Detail */}
+          <div className="relative">
+            {!authUser && (
+              <div className="absolute inset-0 z-20 flex flex-col items-center pt-12 pb-8 bg-gradient-to-b from-transparent via-bg-canvas/60 to-bg-canvas backdrop-blur-[2px]">
+                <div className="bg-white/95 p-6 rounded-2xl shadow-xl border border-gray-100 flex flex-col items-center max-w-[280px] text-center sticky top-32">
+                  <div className="bg-primary/10 p-3 rounded-full mb-3"><Lock className="w-6 h-6 text-primary" /></div>
+                  <h3 className="font-bold text-text-primary mb-2">회원 전용 기능</h3>
+                  <p className="text-sm text-text-secondary mb-4 leading-relaxed">상세 성분 분석부터 주차별 맞춤 가이드까지 모두 확인해보세요.</p>
+                  <Button onClick={() => router.push('/login')} className="w-full font-bold rounded-xl py-5 shadow-sm">로그인 / 회원가입 하기</Button>
+                </div>
+              </div>
+            )}
+
+            <div className={!authUser ? 'opacity-30 pointer-events-none select-none overflow-hidden max-h-[400px]' : ''}>
+              {/* Ingredients */}
+              {!isError && (
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                    <h2 className="text-[18px] font-bold text-text-primary">어떤 성분/특징 때문인가요?</h2>
+                    {hasWeekInfo && <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded-md font-medium">{pregnancyWeeks}주차 기준</span>}
+                  </div>
+                  <div className="space-y-3">
+                    {!authUser ? (
+                      <>
+                        {['주의 성분 A', '위험 성분 B'].map((name, i) => (
+                          <Card key={name} className="bg-bg-surface border-border-subtle shadow-sm">
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-bold text-text-primary">{name}</span>
+                                <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${i === 0 ? 'bg-caution-fg' : 'bg-danger-fg'}`}>
+                                  {i === 0 ? '주의' : '위험'}
+                                </div>
+                              </div>
+                              <div className="bg-neutral-bg rounded-lg p-3 mt-3">
+                                <p className="text-sm text-text-secondary leading-relaxed">임산부에게 영향을 줄 수 있는 성분으로 섭취량 조절이 필요합니다.</p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </>
+                    ) : result.ingredients?.filter((i: any) => i.status !== 'success').length > 0 ? (
+                      result.ingredients.filter((i: any) => i.status !== 'success').map((ingredient: any, idx: number) => (
+                        <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-bold text-text-primary">{ingredient.name}</span>
+                              <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${ingredient.status === 'caution' ? 'bg-caution-fg' : 'bg-danger-fg'}`}>
+                                {ingredient.status === 'caution' ? '주의' : '위험'}
+                              </div>
+                            </div>
+                            <div className="bg-neutral-bg rounded-lg p-3 mt-3">
+                              <p className="text-sm text-text-secondary leading-relaxed">{ingredient.reason}</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    ) : (
+                      <Card className="bg-bg-surface border-border-subtle shadow-sm">
+                        <CardContent className="p-6 text-center">
+                          <CheckCircle className="w-8 h-8 text-success-fg mx-auto mb-3" />
+                          <p className="text-text-primary font-medium">주의해야 할 성분이나 특징이 발견되지 않았어요.</p>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {/* Alternatives */}
+              <section className="space-y-3 mt-6">
+                <div className="flex items-center justify-between px-1">
+                  <h2 className="text-[18px] font-bold text-text-primary">안전한 대체 제품</h2>
+                  <span className="text-xs text-text-secondary bg-neutral-bg px-2 py-1 rounded-md">광고 아님</span>
+                </div>
+                <p className="text-sm text-text-secondary px-1">주의할 특징이 없는 비슷한 제품을 찾아봤어요.</p>
+                <div className="relative">
+                  <div className={!authUser ? 'opacity-30 blur-[3px] pointer-events-none select-none grid gap-3' : 'grid gap-3'}>
+                    {result.alternatives?.length > 0 ? result.alternatives.map((alt: any, idx: number) => (
+                      <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm">
+                        <CardContent className="p-4 flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 bg-neutral-bg rounded-md flex items-center justify-center shrink-0">
+                              <ShoppingBag className="w-5 h-5 text-text-secondary" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-text-secondary mb-0.5">{alt.brand}</p>
+                              <p className="font-semibold text-text-primary text-sm">{alt.name}</p>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-text-secondary" />
+                        </CardContent>
+                      </Card>
+                    )) : (
+                      <Card className="bg-bg-surface border-border-subtle shadow-sm">
+                        <CardContent className="p-6 text-center">
+                          <p className="text-text-secondary text-sm">추천할 만한 대체 제품이 없습니다.</p>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                  {!authUser && (
+                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center">
+                      <div className="bg-primary/10 p-3 rounded-full mb-3"><Lock className="w-6 h-6 text-primary" /></div>
+                      <h3 className="font-bold text-text-primary mb-2">회원 전용 기능</h3>
+                      <p className="text-sm text-text-secondary mb-4">로그인하면 안전한 대체 제품을 확인할 수 있어요.</p>
+                      <Button onClick={() => router.push('/login')} className="font-bold shadow-md">로그인 / 회원가입</Button>
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
           </div>
-        </section>
+
+          {/* Disclaimer */}
+          <section className="pt-3 pb-4">
+            <div className="bg-neutral-bg rounded-xl p-4 flex items-start space-x-3">
+              <Info className="w-5 h-5 text-text-secondary shrink-0 mt-0.5" />
+              <p className="text-[12px] leading-relaxed text-text-secondary">
+                본 서비스의 분석 결과는 식약처 및 관련 기관의 가이드라인을 바탕으로 제공되나, <strong>의료적 진단이나 조언을 대체할 수 없습니다.</strong> 불안하다면 담당 의료진의 안내를 우선해 주세요.
+              </p>
+            </div>
+          </section>
       </main>
 
       {/* Bottom Action Panel */}

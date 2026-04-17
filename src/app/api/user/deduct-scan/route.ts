@@ -6,80 +6,97 @@ export async function POST() {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  // 무제한 이용권이면 차감 불필요
-  const { data: prof } = await supabase
-    .from('users')
-    .select('subscription_status, subscription_expires_at, pending_monthly_at')
-    .eq('id', user.id)
-    .single();
+  // 1. 활성화된 무제한 이용권 확인
+  const { data: activeSub } = await supabase
+    .from('user_entitlements')
+    .select('id, expires_at')
+    .eq('user_id', user.id)
+    .eq('type', 'monthly')
+    .eq('status', 'active')
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle();
 
-  if (prof?.subscription_status === 'active') {
-    const expires = prof.subscription_expires_at ? new Date(prof.subscription_expires_at) : null;
-    if (expires && expires > new Date()) {
-      return NextResponse.json({ success: true, type: 'subscription' });
-    }
-    // 만료된 경우 status 초기화
-    await supabase.from('users').update({ subscription_status: 'free' }).eq('id', user.id);
+  if (activeSub) {
+    await supabase.from('scan_usage_logs').insert({
+      user_id: user.id,
+      type: 'scan_use',
+      count: -1,
+      entitlement_id: activeSub.id,
+      description: '스캔 사용 (무제한)',
+    });
+    return NextResponse.json({ success: true, type: 'subscription' });
   }
 
-  // FIFO: 만료 임박 순으로 scan_credits 차감
+  // 2. FIFO: 만료 임박 순으로 횟수권 차감 (가입 보상 포함)
   const { data: credits } = await supabase
-    .from('scan_credits')
-    .select('id, count')
+    .from('user_entitlements')
+    .select('id, scan_count')
     .eq('user_id', user.id)
+    .in('type', ['trial', 'scan5'])
+    .eq('status', 'active')
     .gt('expires_at', new Date().toISOString())
-    .gt('count', 0)
+    .gt('scan_count', 0)
     .order('expires_at', { ascending: true })
     .limit(1);
 
   if (!credits || credits.length === 0) {
-    // Case 1: 스캔권 소진/만료 후 대기 중인 무제한 이용권 자동 활성화
-    if (prof?.pending_monthly_at) {
-      const expiresAt = new Date();
+    // 스캔권 없음 → 대기 중인 무제한 이용권이 있으면 첫 스캔으로 활성화
+    const { data: pendingSub } = await supabase
+      .from('user_entitlements')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('type', 'monthly')
+      .eq('status', 'pending')
+      .maybeSingle();
+
+    if (pendingSub) {
+      const startedAt = new Date();
+      const expiresAt = new Date(startedAt);
       expiresAt.setDate(expiresAt.getDate() + 30);
+
       await supabase
-        .from('users')
+        .from('user_entitlements')
         .update({
-          subscription_status: 'active',
-          subscription_expires_at: expiresAt.toISOString(),
-          pending_monthly_at: null,
+          status: 'active',
+          started_at: startedAt.toISOString(),
+          expires_at: expiresAt.toISOString(),
         })
-        .eq('id', user.id);
+        .eq('id', pendingSub.id);
+
+      await supabase.from('scan_usage_logs').insert({
+        user_id: user.id,
+        type: 'scan_use',
+        count: -1,
+        entitlement_id: pendingSub.id,
+        description: '스캔 사용 (무제한 첫 사용)',
+      });
+
       return NextResponse.json({ success: true, type: 'subscription' });
     }
+
     return NextResponse.json({ error: 'no_credits' }, { status: 403 });
   }
 
+  // 3. 스캔권 차감 (scan_count 감소, row 유지)
   const credit = credits[0];
-  // 차감 트랜잭션 기록
-  await supabase.from('transactions').insert({
-    user_id: user.id,
-    type: 'deduct',
-    amount: 0,
-    count: -1,
-    description: '스캔 사용',
-    status: 'completed',
-  });
 
-  if (credit.count > 1) {
-    await supabase.from('scan_credits').update({ count: credit.count - 1 }).eq('id', credit.id);
-  } else {
-    // 마지막 횟수 사용: count = 0으로 소진 처리 (row 유지, 감사 이력 보존)
-    await supabase.from('scan_credits').update({ count: 0 }).eq('id', credit.id);
+  const { error: updateError } = await supabase
+    .from('user_entitlements')
+    .update({ scan_count: credit.scan_count! - 1 })
+    .eq('id', credit.id);
 
-    if (prof?.pending_monthly_at) {
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
-      await supabase
-        .from('users')
-        .update({
-          subscription_status: 'active',
-          subscription_expires_at: expiresAt.toISOString(),
-          pending_monthly_at: null,
-        })
-        .eq('id', user.id);
-    }
+  if (updateError) {
+    console.error('user_entitlements update error:', updateError);
+    return NextResponse.json({ error: 'db_error' }, { status: 500 });
   }
+
+  await supabase.from('scan_usage_logs').insert({
+    user_id: user.id,
+    type: 'scan_use',
+    count: -1,
+    entitlement_id: credit.id,
+    description: '스캔 사용',
+  });
 
   return NextResponse.json({ success: true, type: 'credit' });
 }
