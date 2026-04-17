@@ -6,7 +6,7 @@ import { User, Calendar, ChevronRight, LogOut, Loader2, MessageSquare, Pencil, X
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
-import { getRemainingDays } from '@/lib/subscription';
+import { getRemainingDays, formatSubscriptionDate } from '@/lib/subscription';
 import { BottomNav } from '@/components/BottomNav';
 
 export default function SettingsPage() {
@@ -14,6 +14,7 @@ export default function SettingsPage() {
   const [authUser, setAuthUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [remainingScans, setRemainingScans] = useState(0);
+  const [activeSubStartedAt, setActiveSubStartedAt] = useState<string | null>(null);
   const [activeSubExpiresAt, setActiveSubExpiresAt] = useState<string | null>(null);
   const [hasPendingMonthly, setHasPendingMonthly] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -35,11 +36,12 @@ export default function SettingsPage() {
         const [{ data: prof }, { data: credits }, { data: activeSub }, { data: pendingSub }] = await Promise.all([
           supabase.from('users').select('id, name, pregnancy_weeks').eq('id', user.id).single(),
           supabase.from('user_entitlements').select('scan_count').eq('user_id', user.id).in('type', ['scan5', 'trial', 'admin']).eq('status', 'active').gt('expires_at', now).gt('scan_count', 0),
-          supabase.from('user_entitlements').select('expires_at').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'active').gt('expires_at', now).maybeSingle(),
+          supabase.from('user_entitlements').select('started_at, expires_at').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'active').gt('expires_at', now).maybeSingle(),
           supabase.from('user_entitlements').select('id').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'pending').maybeSingle(),
         ]);
         setProfile(prof);
         setRemainingScans(credits?.reduce((s: number, c: any) => s + c.scan_count, 0) ?? 0);
+        setActiveSubStartedAt(activeSub?.started_at ?? null);
         setActiveSubExpiresAt(activeSub?.expires_at ?? null);
         setHasPendingMonthly(!!pendingSub);
         if (prof?.pregnancy_weeks) setDialWeek(String(prof.pregnancy_weeks));
@@ -179,7 +181,7 @@ export default function SettingsPage() {
                     <p className="text-sm text-text-secondary">횟수 제한 없이 스캔 가능합니다.</p>
                     {activeSubExpiresAt && (
                       <p className="text-xs text-text-secondary mt-1">
-                        남은 기간: {getRemainingDays(activeSubExpiresAt)}일
+                        이용 기간: {formatSubscriptionDate(activeSubStartedAt)} ~ {formatSubscriptionDate(activeSubExpiresAt)} (남은 기간: {getRemainingDays(activeSubExpiresAt)}일)
                       </p>
                     )}
                   </>
