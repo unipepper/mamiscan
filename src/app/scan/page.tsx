@@ -19,6 +19,8 @@ export default function ScanPage() {
   const isScanningRef = useRef(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [showPermissionGuide, setShowPermissionGuide] = useState(false);
+  const [albumPermissionHint, setAlbumPermissionHint] = useState(false);
+  const [showAlbumPermissionGuide, setShowAlbumPermissionGuide] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
@@ -154,9 +156,24 @@ export default function ScanPage() {
     }
   };
 
+  const handleAlbumButtonClick = () => {
+    if (isScanningRef.current) return;
+    const handleFocus = () => {
+      setTimeout(() => {
+        if (!isScanningRef.current) {
+          setAlbumPermissionHint(true);
+          setTimeout(() => setAlbumPermissionHint(false), 6000);
+        }
+      }, 500);
+    };
+    window.addEventListener('focus', handleFocus, { once: true });
+    fileInputRef.current?.click();
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || isScanningRef.current) return;
+    setAlbumPermissionHint(false);
     if (!hasCredits) { handleNoCredits(); return; }
     isScanningRef.current = true;
     setIsScanning(true);
@@ -244,6 +261,15 @@ export default function ScanPage() {
               </button>
             </div>
           )}
+          {albumPermissionHint && (
+            <div className="mx-4 mt-2 bg-danger-bg text-danger-fg p-3 rounded-lg text-sm text-center font-medium shadow-lg flex flex-col items-center space-y-2 pointer-events-auto">
+              <span>앨범에 접근할 수 없나요? 사진 접근 권한을 확인해주세요.</span>
+              <button onClick={() => setShowAlbumPermissionGuide(true)} className="flex items-center space-x-1 bg-black/10 px-3 py-1.5 rounded-full hover:bg-black/20 transition-colors">
+                <Info className="w-4 h-4" />
+                <span>앨범 허용 방법 보기</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Scanning overlay */}
@@ -302,7 +328,7 @@ export default function ScanPage() {
             <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
             <div className="absolute left-8 flex items-center justify-center">
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={handleAlbumButtonClick}
                 disabled={isScanning}
                 className={cn('flex flex-col items-center space-y-2 text-white hover:text-gray-200 transition-colors drop-shadow-lg', isScanning && 'opacity-50 pointer-events-none')}
               >
@@ -325,7 +351,7 @@ export default function ScanPage() {
         </div>
       </div>
 
-      {/* Permission Guide Modal */}
+      {/* Camera Permission Guide Modal */}
       {showPermissionGuide && (
         <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm pointer-events-auto">
           <div className="bg-white text-gray-900 rounded-2xl p-6 w-full max-w-sm shadow-2xl relative">
@@ -358,6 +384,45 @@ export default function ScanPage() {
               </p>
             </div>
             <button onClick={() => setShowPermissionGuide(false)} className="w-full mt-5 bg-primary text-white font-medium py-2.5 rounded-xl hover:bg-primary-strong transition-colors">
+              확인
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Album Permission Guide Modal */}
+      {showAlbumPermissionGuide && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm pointer-events-auto">
+          <div className="bg-white text-gray-900 rounded-2xl p-6 w-full max-w-sm shadow-2xl relative">
+            <button onClick={() => setShowAlbumPermissionGuide(false)} className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-600">
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-lg font-bold mb-4 flex items-center">
+              <ImageIcon className="w-5 h-5 mr-2 text-primary" />
+              앨범 접근 권한 허용 가이드
+            </h3>
+            <div className="space-y-5 text-sm text-gray-600 overflow-y-auto max-h-[60vh]">
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-2">📱 아이폰 (Safari)</h4>
+                <ol className="list-decimal pl-4 space-y-1">
+                  <li><strong>설정 앱</strong> 열기</li>
+                  <li><strong>'개인 정보 보호 및 보안'</strong> → <strong>'사진'</strong> 터치</li>
+                  <li>Safari를 찾아 <strong>'모든 사진'</strong> 또는 <strong>'선택된 사진'</strong>으로 변경</li>
+                </ol>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-2">📱 안드로이드 (Chrome)</h4>
+                <ol className="list-decimal pl-4 space-y-1">
+                  <li>주소창 왼쪽의 <strong>자물쇠 모양</strong> 아이콘 터치</li>
+                  <li><strong>'권한'</strong> 메뉴 선택</li>
+                  <li>사진/미디어를 <strong>'허용'</strong>으로 변경 후 새로고침</li>
+                </ol>
+              </div>
+              <p className="text-xs text-gray-500 pt-2 border-t border-gray-100">
+                앨범 접근이 계속 어려우신 경우, 카메라로 직접 촬영하거나 브라우저에서 파일 앱을 통해 이미지를 선택해 보세요.
+              </p>
+            </div>
+            <button onClick={() => setShowAlbumPermissionGuide(false)} className="w-full mt-5 bg-primary text-white font-medium py-2.5 rounded-xl hover:bg-primary-strong transition-colors">
               확인
             </button>
           </div>
