@@ -123,6 +123,7 @@ function ResultContent() {
 
         const parsedResult = data.result;
 
+        let deductedEntitlementId: string | number | null = null;
         if (!parsedResult.status.startsWith('error_')) {
           if (user) {
             const deductRes = await fetch('/api/user/deduct-scan', { method: 'POST' });
@@ -130,6 +131,8 @@ function ResultContent() {
               router.replace('/pricing');
               return;
             }
+            const deductData = await deductRes.json().catch(() => null);
+            deductedEntitlementId = deductData?.entitlementId ?? null;
           } else {
             // 비로그인 LocalStorage 차감
             const used = parseInt(localStorage.getItem('mamiscan_guest_scans') || '0', 10);
@@ -151,6 +154,7 @@ function ResultContent() {
               status: parsedResult.status,
               resultJson: parsedResult,
               imageBase64: thumbnail,
+              entitlementId: deductedEntitlementId,
             }),
           }).catch(() => null);
 

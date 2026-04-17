@@ -34,10 +34,19 @@ interface ScanLog {
   created_at: string;
 }
 
+interface ScanHistory {
+  id: string;
+  entitlement_id: string;
+  product_name: string;
+  status: string;
+  created_at: string;
+}
+
 export default function BillingHistoryPage() {
   const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [scanLogs, setScanLogs] = useState<ScanLog[]>([]);
+  const [scanHistories, setScanHistories] = useState<ScanHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string> | null>(null); // null = all expanded
@@ -55,6 +64,7 @@ export default function BillingHistoryPage() {
       if (data.success) {
         setTransactions(data.transactions);
         setScanLogs(data.scanLogs ?? []);
+        setScanHistories(data.scanHistories ?? []);
       } else throw new Error('api error');
     } catch {
       setFetchError(true);
@@ -125,12 +135,21 @@ export default function BillingHistoryPage() {
     return 'text-primary';
   };
 
-  // 이 결제에 연결된 이용권의 scan_use 로그 (사용 내역 목록 표시용)
+  // 이 결제에 연결된 이용권의 scan_use 로그 (grant 횟수 역산용)
   const getScanLogsForTx = (tx: Transaction): ScanLog[] => {
     if (!tx.entitlement) return [];
     const entId = String(tx.entitlement.id);
     return scanLogs
       .filter(l => String(l.entitlement_id) === entId && l.type === 'scan_use')
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  };
+
+  // 이 결제에 연결된 이용권의 스캔 상품 내역 (product_name 있는 것)
+  const getScanHistoriesForTx = (tx: Transaction): ScanHistory[] => {
+    if (!tx.entitlement) return [];
+    const entId = String(tx.entitlement.id);
+    return scanHistories
+      .filter(h => String(h.entitlement_id) === entId)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   };
 
@@ -177,6 +196,7 @@ export default function BillingHistoryPage() {
               const isCreditTx = ent?.type === 'scan5' || ent?.type === 'trial' || ent?.type === 'admin';
               const isMonthlyTx = ent?.type === 'monthly';
               const useLogs = getScanLogsForTx(tx);
+              const scanHistoriesForTx = getScanHistoriesForTx(tx);
               const totalCount = isCreditTx && ent ? getGrantCount(ent) : null;
               const usedCount = totalCount != null ? totalCount - (ent?.scan_count ?? 0) : 0;
               const isExpanded = expandedIds === null || expandedIds.has(tx.id);
@@ -258,7 +278,7 @@ export default function BillingHistoryPage() {
                   })()}
 
                   {/* 스캔 사용 내역 */}
-                  {isCreditTx && ent && tx.status !== 'refunded' && useLogs.length > 0 && (
+                  {(isCreditTx || isMonthlyTx) && ent && tx.status !== 'refunded' && scanHistoriesForTx.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-border-subtle">
                       <button
                         onClick={() => toggleExpanded(tx.id)}
@@ -269,14 +289,14 @@ export default function BillingHistoryPage() {
                       </button>
                       {isExpanded && (
                         <div className="space-y-1.5">
-                          {useLogs.map((log) => (
-                            <div key={log.id} className="flex items-center justify-between py-1.5 px-2.5 bg-bg-canvas rounded-lg">
+                          {scanHistoriesForTx.map((h) => (
+                            <div key={h.id} className="flex items-center justify-between py-1.5 px-2.5 bg-bg-canvas rounded-lg">
                               <div className="flex items-center space-x-2">
                                 <MinusCircle className="w-3.5 h-3.5 text-secondary shrink-0" />
-                                <span className="text-xs text-text-primary">{log.description}</span>
+                                <span className="text-xs text-text-primary">{h.product_name}</span>
                               </div>
-                              <span className="text-xs text-text-secondary">
-                                {new Date(log.created_at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              <span className="text-xs text-text-secondary shrink-0 ml-2">
+                                {new Date(h.created_at).toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
                           ))}
@@ -294,10 +314,10 @@ export default function BillingHistoryPage() {
                         <span className="text-xs font-bold text-caution-fg bg-caution-bg px-2 py-1 rounded-md">환불 검토 중</span>
                       ) : tx.status === 'refund_rejected' ? (
                         <span className="text-xs font-bold text-text-secondary bg-neutral-bg px-2 py-1 rounded-md">환불 거절</span>
-                      ) : usedCount > 0 ? (
+                      ) : usedCount > 0 || (isMonthlyTx && ent?.status !== 'pending') ? (
                         <div className="flex items-center gap-1.5 text-xs text-text-secondary bg-neutral-bg px-3 py-1.5 rounded-lg">
                           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                          <span>1회 이상 사용한 이용권은 환불이 불가해요</span>
+                          <span>1회 이상 스캔(사용)한 이용권은 환불이 불가해요</span>
                         </div>
                       ) : (
                         <button

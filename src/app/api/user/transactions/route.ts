@@ -11,6 +11,7 @@ export async function GET() {
     { data: entitlements },
     { data: scanLogs },
     { data: trialEntitlements },
+    { data: scanHistories },
   ] = await Promise.all([
     // 결제/환불 내역
     supabase
@@ -40,6 +41,14 @@ export async function GET() {
       .select('id, type, status, scan_count, expires_at, transaction_id, created_at')
       .eq('user_id', user.id)
       .eq('type', 'trial'),
+
+    // 스캔 사용 상품명 (entitlement_id가 있는 것만)
+    supabase
+      .from('scan_history')
+      .select('id, entitlement_id, product_name, status, created_at')
+      .eq('user_id', user.id)
+      .not('entitlement_id', 'is', null)
+      .order('created_at', { ascending: false }),
   ]);
 
   // 결제 내역에 이용권 현황 연결 (잔여 횟수, 만료일, 구독 상태 표시용)
@@ -88,7 +97,8 @@ export async function GET() {
 
   return NextResponse.json({
     success: true,
-    transactions: allTransactions,  // 결제/환불 내역 + 가입 보상
-    scanLogs: scanLogs ?? [],        // 스캔 사용 로그
+    transactions: allTransactions,      // 결제/환불 내역 + 가입 보상
+    scanLogs: scanLogs ?? [],            // 스캔 사용 로그 (grant/use 구분용)
+    scanHistories: scanHistories ?? [],  // 스캔 상품명 (entitlement_id 연결된 것)
   });
 }

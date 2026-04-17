@@ -24,7 +24,7 @@ export async function POST() {
       entitlement_id: activeSub.id,
       description: '스캔 사용 (무제한)',
     });
-    return NextResponse.json({ success: true, type: 'subscription' });
+    return NextResponse.json({ success: true, type: 'subscription', entitlementId: activeSub.id });
   }
 
   // 2. FIFO: 만료 임박 순으로 횟수권 차감 (가입 보상 포함)
@@ -71,7 +71,7 @@ export async function POST() {
         description: '스캔 사용 (무제한 첫 사용)',
       });
 
-      return NextResponse.json({ success: true, type: 'subscription' });
+      return NextResponse.json({ success: true, type: 'subscription', entitlementId: pendingSub.id });
     }
 
     return NextResponse.json({ error: 'no_credits' }, { status: 403 });
@@ -98,5 +98,5 @@ export async function POST() {
     description: '스캔 사용',
   });
 
-  return NextResponse.json({ success: true, type: 'credit' });
+  return NextResponse.json({ success: true, type: 'credit', entitlementId: credit.id });
 }

@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  const { productName, status, resultJson, imageBase64 } = await req.json();
+  const { productName, status, resultJson, imageBase64, entitlementId } = await req.json();
 
   // 1. scan_history INSERT → id 획득
   const { data: inserted, error: insertError } = await supabase
@@ -31,6 +31,7 @@ export async function POST(req: Request) {
       product_name: productName,
       status,
       result_json: JSON.stringify(resultJson),
+      ...(entitlementId != null ? { entitlement_id: entitlementId } : {}),
     })
     .select('id')
     .single();
