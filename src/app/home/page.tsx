@@ -17,6 +17,7 @@ interface UserProfile {
 
 export default function HomePage() {
   const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [remainingScans, setRemainingScans] = useState(0);
   const [isActive, setIsActive] = useState(false);
@@ -27,6 +28,7 @@ export default function HomePage() {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { setLoading(false); return; }
+      setIsLoggedIn(true);
 
       const now = new Date().toISOString();
       const [{ data: prof }, { data: credits }, { data: activeSub }, { data: pendingSub }] = await Promise.all([
@@ -64,7 +66,7 @@ export default function HomePage() {
 
       {/* Top Utility Area */}
       <div className="px-4 pt-4 space-y-2">
-        {!profile ? (
+        {!isLoggedIn ? (
           <div
             className="bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-center justify-between cursor-pointer"
             onClick={() => router.push('/login')}
@@ -86,7 +88,7 @@ export default function HomePage() {
               <div className="text-left min-w-0">
                 <p className="text-[10px] text-text-secondary leading-none mb-0.5">임신 주차</p>
                 <p className="text-sm font-bold text-text-primary leading-none truncate">
-                  {profile.pregnancy_weeks ? `${profile.pregnancy_weeks}주차` : '설정하기'}
+                  {profile?.pregnancy_weeks ? `${profile.pregnancy_weeks}주차` : '설정하기'}
                 </p>
               </div>
             </button>
