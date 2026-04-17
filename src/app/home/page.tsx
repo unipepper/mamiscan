@@ -11,7 +11,7 @@ import { BottomNav } from '@/components/BottomNav';
 interface UserProfile {
   id: string;
   email: string;
-  full_name: string | null;
+  name: string | null;
   pregnancy_weeks: number | null;
 }
 
@@ -32,7 +32,7 @@ export default function HomePage() {
 
       const now = new Date().toISOString();
       const [{ data: prof }, { data: credits }, { data: activeSub }, { data: pendingSub }] = await Promise.all([
-        supabase.from('users').select('id, email, full_name, pregnancy_weeks').eq('id', user.id).single(),
+        supabase.from('users').select('id, email, name, pregnancy_weeks').eq('id', user.id).single(),
         supabase.from('user_entitlements').select('scan_count').eq('user_id', user.id).in('type', ['scan5', 'trial', 'admin']).eq('status', 'active').gt('expires_at', now).gt('scan_count', 0),
         supabase.from('user_entitlements').select('expires_at').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'active').gt('expires_at', now).maybeSingle(),
         supabase.from('user_entitlements').select('id').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'pending').maybeSingle(),
@@ -132,7 +132,9 @@ export default function HomePage() {
       <section className="px-4 pt-4 pb-6">
         <div className="bg-accent rounded-2xl p-6 shadow-sm relative overflow-hidden">
           <div className="relative z-10 flex flex-col items-start">
-            <span className="text-sm font-semibold text-primary mb-1">식품 원재료표를 찍고</span>
+            <span className="text-sm font-semibold text-primary mb-1">
+              {isLoggedIn && profile?.name ? `${profile.name}님,` : '제품을 스캔하고'}
+            </span>
             <h1 className="text-[26px] leading-[35px] font-bold text-text-primary mb-2">
               지금 먹어도 되는지<br />바로 확인해보세요
             </h1>

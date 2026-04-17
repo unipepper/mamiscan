@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Calendar, Bell, ChevronRight, LogOut, Loader2 } from 'lucide-react';
+import { User, Calendar, Bell, ChevronRight, LogOut, Loader2, MessageSquare, Pencil, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
@@ -22,6 +22,9 @@ export default function SettingsPage() {
   const [weekSaveStatus, setWeekSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const weekPickerRef = useRef<HTMLDivElement>(null);
   const ITEM_H = 56;
+  const [showNicknameSheet, setShowNicknameSheet] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState('');
+  const [nicknameSaveStatus, setNicknameSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   useEffect(() => {
     const supabase = createClient();
@@ -30,7 +33,7 @@ export default function SettingsPage() {
       if (user) {
         const now = new Date().toISOString();
         const [{ data: prof }, { data: credits }, { data: activeSub }, { data: pendingSub }] = await Promise.all([
-          supabase.from('users').select('id, full_name, pregnancy_weeks').eq('id', user.id).single(),
+          supabase.from('users').select('id, name, pregnancy_weeks').eq('id', user.id).single(),
           supabase.from('user_entitlements').select('scan_count').eq('user_id', user.id).in('type', ['scan5', 'trial', 'admin']).eq('status', 'active').gt('expires_at', now).gt('scan_count', 0),
           supabase.from('user_entitlements').select('expires_at').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'active').gt('expires_at', now).maybeSingle(),
           supabase.from('user_entitlements').select('id').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'pending').maybeSingle(),
@@ -40,6 +43,7 @@ export default function SettingsPage() {
         setActiveSubExpiresAt(activeSub?.expires_at ?? null);
         setHasPendingMonthly(!!pendingSub);
         if (prof?.pregnancy_weeks) setDialWeek(String(prof.pregnancy_weeks));
+        if (prof?.name) setNicknameInput(prof.name);
       }
       setLoading(false);
     });
@@ -56,23 +60,41 @@ export default function SettingsPage() {
   }, [showWeekDial]);
 
   const handleDialSave = async () => {
+    if (!authUser) return;
     setWeekSaveStatus('saving');
     try {
-      const res = await fetch('/api/user/pregnancy-weeks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weeks: parseInt(dialWeek, 10) }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setProfile((prev: any) => ({ ...prev, pregnancy_weeks: parseInt(dialWeek, 10) }));
-        setWeekSaveStatus('saved');
-        setTimeout(() => { setWeekSaveStatus('idle'); setShowWeekDial(false); }, 1500);
-      } else {
-        setWeekSaveStatus('idle');
-      }
+      const supabase = createClient();
+      const weeks = parseInt(dialWeek, 10);
+      const { error } = await supabase
+        .from('users')
+        .update({ pregnancy_weeks: weeks })
+        .eq('id', authUser.id);
+      if (error) throw error;
+      setProfile((prev: any) => ({ ...prev, pregnancy_weeks: weeks }));
+      setWeekSaveStatus('saved');
+      setTimeout(() => { setWeekSaveStatus('idle'); setShowWeekDial(false); }, 1500);
     } catch {
       setWeekSaveStatus('idle');
+    }
+  };
+
+  const handleNicknameSave = async () => {
+    if (!nicknameInput.trim() || !authUser) return;
+    setNicknameSaveStatus('saving');
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('users')
+        .update({ name: nicknameInput.trim() })
+        .eq('id', authUser.id);
+      if (error) throw error;
+      setProfile((prev: any) => ({ ...prev, name: nicknameInput.trim() }));
+      setNicknameSaveStatus('saved');
+      setTimeout(() => { setNicknameSaveStatus('idle'); setShowNicknameSheet(false); }, 1200);
+    } catch (e: any) {
+      console.error('[nickname] error:', e?.message);
+      setNicknameSaveStatus('error');
+      setTimeout(() => setNicknameSaveStatus('idle'), 2000);
     }
   };
 
@@ -122,13 +144,21 @@ export default function SettingsPage() {
 
       <main className="px-4 py-6 space-y-8">
         {/* Profile */}
-        <section className="flex items-center space-x-4">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+        <section
+          className="flex items-center space-x-4 cursor-pointer group"
+          onClick={() => { setNicknameInput(profile?.name || ''); setShowNicknameSheet(true); }}
+        >
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
             <User className="w-8 h-8 text-primary" />
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-text-primary">{profile?.full_name || authUser.email?.split('@')[0]} 님</h2>
-            <p className="text-sm text-text-secondary">{authUser.email}</p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-xl font-bold text-text-primary truncate">
+                {profile?.name || '닉네임을 설정해주세요'}
+              </h2>
+              <Pencil className="w-4 h-4 text-text-secondary shrink-0 group-hover:text-primary transition-colors" />
+            </div>
+            <p className="text-sm text-text-secondary truncate">{authUser.email}</p>
           </div>
         </section>
 
@@ -229,6 +259,13 @@ export default function SettingsPage() {
                 </div>
                 <span className="text-xs text-text-tertiary bg-neutral-bg px-2 py-0.5 rounded-full">준비 중</span>
               </div>
+              <button className="w-full p-4 border-b border-border-subtle flex items-center justify-between hover:bg-neutral-bg transition-colors" onClick={() => router.push('/support')}>
+                <div className="flex items-center space-x-3">
+                  <MessageSquare className="w-5 h-5 text-text-secondary" />
+                  <span className="font-medium text-text-primary">고객센터 / 문의하기</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-text-secondary" />
+              </button>
               <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-neutral-bg transition-colors text-danger-fg" onClick={handleLogout}>
                 <div className="flex items-center space-x-3">
                   <LogOut className="w-5 h-5" />
@@ -278,6 +315,65 @@ export default function SettingsPage() {
             <div className="px-6 pb-8 pt-4">
               <Button onClick={handleDialSave} disabled={weekSaveStatus === 'saving'} className="w-full font-bold h-12 rounded-2xl text-base">
                 {weekSaveStatus === 'saving' ? <Loader2 className="w-5 h-5 animate-spin" /> : '저장하기'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Nickname Bottom Sheet */}
+      {showNicknameSheet && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowNicknameSheet(false)}>
+          <div className="bg-bg-canvas w-full rounded-t-3xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 bg-border-subtle rounded-full" /></div>
+            <div className="px-6 pt-3 pb-2 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-text-primary">닉네임 설정</h3>
+                <p className="text-xs text-text-secondary mt-0.5">앱에서 표시될 이름을 입력해주세요</p>
+              </div>
+              <button onClick={() => setShowNicknameSheet(false)} className="p-1 text-text-secondary hover:text-text-primary transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 pb-2">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={nicknameInput}
+                  onChange={(e) => setNicknameInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleNicknameSave()}
+                  placeholder="예) 하늘이맘, 토순이맘, 별이맘"
+                  maxLength={20}
+                  autoFocus
+                  className="w-full h-14 px-4 rounded-2xl border-2 border-primary/30 bg-bg-surface text-text-primary text-base font-medium placeholder:text-text-secondary/50 focus:outline-none focus:border-primary transition-colors"
+                />
+                {nicknameInput.length > 0 && (
+                  <button
+                    onClick={() => setNicknameInput('')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-text-secondary mt-2 px-1">태명+맘으로 입력해보세요 (예: 하늘이맘)</p>
+            </div>
+            <div className="px-6 pb-10 pt-2">
+              <Button
+                type="button"
+                onClick={handleNicknameSave}
+                disabled={!nicknameInput.trim() || nicknameSaveStatus === 'saving'}
+                className="w-full font-bold h-12 rounded-2xl text-base"
+              >
+                {nicknameSaveStatus === 'saving' ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : nicknameSaveStatus === 'saved' ? (
+                  '저장됨 ✓'
+                ) : nicknameSaveStatus === 'error' ? (
+                  '저장 실패 — 다시 시도해주세요'
+                ) : (
+                  '저장하기'
+                )}
               </Button>
             </div>
           </div>

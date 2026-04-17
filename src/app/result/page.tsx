@@ -23,6 +23,7 @@ function ResultContent() {
   const [reportText, setReportText] = useState('');
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [savedImageUrl, setSavedImageUrl] = useState<string | null>(null);
+  const [scanHistoryId, setScanHistoryId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showWeekModal, setShowWeekModal] = useState(false);
   const [inputWeeks, setInputWeeks] = useState('12');
@@ -164,6 +165,9 @@ function ResultContent() {
               parsedResult.userImageUrl = historyData.imagePath;
               setSavedImageUrl(historyData.imagePath);
             }
+            if (historyData?.historyId) {
+              setScanHistoryId(historyData.historyId);
+            }
           }
         }
 
@@ -202,15 +206,31 @@ function ResultContent() {
     }
   };
 
-  const handleReportSubmit = () => {
+  const handleReportSubmit = async () => {
+    if (!reportText.trim()) return;
     setIsSubmittingReport(true);
-    setTimeout(() => {
-      setIsSubmittingReport(false);
+    try {
+      const res = await fetch('/api/support/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'error_report',
+          category: 'scan_error',
+          body: reportText.trim(),
+          scanHistoryId: scanHistoryId ?? undefined,
+        }),
+      });
+      if (!res.ok) throw new Error('submit_failed');
       setShowReportModal(false);
       setReportText('');
       setToastMessage('소중한 의견이 정상적으로 접수되었습니다. 감사합니다!');
       setTimeout(() => setToastMessage(null), 3000);
-    }, 1000);
+    } catch {
+      setToastMessage('오류 제보 접수에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      setTimeout(() => setToastMessage(null), 3000);
+    } finally {
+      setIsSubmittingReport(false);
+    }
   };
 
   if (isLoading) {
@@ -558,17 +578,26 @@ function ResultContent() {
               <Flag className="w-5 h-5 mr-2 text-primary" />정보 오류 제보
             </h3>
             <p className="text-sm text-text-secondary mb-4 leading-relaxed">AI가 분석한 결과가 실제 제품과 다르다면 알려주세요.</p>
-            {(displayImageSrc || savedImageUrl) && (
-              <div className="mb-4 rounded-xl overflow-hidden bg-neutral-bg flex items-center gap-3 p-2">
+
+            {/* 연결된 분석 결과 확인 */}
+            <div className="mb-4 rounded-xl bg-neutral-bg p-3 flex items-center gap-3">
+              {(displayImageSrc || savedImageUrl) ? (
                 <img
                   src={displayImageSrc ?? savedImageUrl!}
                   alt="촬영 이미지"
-                  className="w-16 h-16 rounded-lg object-cover shrink-0"
-                  onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }}
+                  className="w-14 h-14 rounded-lg object-cover shrink-0"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
-                <p className="text-xs text-text-secondary">촬영 사진이 함께 전달됩니다</p>
+              ) : null}
+              <div className="min-w-0">
+                <p className="text-xs text-text-tertiary mb-0.5">연결된 분석 결과</p>
+                <p className="text-sm font-medium text-text-primary truncate">
+                  {result.productName || '알 수 없는 제품'}
+                </p>
+                <p className="text-xs text-text-secondary mt-0.5">이 분석에 대한 오류를 제보합니다</p>
               </div>
-            )}
+            </div>
+
             <textarea
               value={reportText}
               onChange={(e) => setReportText(e.target.value)}

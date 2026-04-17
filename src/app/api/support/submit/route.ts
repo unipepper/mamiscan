@@ -1,0 +1,79 @@
+import { NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+
+type SupportTicketBody = {
+  type: 'inquiry' | 'error_report';
+  category: 'payment' | 'scan_error' | 'feature' | 'account' | 'other';
+  title?: string;
+  body: string;
+  scanHistoryId?: number;
+  attachments?: string[];
+};
+
+export async function POST(req: Request) {
+  let payload: SupportTicketBody;
+  try {
+    payload = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
+  }
+
+  const { type, category, title, body, scanHistoryId, attachments } = payload;
+
+  if (!type || !['inquiry', 'error_report'].includes(type)) {
+    return NextResponse.json({ error: 'invalid_type' }, { status: 400 });
+  }
+  if (!category || !['payment', 'scan_error', 'feature', 'account', 'other'].includes(category)) {
+    return NextResponse.json({ error: 'invalid_category' }, { status: 400 });
+  }
+  if (!body || typeof body !== 'string' || body.trim().length === 0) {
+    return NextResponse.json({ error: 'body_required' }, { status: 400 });
+  }
+  if (body.trim().length > 2000) {
+    return NextResponse.json({ error: 'body_too_long' }, { status: 400 });
+  }
+
+  // 세션에서 사용자 ID 추출 (비로그인이면 null로 처리)
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll(); },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+          } catch { /* Server Component에서는 무시 */ }
+        },
+      },
+    }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // service role key로 RLS 우회하여 삽입
+  const adminSupabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { cookies: { getAll: () => [], setAll: () => {} } }
+  );
+
+  const { error } = await adminSupabase.from('support_tickets').insert({
+    user_id: user?.id ?? null,
+    type,
+    category,
+    title: title?.trim() || null,
+    body: body.trim(),
+    scan_history_id: scanHistoryId ?? null,
+    attachments: attachments && attachments.length > 0 ? attachments : null,
+  });
+
+  if (error) {
+    console.error('[support/submit] insert error:', error);
+    return NextResponse.json({ error: 'db_error' }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
