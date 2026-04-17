@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Calendar, Bell, ChevronRight, LogOut, Loader2, MessageSquare, Pencil, X } from 'lucide-react';
+import { User, Calendar, ChevronRight, LogOut, Loader2, MessageSquare, Pencil, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
@@ -252,14 +252,7 @@ export default function SettingsPage() {
           <h3 className="text-[18px] font-bold text-text-primary px-1">앱 설정</h3>
           <Card className="bg-bg-surface border-border-subtle shadow-sm overflow-hidden">
             <CardContent className="p-0">
-              <div className="p-4 border-b border-border-subtle flex items-center justify-between opacity-50 cursor-not-allowed">
-                <div className="flex items-center space-x-3">
-                  <Bell className="w-5 h-5 text-text-secondary" />
-                  <span className="font-medium text-text-primary">알림 설정</span>
-                </div>
-                <span className="text-xs text-text-tertiary bg-neutral-bg px-2 py-0.5 rounded-full">준비 중</span>
-              </div>
-              <button className="w-full p-4 border-b border-border-subtle flex items-center justify-between hover:bg-neutral-bg transition-colors" onClick={() => router.push('/support')}>
+<button className="w-full p-4 border-b border-border-subtle flex items-center justify-between hover:bg-neutral-bg transition-colors" onClick={() => router.push('/support')}>
                 <div className="flex items-center space-x-3">
                   <MessageSquare className="w-5 h-5 text-text-secondary" />
                   <span className="font-medium text-text-primary">고객센터 / 문의하기</span>
