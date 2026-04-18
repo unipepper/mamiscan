@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Calendar, ChevronRight, LogOut, Loader2, MessageSquare, Pencil, X, Shield, Bell, Trash2, AlertTriangle } from 'lucide-react';
+import { User, Calendar, ChevronRight, LogOut, Loader2, MessageSquare, Pencil, X, Shield, Bell, Trash2, AlertTriangle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
@@ -297,6 +297,13 @@ export default function SettingsPage() {
                 <div className="flex items-center space-x-3">
                   <MessageSquare className="w-5 h-5 text-text-secondary" />
                   <span className="font-medium text-text-primary">고객센터 / 문의하기</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-text-secondary" />
+              </button>
+              <button className="w-full p-4 border-b border-border-subtle flex items-center justify-between hover:bg-neutral-bg transition-colors" onClick={() => router.push('/terms')}>
+                <div className="flex items-center space-x-3">
+                  <FileText className="w-5 h-5 text-text-secondary" />
+                  <span className="font-medium text-text-primary">이용약관</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-text-secondary" />
               </button>

@@ -124,50 +124,43 @@ function ResultContent() {
 
         const parsedResult = data.result;
 
-        let deductedEntitlementId: string | number | null = null;
         if (!parsedResult.status.startsWith('error_')) {
           if (user) {
-            const deductRes = await fetch('/api/user/deduct-scan', { method: 'POST' });
-            if (deductRes.status === 403) {
+            // 이미지 압축 (실패해도 계속)
+            const thumbnail = scanImage
+              ? await compressThumbnail(scanImage).catch(() => null)
+              : null;
+
+            const saveRes = await fetch('/api/scan/save', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                productName: parsedResult.productName || '알 수 없는 제품',
+                status: parsedResult.status,
+                resultJson: parsedResult,
+                imageBase64: thumbnail,
+              }),
+            }).catch(() => null);
+
+            if (saveRes?.status === 403) {
               router.replace('/pricing');
               return;
             }
-            const deductData = await deductRes.json().catch(() => null);
-            deductedEntitlementId = deductData?.entitlementId ?? null;
+
+            if (saveRes?.ok) {
+              const saveData = await saveRes.json().catch(() => null);
+              if (saveData?.imagePath) {
+                parsedResult.userImageUrl = saveData.imagePath;
+                setSavedImageUrl(saveData.imagePath);
+              }
+              if (saveData?.historyId) {
+                setScanHistoryId(saveData.historyId);
+              }
+            }
           } else {
             // 비로그인 LocalStorage 차감
             const used = parseInt(localStorage.getItem('mamiscan_guest_scans') || '0', 10);
             localStorage.setItem('mamiscan_guest_scans', String(used + 1));
-          }
-        }
-
-        if (!parsedResult.status.startsWith('error_') && user) {
-          // 이미지 압축 (실패해도 계속)
-          const thumbnail = scanImage
-            ? await compressThumbnail(scanImage).catch(() => null)
-            : null;
-
-          const historyRes = await fetch('/api/scan/history', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              productName: parsedResult.productName || '알 수 없는 제품',
-              status: parsedResult.status,
-              resultJson: parsedResult,
-              imageBase64: thumbnail,
-              entitlementId: deductedEntitlementId,
-            }),
-          }).catch(() => null);
-
-          if (historyRes?.ok) {
-            const historyData = await historyRes.json().catch(() => null);
-            if (historyData?.imagePath) {
-              parsedResult.userImageUrl = historyData.imagePath;
-              setSavedImageUrl(historyData.imagePath);
-            }
-            if (historyData?.historyId) {
-              setScanHistoryId(historyData.historyId);
-            }
           }
         }
 

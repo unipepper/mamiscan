@@ -1,23 +1,25 @@
-export type SubscriptionStatus = 'pending' | 'active' | 'expired';
+export type EntitlementType = 'scan5' | 'monthly' | 'trial' | 'admin';
+export type EntitlementStatus = 'pending' | 'active' | 'expired';
 
-export interface UserSubscription {
+/** user_entitlements 테이블 행 타입 */
+export interface UserEntitlement {
   id: number;
   user_id: string;
+  type: EntitlementType;
+  status: EntitlementStatus;
+  scan_count: number | null;  // monthly는 null, 나머지는 잔여 횟수
   transaction_id: number | null;
-  status: SubscriptionStatus;
-  purchased_at: string;
-  started_at: string | null;
-  expires_at: string | null;
+  started_at: string | null;  // monthly 전용: 첫 스캔 시각
+  expires_at: string;
   created_at: string;
 }
 
-/** 활성화된 무제한 구독인지 확인 (만료 시각 기준) */
-export function isSubscriptionValid(
-  sub: Pick<UserSubscription, 'status' | 'expires_at'> | null | undefined,
+/** 활성화된 무제한 이용권인지 확인 (만료 시각 기준) */
+export function isEntitlementValid(
+  ent: Pick<UserEntitlement, 'status' | 'expires_at'> | null | undefined,
 ): boolean {
-  if (!sub || sub.status !== 'active') return false;
-  if (!sub.expires_at) return false;
-  return new Date(sub.expires_at) > new Date();
+  if (!ent || ent.status !== 'active') return false;
+  return new Date(ent.expires_at) > new Date();
 }
 
 /** 날짜 문자열을 'yyyy.mm.dd hh:mm' 형식으로 포맷 */

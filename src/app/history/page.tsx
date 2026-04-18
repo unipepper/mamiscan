@@ -36,15 +36,28 @@ export default function HistoryPage() {
       if (!user) { setIsLoading(false); return; }
 
       const now = new Date().toISOString();
-      const { data: subscription } = await supabase
-        .from('user_entitlements')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('type', 'monthly')
-        .or(`status.eq.pending,and(status.eq.active,expires_at.gt.${now})`)
-        .limit(1)
-        .maybeSingle();
-      const active = !!subscription;
+      // access-policy: 아래 셋 중 하나면 히스토리 접근 허용
+      // 1. monthly active (무제한 이용권 활성 중)
+      // 2. monthly pending (스캔권 소진 전 무제한 대기 중)
+      // 3. 유료 결제 이력 1건 이상 (type='purchase')
+      const [{ data: subscription }, { data: purchaseHistory }] = await Promise.all([
+        supabase
+          .from('user_entitlements')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('type', 'monthly')
+          .or(`status.eq.pending,and(status.eq.active,expires_at.gt.${now})`)
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('transactions')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('type', 'purchase')
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      const active = !!subscription || !!purchaseHistory;
       setIsActive(active);
 
       if (active) {

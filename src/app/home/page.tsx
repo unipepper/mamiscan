@@ -195,7 +195,11 @@ export default function HomePage() {
       </section>
 
 
-      <footer className="py-4 text-center">
+      <footer className="py-4 text-center flex items-center justify-center gap-3">
+        <Link href="/terms" className="text-xs text-text-tertiary hover:text-text-secondary transition-colors underline underline-offset-2">
+          이용약관
+        </Link>
+        <span className="text-xs text-text-tertiary">·</span>
         <Link href="/privacy" className="text-xs text-text-tertiary hover:text-text-secondary transition-colors underline underline-offset-2">
           개인정보처리방침
         </Link>
