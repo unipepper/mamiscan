@@ -169,7 +169,7 @@ export default function BillingHistoryPage() {
         <button onClick={() => router.back()} className="p-2 -ml-2 text-text-primary">
           <ArrowLeft className="w-6 h-6" />
         </button>
-        <span className="font-medium ml-2 text-text-primary">이용권 구매/사용 내역</span>
+        <span className="font-medium ml-2 text-text-primary">스캔권 구매/사용 내역</span>
       </header>
 
       <main className="px-4 py-6">
@@ -212,16 +212,16 @@ export default function BillingHistoryPage() {
               if (!hasSummary) return null;
               return (
                 <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2">
-                  <p className="text-xs font-bold text-primary">현재 이용 중인 이용권</p>
+                  <p className="text-xs font-bold text-primary">현재 이용 중인 스캔권</p>
                   {activeMonthly && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-text-primary">무제한 이용권</span>
+                      <span className="text-sm text-text-primary">무제한 스캔권</span>
                       <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">사용 중</span>
                     </div>
                   )}
                   {activeScanCount > 0 && (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-text-primary">스캔권</span>
+                      <span className="text-sm text-text-primary">보유 중인 스캔권</span>
                       <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{activeScanCount}회 사용 가능</span>
                     </div>
                   )}
@@ -317,7 +317,7 @@ export default function BillingHistoryPage() {
                     return (
                       <div className="mt-3 pt-3 border-t border-border-subtle space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-text-secondary">이용권 상태</span>
+                          <span className="text-xs text-text-secondary">스캔권 상태</span>
                           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -374,7 +374,7 @@ export default function BillingHistoryPage() {
                       ) : usedCount > 0 || (isMonthlyTx && ent?.status !== 'pending') ? (
                         <div className="flex items-center gap-1.5 text-xs text-text-secondary bg-neutral-bg px-3 py-1.5 rounded-lg">
                           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                          <span>1회 이상 스캔(사용)한 이용권은 환불이 불가해요</span>
+                          <span>1회 이상 사용한 스캔권은 환불이 불가해요</span>
                         </div>
                       ) : (
                         <button
@@ -435,7 +435,7 @@ export default function BillingHistoryPage() {
               </div>
               <div className="bg-neutral-bg rounded-lg p-3 flex items-start space-x-2">
                 <AlertCircle className="w-4 h-4 text-text-secondary shrink-0 mt-0.5" />
-                <p className="text-xs text-text-secondary leading-relaxed">이용권을 1회 이상 사용했거나 이용이 시작된 이후에는 환불이 불가합니다.</p>
+                <p className="text-xs text-text-secondary leading-relaxed">스캔권을 1회 이상 사용했거나 이용이 시작된 이후에는 환불이 불가합니다.</p>
               </div>
               {refundMessage && (
                 <div className={`p-3 rounded-lg text-sm font-medium text-center ${refundMessage.type === 'success' ? 'bg-success-bg text-success-fg' : 'bg-danger-bg text-danger-fg'}`}>

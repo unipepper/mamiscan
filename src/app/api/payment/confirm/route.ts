@@ -45,28 +45,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err.code, message: err.message }, { status: 400 });
   }
 
-  // 5. DB 업데이트
-  // 5-1. transactions INSERT (결제 기록)
-  const { data: txData, error: txError } = await supabase
-    .from('transactions')
-    .insert({
-      user_id: user.id,
-      order_id: orderId,
-      payment_key: paymentKey,
-      type: 'purchase',
-      amount,
-      description: plan.orderName,
-      price_krw: amount,
-      status: 'completed',
-    })
-    .select('id')
-    .single();
-
-  if (txError || !txData) {
-    console.error('transactions insert error:', txError);
-    return NextResponse.json({ error: 'db_error' }, { status: 500 });
-  }
-
+  // 5. DB 업데이트 (RPC로 원자 처리 — 트랜잭션 + 이용권 + 로그를 하나의 트랜잭션으로 묶음)
   if (planType === 'scan5') {
     const grant = plan.grant as { type: 'scan'; count: number; validDays: number };
 
@@ -85,39 +64,19 @@ export async function POST(req: Request) {
       : new Date();
     expiresAt.setDate(expiresAt.getDate() + grant.validDays);
 
-    // 5-2. user_entitlements INSERT (이용권 생성 — 무제한 활성 중이면 pending)
-    const { data: entData, error: entError } = await supabase
-      .from('user_entitlements')
-      .insert({
-        user_id: user.id,
-        type: 'scan5',
-        status: activeSub ? 'pending' : 'active',
-        scan_count: grant.count,
-        transaction_id: txData.id,
-        expires_at: expiresAt.toISOString(),
-      })
-      .select('id')
-      .single();
+    const { error: rpcError } = await supabase.rpc('confirm_scan5_purchase', {
+      p_user_id:     user.id,
+      p_order_id:    orderId,
+      p_payment_key: paymentKey,
+      p_amount:      amount,
+      p_description: plan.orderName,
+      p_scan_count:  grant.count,
+      p_expires_at:  expiresAt.toISOString(),
+      p_status:      activeSub ? 'pending' : 'active',
+    });
 
-    if (entError || !entData) {
-      console.error('user_entitlements insert error:', entError);
-      return NextResponse.json({ error: 'db_error' }, { status: 500 });
-    }
-
-    // 5-3. scan_usage_logs INSERT (지급 이벤트 기록)
-    const { error: logError } = await supabase
-      .from('scan_usage_logs')
-      .insert({
-        user_id: user.id,
-        type: 'purchase_grant',
-        count: grant.count,
-        entitlement_id: entData.id,
-        transaction_id: txData.id,
-        description: plan.orderName,
-      });
-
-    if (logError) {
-      console.error('scan_usage_logs insert error:', logError);
+    if (rpcError) {
+      console.error('confirm_scan5_purchase RPC error:', rpcError, { orderId, paymentKey });
       return NextResponse.json({ error: 'db_error' }, { status: 500 });
     }
 
@@ -139,55 +98,35 @@ export async function POST(req: Request) {
       const newExpiresAt = new Date(activeSub.expires_at!);
       newExpiresAt.setDate(newExpiresAt.getDate() + grant.days);
 
-      const { error: updateError } = await supabase
-        .from('user_entitlements')
-        .update({ expires_at: newExpiresAt.toISOString() })
-        .eq('id', activeSub.id);
+      const { error: rpcError } = await supabase.rpc('confirm_monthly_stack', {
+        p_user_id:        user.id,
+        p_order_id:       orderId,
+        p_payment_key:    paymentKey,
+        p_amount:         amount,
+        p_description:    plan.orderName,
+        p_entitlement_id: activeSub.id,
+        p_new_expires_at: newExpiresAt.toISOString(),
+      });
 
-      if (updateError) {
-        console.error('user_entitlements update error (stack):', updateError);
+      if (rpcError) {
+        console.error('confirm_monthly_stack RPC error:', rpcError, { orderId, paymentKey });
         return NextResponse.json({ error: 'db_error' }, { status: 500 });
       }
-
-      // scan_usage_logs INSERT (스택 지급 기록)
-      await supabase.from('scan_usage_logs').insert({
-        user_id: user.id,
-        type: 'purchase_grant',
-        count: 0,
-        entitlement_id: activeSub.id,
-        transaction_id: txData.id,
-        description: `${plan.orderName} (기간 연장)`,
-      });
 
     } else {
-      // 신규 구독: pending 상태로 생성, 첫 스캔 시 활성화
-      const { data: entData, error: entError } = await supabase
-        .from('user_entitlements')
-        .insert({
-          user_id: user.id,
-          type: 'monthly',
-          status: 'pending',
-          scan_count: null,
-          transaction_id: txData.id,
-          expires_at: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString(), // 첫 스캔 시 갱신
-        })
-        .select('id')
-        .single();
+      // 신규 구독
+      const { error: rpcError } = await supabase.rpc('confirm_monthly_new', {
+        p_user_id:     user.id,
+        p_order_id:    orderId,
+        p_payment_key: paymentKey,
+        p_amount:      amount,
+        p_description: plan.orderName,
+      });
 
-      if (entError || !entData) {
-        console.error('user_entitlements insert error:', entError);
+      if (rpcError) {
+        console.error('confirm_monthly_new RPC error:', rpcError, { orderId, paymentKey });
         return NextResponse.json({ error: 'db_error' }, { status: 500 });
       }
-
-      // scan_usage_logs INSERT (구매 기록)
-      await supabase.from('scan_usage_logs').insert({
-        user_id: user.id,
-        type: 'purchase_grant',
-        count: 0,
-        entitlement_id: entData.id,
-        transaction_id: txData.id,
-        description: plan.orderName,
-      });
 
       // 스캔권 잔여 중 구매 → 잔여 수량 계산 (팝업 안내용)
       const { data: activeScanRights } = await supabase

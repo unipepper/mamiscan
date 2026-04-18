@@ -48,6 +48,14 @@ export async function POST(req: Request) {
     }
   }
 
+  // 연결된 이용권 조회 (Toss 호출 전 미리 확인)
+  const { data: entitlement } = await supabase
+    .from('user_entitlements')
+    .select('id, scan_count')
+    .eq('transaction_id', transactionId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
   // Toss 결제 취소 API 호출
   const tossRes = await fetch(`https://api.tosspayments.com/v1/payments/${tx.payment_key}/cancel`, {
     method: 'POST',
@@ -70,37 +78,22 @@ export async function POST(req: Request) {
     }, { status: 400 });
   }
 
-  // 연결된 이용권 회수
-  const { data: entitlement } = await supabase
-    .from('user_entitlements')
-    .select('id, type, scan_count')
-    .eq('transaction_id', transactionId)
-    .eq('user_id', user.id)
-    .maybeSingle();
+  // DB 업데이트 (RPC로 원자 처리 — 이용권 회수 + 로그 + 거래 상태를 하나의 트랜잭션으로 묶음)
+  const { error: rpcError } = await supabase.rpc('process_refund', {
+    p_user_id:        user.id,
+    p_transaction_id: transactionId,
+    p_entitlement_id: entitlement?.id ?? null,
+    p_revoked_count:  entitlement?.scan_count ?? 0,
+  });
 
-  if (entitlement) {
-    const revokedCount = entitlement.scan_count ?? 0;
-
-    await supabase
-      .from('user_entitlements')
-      .update({ status: 'expired', scan_count: 0 })
-      .eq('id', entitlement.id);
-
-    await supabase.from('scan_usage_logs').insert({
-      user_id: user.id,
-      type: 'refund_revoke',
-      count: -revokedCount,
-      entitlement_id: entitlement.id,
-      transaction_id: transactionId,
-      description: '환불로 인한 이용권 회수',
-    });
+  if (rpcError) {
+    // Toss 취소는 완료됐으나 DB 업데이트 실패 — 수동 복구 필요
+    console.error('process_refund RPC error:', rpcError, { transactionId, userId: user.id });
+    return NextResponse.json({
+      success: false,
+      message: '환불은 처리됐으나 내부 오류가 발생했어요. 고객센터로 문의해 주세요.',
+    }, { status: 500 });
   }
-
-  // transactions 상태 환불 처리
-  await supabase
-    .from('transactions')
-    .update({ status: 'refunded' })
-    .eq('id', transactionId);
 
   return NextResponse.json({ success: true, message: '환불이 완료됐어요. 결제 수단으로 3-5 영업일 내 반환됩니다.' });
 }

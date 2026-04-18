@@ -14,7 +14,7 @@ export default function PricingPage() {
         <button onClick={() => router.back()} className="p-2 -ml-2 text-text-primary">
           <ArrowLeft className="w-6 h-6" />
         </button>
-        <span className="font-medium ml-2 text-text-primary">이용권 구매</span>
+        <span className="font-medium ml-2 text-text-primary">스캔권 구매</span>
       </header>
 
       <main className="px-4 py-6 space-y-8">
@@ -26,7 +26,7 @@ export default function PricingPage() {
             무료 체험 6회를<br />모두 사용했어요
           </h1>
           <p className="text-sm text-text-secondary">
-            장볼 때마다 계속 확인하려면 이용권이 필요해요.
+            장볼 때마다 계속 확인하려면 스캔권이 필요해요.
           </p>
         </section>
 
@@ -39,7 +39,7 @@ export default function PricingPage() {
             <CardContent className="p-6">
               <div className="flex items-center space-x-2 mb-2">
                 <Star className="w-5 h-5 text-primary fill-primary" />
-                <h2 className="text-lg font-bold text-text-primary">1개월 무제한 이용권</h2>
+                <h2 className="text-lg font-bold text-text-primary">무제한 스캔권</h2>
               </div>
               <p className="text-xs text-text-secondary mb-4">여러 제품을 비교해서 확인한다면 1개월 무제한이 가장 편해요.</p>
               <div className="mb-4">

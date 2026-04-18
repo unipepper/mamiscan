@@ -70,7 +70,7 @@ export default function ScanPage() {
       setToastMessage('무료 체험 3회를 모두 사용했어요. 로그인하고 계속 이용해보세요!');
       setTimeout(() => { setToastMessage(null); router.push('/login'); }, 2000);
     } else {
-      setToastMessage('남은 스캔 횟수가 없어요. 이용권을 충전해주세요.');
+      setToastMessage('남은 스캔 횟수가 없어요. 스캔권을 충전해주세요.');
       setTimeout(() => { setToastMessage(null); router.push('/pricing'); }, 2000);
     }
   };

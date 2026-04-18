@@ -198,9 +198,9 @@ export default function HistoryPage() {
             <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-full">
               <Lock className="w-6 h-6 text-primary" />
             </div>
-            <h3 className="text-base font-bold text-text-primary">히스토리 저장은 이용권 전용이에요</h3>
-            <p className="text-sm text-text-secondary">이용권을 구매하시면 무제한 스캔 히스토리를 확인할 수 있어요.</p>
-            <Button className="w-full font-bold" onClick={() => router.push('/pricing')}>이용권 알아보기</Button>
+            <h3 className="text-base font-bold text-text-primary">히스토리 저장은 스캔권 전용이에요</h3>
+            <p className="text-sm text-text-secondary">스캔권을 구매하시면 무제한 스캔 히스토리를 확인할 수 있어요.</p>
+            <Button className="w-full font-bold" onClick={() => router.push('/pricing')}>스캔권 알아보기</Button>
           </div>
         )}
       </main>

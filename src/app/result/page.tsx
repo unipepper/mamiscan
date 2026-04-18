@@ -344,7 +344,7 @@ function ResultContent() {
           )}
 
           {/* Result Summary Card */}
-          <Card className={`border-none shadow-none overflow-hidden ${isError ? 'bg-bg-surface border border-border-subtle' :
+          <Card className={`border-none shadow-none overflow-hidden ${isError ? 'bg-neutral-bg' :
             result.status === 'success' ? 'bg-success-bg' :
               result.status === 'danger' ? 'bg-danger-bg' : 'bg-caution-bg'
             }`}>

@@ -98,14 +98,14 @@ function PaymentSuccessContent() {
           </p>
         )}
         {planType === 'scan5' && (
-          <p className="text-sm text-gray-500">5회 이용권이 추가됐어요. 14일 이내에 사용해 주세요.</p>
+          <p className="text-sm text-gray-500">5회 스캔권이 추가됐어요. 14일 이내에 사용해 주세요.</p>
         )}
         {planType === 'monthly' && !isPending && (
           <p className="text-sm text-gray-500">30일간 무제한으로 이용할 수 있어요.</p>
         )}
         {planType === 'monthly' && isPending && (
           <p className="text-sm text-gray-500">
-            남은 스캔권 소진 후 무제한 이용권이 자동으로 시작돼요.
+            남은 5회 스캔권 소진 후 무제한 스캔권이 자동으로 시작돼요.
           </p>
         )}
         <div className="flex flex-col gap-2 pt-2">
@@ -133,10 +133,10 @@ function PaymentSuccessContent() {
                 <Clock className="w-6 h-6 text-pink-500" />
               </div>
               <div className="text-center space-y-1.5">
-                <h3 className="font-bold text-lg text-gray-900">무제한 이용권 대기 중</h3>
+                <h3 className="font-bold text-lg text-gray-900">무제한 스캔권 대기 중</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">
-                  현재 남은 스캔권을 모두 사용하면<br />
-                  무제한 이용권이 자동으로 시작돼요.
+                  현재 남은 5회 스캔권을 모두 사용하면<br />
+                  무제한 스캔권이 자동으로 시작돼요.
                 </p>
               </div>
               <div className="bg-pink-50 rounded-xl px-4 py-3 flex items-center justify-between">
@@ -148,7 +148,7 @@ function PaymentSuccessContent() {
               </div>
               <p className="text-xs text-gray-400 text-center leading-relaxed">
                 스캔권 {remainingScans}회를 모두 사용하거나 만료되면<br />
-                30일 무제한 이용권이 자동으로 활성화돼요.
+                무제한 스캔권(30일)이 자동으로 활성화돼요.
               </p>
             </div>
             <div className="px-6 pb-6">

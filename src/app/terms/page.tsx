@@ -48,8 +48,8 @@ export default function TermsPage() {
             <li><strong className="text-text-primary">"서비스"</strong>란 마미스캔 웹 앱을 통해 제공되는 임신 주차별 식품·제품 성분 안전성 분석, 바코드 스캔, 스캔 히스토리 등 일체의 서비스를 말합니다.</li>
             <li><strong className="text-text-primary">"회원"</strong>이란 소셜 로그인(Google, Kakao)을 통해 이용계약을 체결하고 서비스를 이용하는 자를 말합니다.</li>
             <li><strong className="text-text-primary">"비회원(게스트)"</strong>이란 회원 가입 없이 제한된 범위 내에서 서비스를 이용하는 자를 말합니다.</li>
-            <li><strong className="text-text-primary">"유료서비스"</strong>란 스캔 스캔권 팩, 월정액 구독 등 결제를 통해 이용하는 서비스를 말합니다.</li>
-            <li><strong className="text-text-primary">"스캔권"</strong>이란 스캔 서비스 이용에 사용되는 이용권으로, 유효기간 내에만 사용 가능합니다.</li>
+            <li><strong className="text-text-primary">"유료서비스"</strong>란 5회 스캔권, 무제한 스캔권 등 결제를 통해 이용하는 서비스를 말합니다.</li>
+            <li><strong className="text-text-primary">"스캔권"</strong>이란 스캔 서비스 이용에 사용되는 패스를 말하며, <strong className="text-text-primary">"5회 스캔권"</strong>은 유효기간(14일) 내 5회 사용 가능한 유한 크레딧, <strong className="text-text-primary">"무제한 스캔권"</strong>은 30일간 횟수 제한 없이 사용 가능한 패스입니다.</li>
             <li><strong className="text-text-primary">"콘텐츠"</strong>란 서비스를 통해 제공되는 AI 분석 결과, 성분 정보, 이미지, 텍스트 등 일체의 정보를 말합니다.</li>
           </ol>
         </Section>

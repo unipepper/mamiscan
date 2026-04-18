@@ -192,7 +192,7 @@ export default function SettingsPage() {
         {/* Subscription */}
         <section className="space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h3 className="text-[18px] font-bold text-text-primary">이용권 정보</h3>
+            <h3 className="text-[18px] font-bold text-text-primary">스캔권 정보</h3>
             <button onClick={() => router.push('/billing-history')} className="text-sm font-medium text-text-secondary hover:text-primary transition-colors flex items-center">
               전체 내역 보기 <ChevronRight className="w-4 h-4 ml-0.5" />
             </button>
@@ -202,7 +202,7 @@ export default function SettingsPage() {
               <div>
                 {isActive ? (
                   <>
-                    <p className="font-bold text-primary mb-1">무제한 이용권 사용 중</p>
+                    <p className="font-bold text-primary mb-1">무제한 스캔권 사용 중</p>
                     <p className="text-sm text-text-secondary">횟수 제한 없이 스캔 가능합니다.</p>
                     {activeSubExpiresAt && (
                       <div className="mt-2 space-y-0.5">
@@ -230,8 +230,8 @@ export default function SettingsPage() {
           {hasPendingMonthly && (
             <Card className="bg-caution/5 border-caution/20 shadow-sm">
               <CardContent className="p-4">
-                <p className="text-sm font-medium text-text-primary mb-1">1개월 무제한 이용권 대기 중</p>
-                <p className="text-xs text-text-secondary">스캔권을 모두 소진하시면 무제한 이용권이 자동으로 시작돼요 (30일)</p>
+                <p className="text-sm font-medium text-text-primary mb-1">무제한 스캔권 대기 중</p>
+                <p className="text-xs text-text-secondary">5회 스캔권을 모두 소진하시면 무제한 스캔권이 자동으로 시작돼요 (30일)</p>
               </CardContent>
             </Card>
           )}
@@ -361,7 +361,7 @@ export default function SettingsPage() {
               <div className="bg-neutral-bg rounded-2xl p-4 space-y-2.5 mb-6">
                 {[
                   '스캔 기록, 임신 주차 등 모든 데이터가 즉시 삭제돼요',
-                  '남은 스캔권 및 월간 이용권은 환불 없이 소멸돼요',
+                  '남은 5회 스캔권 및 무제한 스캔권은 환불 없이 소멸돼요',
                   '결제·거래 기록은 전자상거래법에 따라 5년간 보관돼요',
                 ].map((text) => (
                   <div key={text} className="flex items-start gap-2">

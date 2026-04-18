@@ -123,7 +123,7 @@ export default function HomePage() {
           <div className="bg-caution/10 border border-caution/20 rounded-xl p-3 flex items-center space-x-2">
             <CheckCircle2 className="w-5 h-5 text-caution shrink-0" />
             <span className="text-sm text-text-primary">
-              스캔권 소진 후 <strong>1개월 무제한 이용권</strong>이 자동으로 시작돼요
+              5회 스캔권 소진 후 <strong>무제한 스캔권</strong>이 자동으로 시작돼요
             </span>
           </div>
         )}

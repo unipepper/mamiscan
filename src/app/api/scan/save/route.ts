@@ -30,12 +30,33 @@ export async function POST(req: Request) {
     usageType = 'subscription';
     usageDescription = '스캔 사용 (무제한)';
   } else {
-    // FIFO: 만료 임박 순으로 횟수권 차감
+    // 2. 대기 중인 무제한 이용권 확인
+    const { data: pendingSub } = await supabase
+      .from('user_entitlements')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('type', 'monthly')
+      .eq('status', 'pending')
+      .maybeSingle();
+
+    // 3. 무제한 이용권 없을 때: pause된 스캔권 복원
+    if (!pendingSub) {
+      await supabase
+        .from('user_entitlements')
+        .update({ status: 'active' })
+        .eq('user_id', user.id)
+        .in('type', ['scan5', 'trial', 'admin'])
+        .eq('status', 'pending')
+        .gt('expires_at', now)
+        .gt('scan_count', 0);
+    }
+
+    // 4. FIFO: 만료 임박 순으로 횟수권 차감
     const { data: scanRights } = await supabase
       .from('user_entitlements')
       .select('id, scan_count')
       .eq('user_id', user.id)
-      .in('type', ['trial', 'scan5'])
+      .in('type', ['scan5', 'trial', 'admin'])
       .eq('status', 'active')
       .gt('expires_at', now)
       .gt('scan_count', 0)
@@ -43,15 +64,7 @@ export async function POST(req: Request) {
       .limit(1);
 
     if (!scanRights || scanRights.length === 0) {
-      // 대기 중인 무제한 이용권 첫 스캔으로 활성화
-      const { data: pendingSub } = await supabase
-        .from('user_entitlements')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('type', 'monthly')
-        .eq('status', 'pending')
-        .maybeSingle();
-
+      // 5. 스캔권 없음 → 대기 중인 무제한 이용권 첫 스캔으로 활성화
       if (!pendingSub) {
         return NextResponse.json({ error: 'no_scans' }, { status: 403 });
       }
@@ -64,6 +77,14 @@ export async function POST(req: Request) {
         .from('user_entitlements')
         .update({ status: 'active', started_at: startedAt.toISOString(), expires_at: expiresAt.toISOString() })
         .eq('id', pendingSub.id);
+
+      // 무제한 활성화 시 활성 스캔권 모두 pause
+      await supabase
+        .from('user_entitlements')
+        .update({ status: 'pending' })
+        .eq('user_id', user.id)
+        .in('type', ['scan5', 'trial', 'admin'])
+        .eq('status', 'active');
 
       entitlementId = pendingSub.id;
       usageType = 'subscription';
@@ -128,7 +149,7 @@ export async function POST(req: Request) {
   }
 
   // ── 4. scan_usage_logs INSERT (scan_history_id 포함) ────────────
-  await supabase.from('scan_usage_logs').insert({
+  const { error: logError } = await supabase.from('scan_usage_logs').insert({
     user_id: user.id,
     type: 'scan_use',
     count: -1,
@@ -136,6 +157,10 @@ export async function POST(req: Request) {
     scan_history_id: historyId,
     description: usageDescription,
   });
+
+  if (logError) {
+    console.error('scan_usage_logs insert error:', logError);
+  }
 
   return NextResponse.json({ success: true, historyId, imagePath, type: usageType, entitlementId });
 }

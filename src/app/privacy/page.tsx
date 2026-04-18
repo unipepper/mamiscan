@@ -93,7 +93,7 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-5 space-y-1.5 text-text-secondary">
             <li><strong className="text-text-primary">서비스 제공</strong>: 임신 주차별 식품 성분 안전성 분석, 대체 제품 추천, 스캔 히스토리 저장</li>
             <li><strong className="text-text-primary">회원 관리</strong>: 회원 식별, 로그인 유지, 계정 보호</li>
-            <li><strong className="text-text-primary">결제 및 이용권 관리</strong>: 결제 처리, 이용권 부여·관리, 환불 처리</li>
+            <li><strong className="text-text-primary">결제 및 스캔권 관리</strong>: 결제 처리, 스캔권 부여·관리, 환불 처리</li>
             <li><strong className="text-text-primary">법적 의무 이행</strong>: 관련 법령에 따른 기록 보관, 분쟁 해결</li>
             <li><strong className="text-text-primary">서비스 개선</strong>: 오류 개선 및 서비스 품질 향상 (개인 식별 불가한 집계 데이터만 활용)</li>
           </ul>
