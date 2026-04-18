@@ -14,7 +14,7 @@ function PaymentSuccessContent() {
   const [planType, setPlanType] = useState<PlanType | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [isPending, setIsPending] = useState(false);
-  const [remainingCredits, setRemainingCredits] = useState(0);
+  const [remainingScans, setRemainingScans] = useState(0);
   const [showPendingModal, setShowPendingModal] = useState(false);
 
   useEffect(() => {
@@ -42,7 +42,7 @@ function PaymentSuccessContent() {
           setStatus('success');
           if (data.isPending) {
             setIsPending(true);
-            setRemainingCredits(data.remainingCredits ?? 0);
+            setRemainingScans(data.remainingScans ?? 0);
             setShowPendingModal(true);
           }
         } else {
@@ -144,10 +144,10 @@ function PaymentSuccessContent() {
                   <Zap className="w-4 h-4 text-pink-500" />
                   <span className="text-sm font-medium text-gray-700">현재 잔여 스캔권</span>
                 </div>
-                <span className="text-lg font-bold text-pink-500">{remainingCredits}회</span>
+                <span className="text-lg font-bold text-pink-500">{remainingScans}회</span>
               </div>
               <p className="text-xs text-gray-400 text-center leading-relaxed">
-                스캔권 {remainingCredits}회를 모두 사용하거나 만료되면<br />
+                스캔권 {remainingScans}회를 모두 사용하거나 만료되면<br />
                 30일 무제한 이용권이 자동으로 활성화돼요.
               </p>
             </div>

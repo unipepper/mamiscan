@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       .order('expires_at', { ascending: true });
 
     if (!entitlements || entitlements.length === 0) {
-      return NextResponse.json({ error: 'no_credits' }, { status: 400 });
+      return NextResponse.json({ error: 'no_scans' }, { status: 400 });
     }
 
     let remaining = absDelta;
@@ -85,7 +85,7 @@ export async function POST(req: Request) {
     }
   }
 
-  // 최종 잔여 크레딧 합산
+  // 최종 잔여 스캔권 합산
   const { data: remaining } = await supabase
     .from('user_entitlements')
     .select('scan_count')

@@ -28,7 +28,7 @@ export async function POST() {
   }
 
   // 2. FIFO: 만료 임박 순으로 횟수권 차감 (가입 보상 포함)
-  const { data: credits } = await supabase
+  const { data: scanRights } = await supabase
     .from('user_entitlements')
     .select('id, scan_count')
     .eq('user_id', user.id)
@@ -39,7 +39,7 @@ export async function POST() {
     .order('expires_at', { ascending: true })
     .limit(1);
 
-  if (!credits || credits.length === 0) {
+  if (!scanRights || scanRights.length === 0) {
     // 스캔권 없음 → 대기 중인 무제한 이용권이 있으면 첫 스캔으로 활성화
     const { data: pendingSub } = await supabase
       .from('user_entitlements')
@@ -74,16 +74,16 @@ export async function POST() {
       return NextResponse.json({ success: true, type: 'subscription', entitlementId: pendingSub.id });
     }
 
-    return NextResponse.json({ error: 'no_credits' }, { status: 403 });
+    return NextResponse.json({ error: 'no_scans' }, { status: 403 });
   }
 
   // 3. 스캔권 차감 (scan_count 감소, row 유지)
-  const credit = credits[0];
+  const scanRight = scanRights[0];
 
   const { error: updateError } = await supabase
     .from('user_entitlements')
-    .update({ scan_count: credit.scan_count! - 1 })
-    .eq('id', credit.id);
+    .update({ scan_count: scanRight.scan_count! - 1 })
+    .eq('id', scanRight.id);
 
   if (updateError) {
     console.error('user_entitlements update error:', updateError);
@@ -94,9 +94,9 @@ export async function POST() {
     user_id: user.id,
     type: 'scan_use',
     count: -1,
-    entitlement_id: credit.id,
+    entitlement_id: scanRight.id,
     description: '스캔 사용',
   });
 
-  return NextResponse.json({ success: true, type: 'credit', entitlementId: credit.id });
+  return NextResponse.json({ success: true, type: 'scan', entitlementId: scanRight.id });
 }

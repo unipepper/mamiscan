@@ -48,8 +48,8 @@ export default function TermsPage() {
             <li><strong className="text-text-primary">"서비스"</strong>란 마미스캔 웹 앱을 통해 제공되는 임신 주차별 식품·제품 성분 안전성 분석, 바코드 스캔, 스캔 히스토리 등 일체의 서비스를 말합니다.</li>
             <li><strong className="text-text-primary">"회원"</strong>이란 소셜 로그인(Google, Kakao)을 통해 이용계약을 체결하고 서비스를 이용하는 자를 말합니다.</li>
             <li><strong className="text-text-primary">"비회원(게스트)"</strong>이란 회원 가입 없이 제한된 범위 내에서 서비스를 이용하는 자를 말합니다.</li>
-            <li><strong className="text-text-primary">"유료서비스"</strong>란 스캔 크레딧 팩, 월정액 구독 등 결제를 통해 이용하는 서비스를 말합니다.</li>
-            <li><strong className="text-text-primary">"크레딧"</strong>이란 스캔 서비스 이용에 사용되는 이용권으로, 유효기간 내에만 사용 가능합니다.</li>
+            <li><strong className="text-text-primary">"유료서비스"</strong>란 스캔 스캔권 팩, 월정액 구독 등 결제를 통해 이용하는 서비스를 말합니다.</li>
+            <li><strong className="text-text-primary">"스캔권"</strong>이란 스캔 서비스 이용에 사용되는 이용권으로, 유효기간 내에만 사용 가능합니다.</li>
             <li><strong className="text-text-primary">"콘텐츠"</strong>란 서비스를 통해 제공되는 AI 분석 결과, 성분 정보, 이미지, 텍스트 등 일체의 정보를 말합니다.</li>
           </ol>
         </Section>
@@ -70,7 +70,7 @@ export default function TermsPage() {
             <li>임신 주차별 맞춤 안전성 등급 및 성분 위험도 안내</li>
             <li>대체 제품 추천</li>
             <li>스캔 히스토리 저장 및 조회 (회원 전용)</li>
-            <li>유료 크레딧 팩 및 월정액 구독 서비스</li>
+            <li>유료 스캔권 팩 및 월정액 구독 서비스</li>
           </ul>
 
           <SubTitle>2. 서비스 변경 및 중단</SubTitle>
@@ -99,7 +99,7 @@ export default function TermsPage() {
           <ol className="list-decimal pl-5 space-y-2 text-text-secondary">
             <li>회원은 언제든지 앱 내 <strong className="text-text-primary">설정 → [탈퇴하기]</strong> 또는 이메일(mamiscan2026@gmail.com)을 통해 탈퇴를 요청할 수 있습니다.</li>
             <li>탈퇴 즉시 회원 정보, 스캔 히스토리, 임신 주차 등 개인정보는 파기됩니다. 단, 관련 법령에 따라 보관 의무가 있는 결제·거래 기록 등은 해당 기간 동안 보관됩니다.</li>
-            <li>탈퇴 시 미사용 크레딧 및 잔여 구독 기간은 환불 규정(제10조)에 따릅니다.</li>
+            <li>탈퇴 시 미사용 스캔권 및 잔여 구독 기간은 환불 규정(제10조)에 따릅니다.</li>
             <li>회사는 이용자가 본 약관을 위반한 경우 사전 통보 없이 이용계약을 해지하고 서비스 이용을 제한할 수 있습니다.</li>
           </ol>
         </Section>
@@ -142,7 +142,7 @@ export default function TermsPage() {
               </thead>
               <tbody>
                 <tr>
-                  <Td>스캔 크레딧 팩</Td>
+                  <Td>스캔 스캔권 팩</Td>
                   <Td>스캔 5회</Td>
                   <Td>1,800원</Td>
                   <Td>구매일로부터 14일</Td>
@@ -173,13 +173,13 @@ export default function TermsPage() {
             <li>
               <strong className="text-text-primary">청약철회 불가 사유</strong>: 다음의 경우 청약철회가 제한됩니다.
               <ul className="list-disc pl-5 mt-2 space-y-1">
-                <li>크레딧 팩 구매 후 <strong className="text-text-primary">1회라도 스캔 서비스를 이용한 경우</strong> (콘텐츠산업 진흥법 제27조, 디지털 콘텐츠 이용 시작 시 청약철회 불가)</li>
+                <li>스캔권 팩 구매 후 <strong className="text-text-primary">1회라도 스캔 서비스를 이용한 경우</strong> (콘텐츠산업 진흥법 제27조, 디지털 콘텐츠 이용 시작 시 청약철회 불가)</li>
                 <li>월정액 구독 기간이 만료된 경우</li>
-                <li>크레딧 유효기간이 만료된 경우</li>
+                <li>스캔권 유효기간이 만료된 경우</li>
               </ul>
             </li>
             <li>
-              <strong className="text-text-primary">부분 환불</strong>: 크레딧 팩을 일부만 사용한 경우, 사용하지 않은 잔여 크레딧에 대해 비례 환불을 검토할 수 있습니다. 환불 금액은 고객센터를 통해 개별 안내드립니다.
+              <strong className="text-text-primary">부분 환불</strong>: 스캔권 팩을 일부만 사용한 경우, 사용하지 않은 잔여 스캔권에 대해 비례 환불을 검토할 수 있습니다. 환불 금액은 고객센터를 통해 개별 안내드립니다.
             </li>
             <li>
               <strong className="text-text-primary">환불 신청 방법</strong>: 이메일(mamiscan2026@gmail.com)로 요청하시면 <strong className="text-text-primary">3영업일 이내</strong>에 처리 결과를 안내드립니다.

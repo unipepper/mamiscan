@@ -36,14 +36,14 @@ export default function SettingsPage() {
       setAuthUser(user);
       if (user) {
         const now = new Date().toISOString();
-        const [{ data: prof }, { data: credits }, { data: activeSub }, { data: pendingSub }] = await Promise.all([
+        const [{ data: prof }, { data: scanRights }, { data: activeSub }, { data: pendingSub }] = await Promise.all([
           supabase.from('users').select('id, name, pregnancy_weeks').eq('id', user.id).single(),
           supabase.from('user_entitlements').select('scan_count').eq('user_id', user.id).in('type', ['scan5', 'trial', 'admin']).eq('status', 'active').gt('expires_at', now).gt('scan_count', 0),
           supabase.from('user_entitlements').select('started_at, expires_at').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'active').gt('expires_at', now).maybeSingle(),
           supabase.from('user_entitlements').select('id').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'pending').maybeSingle(),
         ]);
         setProfile(prof);
-        setRemainingScans(credits?.reduce((s: number, c: any) => s + c.scan_count, 0) ?? 0);
+        setRemainingScans(scanRights?.reduce((s: number, c: any) => s + c.scan_count, 0) ?? 0);
         setActiveSubStartedAt(activeSub?.started_at ?? null);
         setActiveSubExpiresAt(activeSub?.expires_at ?? null);
         setHasPendingMonthly(!!pendingSub);

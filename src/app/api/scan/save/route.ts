@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   let entitlementId: string;
-  let usageType: 'subscription' | 'credit';
+  let usageType: 'subscription' | 'scan';
   let usageDescription: string;
 
   if (activeSub) {
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     usageDescription = '스캔 사용 (무제한)';
   } else {
     // FIFO: 만료 임박 순으로 횟수권 차감
-    const { data: credits } = await supabase
+    const { data: scanRights } = await supabase
       .from('user_entitlements')
       .select('id, scan_count')
       .eq('user_id', user.id)
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
       .order('expires_at', { ascending: true })
       .limit(1);
 
-    if (!credits || credits.length === 0) {
+    if (!scanRights || scanRights.length === 0) {
       // 대기 중인 무제한 이용권 첫 스캔으로 활성화
       const { data: pendingSub } = await supabase
         .from('user_entitlements')
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
         .maybeSingle();
 
       if (!pendingSub) {
-        return NextResponse.json({ error: 'no_credits' }, { status: 403 });
+        return NextResponse.json({ error: 'no_scans' }, { status: 403 });
       }
 
       const startedAt = new Date();
@@ -69,18 +69,18 @@ export async function POST(req: Request) {
       usageType = 'subscription';
       usageDescription = '스캔 사용 (무제한 첫 사용)';
     } else {
-      const credit = credits[0];
+      const scanRight = scanRights[0];
       const { error: updateError } = await supabase
         .from('user_entitlements')
-        .update({ scan_count: credit.scan_count! - 1 })
-        .eq('id', credit.id);
+        .update({ scan_count: scanRight.scan_count! - 1 })
+        .eq('id', scanRight.id);
 
       if (updateError) {
         return NextResponse.json({ error: 'db_error' }, { status: 500 });
       }
 
-      entitlementId = credit.id;
-      usageType = 'credit';
+      entitlementId = scanRight.id;
+      usageType = 'scan';
       usageDescription = '스캔 사용';
     }
   }

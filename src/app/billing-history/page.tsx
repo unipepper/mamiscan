@@ -193,11 +193,11 @@ export default function BillingHistoryPage() {
           <div className="space-y-4">
             {transactions.map((tx) => {
               const ent = tx.entitlement;
-              const isCreditTx = ent?.type === 'scan5' || ent?.type === 'trial' || ent?.type === 'admin';
+              const isScanTx = ent?.type === 'scan5' || ent?.type === 'trial' || ent?.type === 'admin';
               const isMonthlyTx = ent?.type === 'monthly';
               const useLogs = getScanLogsForTx(tx);
               const scanHistoriesForTx = getScanHistoriesForTx(tx);
-              const totalCount = isCreditTx && ent ? getGrantCount(ent) : null;
+              const totalCount = isScanTx && ent ? getGrantCount(ent) : null;
               const usedCount = totalCount != null ? totalCount - (ent?.scan_count ?? 0) : 0;
               const isExpanded = expandedIds === null || expandedIds.has(tx.id);
 
@@ -221,7 +221,7 @@ export default function BillingHistoryPage() {
                   </div>
 
                   {/* 횟수권 사용 현황 — 닷 시각화 */}
-                  {isCreditTx && totalCount != null && ent && tx.status !== 'refunded' && (
+                  {isScanTx && totalCount != null && ent && tx.status !== 'refunded' && (
                     <div className="mt-3 pt-3 border-t border-border-subtle">
                       <p className="text-xs text-text-secondary mb-2">사용 현황</p>
                       <div className="flex gap-2 mb-2">
@@ -278,7 +278,7 @@ export default function BillingHistoryPage() {
                   })()}
 
                   {/* 스캔 사용 내역 */}
-                  {(isCreditTx || isMonthlyTx) && ent && tx.status !== 'refunded' && scanHistoriesForTx.length > 0 && (
+                  {(isScanTx || isMonthlyTx) && ent && tx.status !== 'refunded' && scanHistoriesForTx.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-border-subtle">
                       <button
                         onClick={() => toggleExpanded(tx.id)}

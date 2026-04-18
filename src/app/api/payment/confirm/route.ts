@@ -190,7 +190,7 @@ export async function POST(req: Request) {
       });
 
       // 스캔권 잔여 중 구매 → 잔여 수량 계산 (팝업 안내용)
-      const { data: activeCredits } = await supabase
+      const { data: activeScanRights } = await supabase
         .from('user_entitlements')
         .select('scan_count')
         .eq('user_id', user.id)
@@ -199,9 +199,9 @@ export async function POST(req: Request) {
         .gt('expires_at', new Date().toISOString())
         .gt('scan_count', 0);
 
-      const remainingCredits = (activeCredits ?? []).reduce((sum, c) => sum + (c.scan_count ?? 0), 0);
-      if (remainingCredits > 0) {
-        return NextResponse.json({ success: true, planType, isPending: true, remainingCredits });
+      const remainingScans = (activeScanRights ?? []).reduce((sum, c) => sum + (c.scan_count ?? 0), 0);
+      if (remainingScans > 0) {
+        return NextResponse.json({ success: true, planType, isPending: true, remainingScans });
       }
     }
   }

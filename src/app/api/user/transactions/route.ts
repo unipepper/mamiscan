@@ -79,7 +79,7 @@ export async function GET() {
       type: 'trial',
       amount: 0,
       price_krw: 0,
-      description: '가입 보상 크레딧 3회',
+      description: '가입 보상 스캔권 3회',
       created_at: e.created_at,
       status: 'completed',
       payment_key: null,

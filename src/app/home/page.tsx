@@ -32,7 +32,7 @@ export default function HomePage() {
       setIsLoggedIn(true);
 
       const now = new Date().toISOString();
-      const [{ data: prof }, { data: credits }, { data: activeSub }, { data: pendingSub }] = await Promise.all([
+      const [{ data: prof }, { data: scanRights }, { data: activeSub }, { data: pendingSub }] = await Promise.all([
         supabase.from('users').select('id, email, name, pregnancy_weeks').eq('id', user.id).single(),
         supabase.from('user_entitlements').select('scan_count').eq('user_id', user.id).in('type', ['scan5', 'trial', 'admin']).eq('status', 'active').gt('expires_at', now).gt('scan_count', 0),
         supabase.from('user_entitlements').select('expires_at').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'active').gt('expires_at', now).maybeSingle(),
@@ -40,7 +40,7 @@ export default function HomePage() {
       ]);
 
       setProfile(prof);
-      setRemainingScans(credits?.reduce((sum: number, c: any) => sum + c.scan_count, 0) ?? 0);
+      setRemainingScans(scanRights?.reduce((sum: number, c: any) => sum + c.scan_count, 0) ?? 0);
       setIsActive(!!activeSub);
       setHasPendingMonthly(!!pendingSub);
       setLoading(false);
