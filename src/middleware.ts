@@ -29,6 +29,18 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // 약관 동의 강제: 로그인됐지만 미동의 유저가 약관/auth 관련 경로 외 접근 시 차단
+  const isTermsExempt =
+    pathname.startsWith('/signup/') ||
+    pathname.startsWith('/login') ||
+    pathname === '/';
+  if (user && !isTermsExempt) {
+    const termsAgreed = user.user_metadata?.terms_agreed === true;
+    if (!termsAgreed) {
+      return NextResponse.redirect(new URL('/signup/terms', request.url));
+    }
+  }
+
   // 로그인 필요 경로 (/scan은 비로그인 3회 체험 허용 — 페이지 내부에서 제한)
   const protectedPaths = ['/history', '/settings', '/payment'];
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));

@@ -28,7 +28,10 @@ export default function LoginPage() {
     setLoading('kakao');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'kakao',
-      options: { redirectTo: `${location.origin}/api/auth/callback` },
+      options: {
+        redirectTo: `${location.origin}/api/auth/callback`,
+        scopes: '', // 카카오 동의항목 미설정으로 인해 추가 scope 요청 제외
+      },
     });
     if (error) {
       setLoginError('카카오 로그인에 실패했어요. 다시 시도해 주세요.');

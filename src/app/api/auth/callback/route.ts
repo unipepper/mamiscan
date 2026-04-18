@@ -11,7 +11,19 @@ export async function GET(request: Request) {
     const { data: { user }, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && user) {
-      // 신규 가입 여부 확인: trial 이용권이 없으면 지급
+      // 약관 동의 여부 확인
+      const { data: termsAgreement } = await supabase
+        .from('user_terms_agreements')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      // 신규 유저: 약관 동의 페이지로 이동
+      if (!termsAgreement) {
+        return NextResponse.redirect(`${origin}/signup/terms`);
+      }
+
+      // 기존 유저: trial 이용권 확인 후 지급 (안전망)
       const { data: existingTrial } = await supabase
         .from('user_entitlements')
         .select('id')
