@@ -11,6 +11,7 @@ export async function GET() {
     { data: entitlements },
     { data: scanLogs },
     { data: trialEntitlements },
+    { data: adminEntitlements },
     { data: scanHistories },
   ] = await Promise.all([
     // 결제/환불 내역
@@ -41,6 +42,13 @@ export async function GET() {
       .select('id, type, status, scan_count, expires_at, transaction_id, created_at')
       .eq('user_id', user.id)
       .eq('type', 'trial'),
+
+    // 어드민 지급 이용권 (transactions 연결 없이 별도 조회)
+    supabase
+      .from('user_entitlements')
+      .select('id, type, status, scan_count, expires_at, transaction_id, created_at')
+      .eq('user_id', user.id)
+      .eq('type', 'admin'),
 
     // 스캔 사용 상품명 (entitlement_id가 있는 것만)
     supabase
@@ -92,7 +100,35 @@ export async function GET() {
       },
     }));
 
-  const allTransactions = [...enrichedTransactions, ...syntheticTrialEntries]
+  // 어드민 지급 이용권이 transactions 테이블에 없는 경우 가상 항목 추가
+  const syntheticAdminEntries = (adminEntitlements ?? [])
+    .filter(e => !e.transaction_id || !coveredTxIds.has(e.transaction_id))
+    .map(e => {
+      // scan_usage_logs의 admin_grant 로그에서 최초 지급 횟수 조회
+      const grantLog = (scanLogs ?? []).find(
+        l => String(l.entitlement_id) === String(e.id) && l.type === 'admin_grant'
+      );
+      const grantCount = grantLog ? Math.abs(grantLog.count) : (e.scan_count ?? 0);
+      return {
+      id: `admin-ent-${e.id}`,
+      type: 'trial' as const,
+      amount: 0,
+      price_krw: 0,
+      description: `스캔권 ${grantCount}회 (관리자 지급)`,
+      created_at: e.created_at,
+      status: 'completed',
+      payment_key: null,
+      entitlement: {
+        id: e.id,
+        type: e.type,
+        status: e.status,
+        scan_count: e.scan_count,
+        expires_at: e.expires_at,
+      },
+    };
+  });
+
+  const allTransactions = [...enrichedTransactions, ...syntheticTrialEntries, ...syntheticAdminEntries]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   return NextResponse.json({

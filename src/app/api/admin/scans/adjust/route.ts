@@ -21,12 +21,22 @@ export async function POST(req: Request) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
+    // 무제한 이용권 활성 중이면 pending으로 생성
+    const { data: activeMonthly } = await supabase
+      .from('user_entitlements')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('type', 'monthly')
+      .eq('status', 'active')
+      .gt('expires_at', now)
+      .maybeSingle();
+
     const { data: entData, error: entError } = await supabase
       .from('user_entitlements')
       .insert({
         user_id: userId,
         type: 'admin',
-        status: 'active',
+        status: activeMonthly ? 'pending' : 'active',
         scan_count: delta,
         expires_at: expiresAt.toISOString(),
       })

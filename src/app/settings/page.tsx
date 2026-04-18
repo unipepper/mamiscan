@@ -205,9 +205,14 @@ export default function SettingsPage() {
                     <p className="font-bold text-primary mb-1">무제한 이용권 사용 중</p>
                     <p className="text-sm text-text-secondary">횟수 제한 없이 스캔 가능합니다.</p>
                     {activeSubExpiresAt && (
-                      <p className="text-xs text-text-secondary mt-1">
-                        이용 기간: {formatSubscriptionDate(activeSubStartedAt)} ~ {formatSubscriptionDate(activeSubExpiresAt)} (남은 기간: {getRemainingDays(activeSubExpiresAt)}일)
-                      </p>
+                      <div className="mt-2 space-y-0.5">
+                        <p className="text-xs text-text-secondary">
+                          이용 기간: {formatSubscriptionDate(activeSubStartedAt)} ~ {formatSubscriptionDate(activeSubExpiresAt)}
+                        </p>
+                        <p className="text-xs text-text-secondary">
+                          남은 기간: {getRemainingDays(activeSubExpiresAt)}일
+                        </p>
+                      </div>
                     )}
                   </>
                 ) : (

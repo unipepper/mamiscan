@@ -22,16 +22,18 @@ export function isEntitlementValid(
   return new Date(ent.expires_at) > new Date();
 }
 
-/** 날짜 문자열을 'yyyy.mm.dd hh:mm' 형식으로 포맷 */
+/** 날짜 문자열을 'yyyy.mm.dd 오전/오후 h:mm' 형식으로 포맷 */
 export function formatSubscriptionDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
-  const hh = String(d.getHours()).padStart(2, '0');
+  const hours = d.getHours();
+  const ampm = hours < 12 ? '오전' : '오후';
+  const h = hours % 12 || 12;
   const min = String(d.getMinutes()).padStart(2, '0');
-  return `${yyyy}.${mm}.${dd} ${hh}:${min}`;
+  return `${yyyy}.${mm}.${dd} ${ampm} ${h}:${min}`;
 }
 
 /** 활성 구독의 남은 일수 계산 */

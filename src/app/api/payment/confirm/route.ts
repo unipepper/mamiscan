@@ -85,13 +85,13 @@ export async function POST(req: Request) {
       : new Date();
     expiresAt.setDate(expiresAt.getDate() + grant.validDays);
 
-    // 5-2. user_entitlements INSERT (이용권 생성)
+    // 5-2. user_entitlements INSERT (이용권 생성 — 무제한 활성 중이면 pending)
     const { data: entData, error: entError } = await supabase
       .from('user_entitlements')
       .insert({
         user_id: user.id,
         type: 'scan5',
-        status: 'active',
+        status: activeSub ? 'pending' : 'active',
         scan_count: grant.count,
         transaction_id: txData.id,
         expires_at: expiresAt.toISOString(),

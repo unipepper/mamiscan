@@ -191,6 +191,50 @@ export default function BillingHistoryPage() {
           </div>
         ) : (
           <div className="space-y-4">
+            {/* 현재 이용권 요약 */}
+            {(() => {
+              const activeMonthly = transactions.find(tx => tx.entitlement?.type === 'monthly' && tx.entitlement?.status === 'active');
+              const activeScanCount = transactions.reduce((sum, tx) => {
+                const ent = tx.entitlement;
+                if (ent && ['scan5', 'trial', 'admin'].includes(ent.type) && ent.status === 'active') {
+                  return sum + (ent.scan_count ?? 0);
+                }
+                return sum;
+              }, 0);
+              const pendingScanCount = transactions.reduce((sum, tx) => {
+                const ent = tx.entitlement;
+                if (ent && ['scan5', 'trial', 'admin'].includes(ent.type) && ent.status === 'pending') {
+                  return sum + (ent.scan_count ?? 0);
+                }
+                return sum;
+              }, 0);
+              const hasSummary = activeMonthly || activeScanCount > 0;
+              if (!hasSummary) return null;
+              return (
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2">
+                  <p className="text-xs font-bold text-primary">현재 이용 중인 이용권</p>
+                  {activeMonthly && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-text-primary">무제한 이용권</span>
+                      <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">사용 중</span>
+                    </div>
+                  )}
+                  {activeScanCount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-text-primary">스캔권</span>
+                      <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{activeScanCount}회 사용 가능</span>
+                    </div>
+                  )}
+                  {activeMonthly && pendingScanCount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-text-secondary">대기 중인 스캔권</span>
+                      <span className="text-xs font-medium text-text-secondary bg-neutral-bg px-2 py-0.5 rounded-full">무제한 만료 후 {pendingScanCount}회 사용 가능</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {transactions.map((tx) => {
               const ent = tx.entitlement;
               const isScanTx = ent?.type === 'scan5' || ent?.type === 'trial' || ent?.type === 'admin';
@@ -200,9 +244,12 @@ export default function BillingHistoryPage() {
               const totalCount = isScanTx && ent ? getGrantCount(ent) : null;
               const usedCount = totalCount != null ? totalCount - (ent?.scan_count ?? 0) : 0;
               const isExpanded = expandedIds === null || expandedIds.has(tx.id);
+              const isActiveEnt = ent?.status === 'active' && tx.status !== 'refunded' &&
+                new Date(ent.expires_at) > new Date() &&
+                (isMonthlyTx || (ent.scan_count ?? 0) > 0);
 
               return (
-                <div key={tx.id} className="bg-bg-surface border border-border-subtle rounded-xl p-4 shadow-sm flex flex-col">
+                <div key={tx.id} className={`border rounded-xl p-4 shadow-sm flex flex-col ${isActiveEnt ? 'bg-primary/5 border-primary/40' : 'bg-bg-surface border-border-subtle'}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className="bg-bg-canvas p-2 rounded-full">
@@ -223,7 +270,17 @@ export default function BillingHistoryPage() {
                   {/* 횟수권 사용 현황 — 닷 시각화 */}
                   {isScanTx && totalCount != null && ent && tx.status !== 'refunded' && (
                     <div className="mt-3 pt-3 border-t border-border-subtle">
-                      <p className="text-xs text-text-secondary mb-2">사용 현황</p>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs text-text-secondary">사용 현황</p>
+                        {(() => {
+                          const isExpired = new Date(ent.expires_at) < new Date();
+                          const isDepleted = ent.scan_count === 0;
+                          if (isDepleted) return <span className="text-xs font-bold px-2 py-0.5 rounded-full text-text-disabled bg-neutral-bg">소진</span>;
+                          if (isExpired) return <span className="text-xs font-bold px-2 py-0.5 rounded-full text-danger-fg bg-danger-bg">만료</span>;
+                          if (ent.status === 'pending') return <span className="text-xs font-bold px-2 py-0.5 rounded-full text-caution bg-caution/10">대기 중</span>;
+                          return <span className="text-xs font-bold px-2 py-0.5 rounded-full text-primary bg-primary/10">이용 중</span>;
+                        })()}
+                      </div>
                       <div className="flex gap-2 mb-2">
                         {Array.from({ length: totalCount }).map((_, i) => (
                           <div
