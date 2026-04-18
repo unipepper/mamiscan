@@ -33,6 +33,7 @@ export async function middleware(request: NextRequest) {
   const isTermsExempt =
     pathname.startsWith('/signup/') ||
     pathname.startsWith('/login') ||
+    pathname.startsWith('/api/auth/') ||
     pathname === '/';
   if (user && !isTermsExempt) {
     const termsAgreed = user.user_metadata?.terms_agreed === true;

@@ -15,7 +15,10 @@ export default function LoginPage() {
     setLoading('google');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${location.origin}/api/auth/callback` },
+      options: {
+        redirectTo: `${location.origin}/api/auth/callback`,
+        queryParams: { prompt: 'select_account' },
+      },
     });
     if (error) {
       setLoginError('Google 로그인에 실패했어요. 다시 시도해 주세요.');
