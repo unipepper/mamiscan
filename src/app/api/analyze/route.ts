@@ -136,6 +136,40 @@ async function getDBSafeProducts(
   return data?.map(d => d.product_name) ?? [];
 }
 
+/** 식품안전나라 API — 제품명으로 실존 여부 확인 */
+async function lookupByName(productName: string): Promise<boolean> {
+  try {
+    const key = process.env.FOOD_SAFETY_API_KEY!;
+    const encoded = encodeURIComponent(productName);
+    const res = await fetch(
+      `https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02?serviceKey=${key}&pageNo=1&numOfRows=3&type=json&FOOD_NM_KR=${encoded}`
+    );
+    if (!res.ok) return false;
+    const data = await res.json();
+    const rows = data?.body?.items;
+    return Array.isArray(rows) && rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** 제품명 정규화 — 괄호/영문 병기 제거 후 소문자 trim */
+function normalizeProductName(name: string): string {
+  return name.toLowerCase().trim().replace(/\s*\(.*?\)\s*/g, '').trim();
+}
+
+/** Gemini가 반환한 alternatives 중 DB에 없는 항목 제거 */
+function filterAlternatives(
+  alternatives: { name: string; brand: string; price: string }[],
+  dbSafeProducts: string[]
+): { name: string; brand: string; price: string }[] {
+  if (!alternatives?.length || !dbSafeProducts.length) return [];
+  const safeSet = new Set(dbSafeProducts.map(n => n.toLowerCase().trim()));
+  return alternatives.filter(alt =>
+    safeSet.has(alt.name?.toLowerCase().trim())
+  );
+}
+
 async function callGeminiBarcode(
   product: { productName: string; brand: string; rawIngredients: string },
   pregnancyWeeks: number | null,
@@ -171,9 +205,9 @@ ${hasWeekInfo
   : `일반적인 임산부 기준으로 섭취 조언을 weekAnalysis에 작성해줘.`}
 
 ${hasDBAlts
-  ? `★대체 제품 추천 우선순위★: 아래는 실제로 안전 판정을 받은 제품 목록이야. alternatives 추천 시 이 목록에서 관련 있는 제품을 최우선으로 골라줘. 목록에 적합한 게 없을 때만 일반적인 대체품을 추천해줘.
+  ? `★대체 제품 제약★: 아래는 실제로 안전 판정을 받은 제품 목록이야. alternatives는 반드시 이 목록에 있는 제품 이름만 사용해줘. 목록에 관련 제품이 없으면 alternatives를 빈 배열([])로 반환해줘. 절대 목록 외의 제품을 만들어 넣지 마.
 [${dbSafeProducts.join(', ')}]`
-  : ''}
+  : 'alternatives는 빈 배열([])로 반환해줘.'}
 
 다음 JSON 형식으로 응답해줘:
 {
@@ -199,6 +233,7 @@ ${hasDBAlts
 const FAILURE_REASON_MAP: Record<string, string> = {
   error_future_category: 'category_future',
   error_unsupported_category: 'category_blocked',
+  error_food_estimate: 'food_estimate',
   error_image_quality: 'image_quality',
   error_db_mismatch: 'db_no_match',
 };
@@ -319,6 +354,7 @@ export async function POST(req: Request) {
 
         const result = await callGeminiBarcode(product, pregnancyWeeks, matchedIngredients, dbSafeProducts);
         if (product.imageUrl) result.imageUrl = product.imageUrl;
+        result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts);
 
         // 4. products 테이블에 저장 (weekAnalysis, imageUrl 제외)
         const saveResult = { ...result };
@@ -367,7 +403,7 @@ export async function POST(req: Request) {
       const cacheKey = idBarcode
         ? `barcode:${idBarcode}`
         : idName && idName !== '알 수 없음'
-          ? `product:${idName.toLowerCase()}`
+          ? `product:${normalizeProductName(idName)}`
           : null;
 
       if (cacheKey) {
@@ -411,8 +447,8 @@ export async function POST(req: Request) {
     // 2. 전체 이미지 분석 + DB 안전 제품 목록을 대체 제품 힌트로 전달
     const dbSafeProducts = await getDBSafeProducts(supabase);
     const dbAltsHint = dbSafeProducts.length > 0
-      ? `\n★대체 제품 추천 우선순위★: 아래는 실제로 안전 판정을 받은 제품 목록이야. alternatives 추천 시 이 목록에서 관련 있는 제품을 최우선으로 골라줘. 목록에 적합한 게 없을 때만 일반적인 대체품을 추천해줘.\n[${dbSafeProducts.join(', ')}]`
-      : '';
+      ? `\n★대체 제품 제약★: 아래는 실제로 안전 판정을 받은 제품 목록이야. alternatives는 반드시 이 목록에 있는 제품 이름만 사용해줘. 목록에 관련 제품이 없으면 alternatives를 빈 배열([])로 반환해줘. 절대 목록 외의 제품을 만들어 넣지 마.\n[${dbSafeProducts.join(', ')}]`
+      : '\nalternatives는 빈 배열([])로 반환해줘.';
 
     const response = await withRetry(() => ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -420,24 +456,28 @@ export async function POST(req: Request) {
         parts: [
           { inlineData: { data: base64Data, mimeType } },
           {
-            text: `이 사진에 있는 제품이 무엇인지 식별하고, 임산부가 섭취해도 안전한지 분석해줘.
-만약 사진이 식료품이 아니거나 식별이 불가능하다면, 다음 중 가장 적절한 status를 선택해줘:
-- "error_future_category": 일반 화장품, 일반의약품 등 마미스캔이 추후 지원할 예정인 카테고리인 경우
-- "error_unsupported_category": 전문의약품, 식당 조리 음식 등 성분 판정 기준이 달라 지원하지 않는 카테고리인 경우
-- "error_image_quality": 사진이 너무 흐리거나, 너무 어둡거나, 여러 제품이 찍혔거나, 제품이 없는 경우
+            text: `이 사진에 있는 것이 무엇인지 식별하고, 임산부에게 안전한지 분석해줘.
+사진 내용에 따라 다음 중 가장 적절한 status를 선택해줘:
+
+포장 제품 (성분 표기가 있는 가공식품):
+- 안전/주의/위험 판정 가능 → "success" | "caution" | "danger"
+
+포장 제품이 아닌 경우:
+- "error_food_estimate": 조리된 음식, 식당 메뉴, 음식 사진 등 성분 표기가 없는 경우. AI 추정으로 분석 가능.
+- "error_future_category": 일반 화장품, 일반의약품 등 추후 지원 예정인 카테고리
+- "error_unsupported_category": 전문의약품처럼 의료 전문가 판단이 필요한 경우
+- "error_image_quality": 사진이 너무 흐리거나 어둡거나, 여러 제품이 찍혔거나, 식품이 없는 경우
 - "error_db_mismatch": 바코드는 인식되나 제품을 도저히 알 수 없는 경우
 
-정상적으로 식별된 식료품인 경우 status를 "success", "caution", "danger" 중 하나로 설정해줘.
-
-★중요★: 만약 위의 error_* status를 선택하더라도, 이미지 속 제품/음식이 무엇인지 대략적으로라도 식별할 수 있다면, productName, headline, description, ingredients, weekAnalysis에 정상적인 분석 정보를 최대한 작성해줘. 완전히 식별 불가능한 경우에만 description에 그 이유를 적어줘.
+★중요★: 어떤 status든 이미지에서 음식/제품을 식별할 수 있다면 productName, headline, description, ingredients, weekAnalysis에 분석 정보를 최대한 작성해줘. 완전히 식별 불가능한 경우에만 description에 그 이유를 짧게 적어줘.
 ${dbAltsHint}
 ${hasWeekInfo
   ? `현재 사용자는 임신 ${pregnancyWeeks}주차입니다. description은 일반적인 임산부 기준으로 작성하고, weekAnalysis 필드에는 임신 ${pregnancyWeeks}주차에 맞는 맞춤형 섭취 조언을 별도로 작성해줘.`
   : `일반적인 임산부 기준으로 섭취 조언을 weekAnalysis에 작성해줘.`}
 다음 JSON 형식으로 응답해줘:
 {
-  "status": "success" | "caution" | "danger" | "error_future_category" | "error_unsupported_category" | "error_image_quality" | "error_db_mismatch",
-  "productName": "식별된 식료품 이름 (식별 불가시 '알 수 없음')",
+  "status": "success" | "caution" | "danger" | "error_food_estimate" | "error_future_category" | "error_unsupported_category" | "error_image_quality" | "error_db_mismatch",
+  "productName": "식별된 음식/제품 이름 (식별 불가시 '알 수 없음')",
   "headline": "요약 헤드라인 (주의/위험 성분명 직접 언급 절대 금지. 예: 안심하고 드셔도 좋아요, 주의가 필요한 성분이 있어요 등)",
   "description": "임산부 섭취와 관련된 전반적인 설명 (주의/위험 성분명 직접 언급 절대 금지. 식별 불가시 그 이유를 짧게 작성. 예: '너무 어두워요', '여러 제품이 찍혔어요')",
   "ingredients": [{ "name": "주요 성분/특징 1", "status": "success" | "caution" | "danger", "reason": "이유" }],
@@ -457,6 +497,15 @@ ${hasWeekInfo
     const result = JSON.parse(response.text?.trim() ?? '{}');
     const detectedBarcode = result.detectedBarcode?.trim();
     delete result.detectedBarcode;
+    result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts);
+
+    // 포장 제품 실존 검증 (success/caution/danger + 바코드 미인식 경우)
+    if (!result.status.startsWith('error_') && result.productName && result.productName !== '알 수 없음' && !detectedBarcode) {
+      const exists = await lookupByName(result.productName);
+      if (!exists) {
+        result.status = 'error_db_mismatch';
+      }
+    }
 
     // 판정 불가 → unsupported_logs 저장 (fire-and-forget)
     if (result.status.startsWith('error_') && FAILURE_REASON_MAP[result.status]) {
@@ -491,7 +540,7 @@ ${hasWeekInfo
       } else {
         // 바코드 미인식: 제품명 기반 키
         const { error: upsertError2 } = await supabase.from('products').upsert({
-          cache_key: `product:${result.productName.toLowerCase().trim()}`,
+          cache_key: `product:${normalizeProductName(result.productName)}`,
           product_name: result.productName,
           result_json: saveResult,
           status: result.status,

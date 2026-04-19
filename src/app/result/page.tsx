@@ -272,9 +272,17 @@ function ResultContent() {
         secondaryLabel: '홈으로',
         secondaryAction: () => router.push('/home'),
       },
+      error_food_estimate: {
+        head: '음식 사진도 분석할 수 있어요',
+        body: '성분 표기가 없어 AI 추정 기반이에요. 더 정확한 분석을 위해 포장지가 보이도록 다시 찍어주세요.',
+        primaryLabel: '다시 촬영하기',
+        primaryAction: () => router.back(),
+        secondaryLabel: '홈으로',
+        secondaryAction: () => router.push('/home'),
+      },
       error_unsupported_category: {
         head: '이 종류는 마미스캔이 판정하기 어려워요',
-        body: '처방약이나 조리 음식은 성분 판정 기준이 달라 지원하지 않아요. 담당 의사 또는 약사에게 문의해 주세요.',
+        body: '처방약은 성분 판정 기준이 달라 지원하지 않아요. 담당 의사 또는 약사에게 문의해 주세요.',
         primaryLabel: '다른 제품 스캔하기',
         primaryAction: () => router.push('/scan'),
         secondaryLabel: '홈으로',
@@ -336,16 +344,18 @@ function ResultContent() {
               <Info className="w-5 h-5 text-text-secondary shrink-0 mt-0.5" />
               <div>
                 <h3 className="text-sm font-bold text-text-primary mb-1">
-                  {result.status === 'error_future_category' ? '아직 이 카테고리는 준비 중이에요' :
+                  {result.status === 'error_food_estimate' ? '성분 표기가 없어 AI 추정 기반이에요' :
+                    result.status === 'error_future_category' ? '아직 이 카테고리는 준비 중이에요' :
                     result.status === 'error_unsupported_category' ? '이 종류는 마미스캔이 판정하기 어려워요' :
-                      result.status === 'error_image_quality' ? '사진이 선명하지 않아 정확하지 않을 수 있어요' :
-                        '데이터베이스에 없는 제품이에요'}
+                    result.status === 'error_image_quality' ? '사진이 선명하지 않아 정확하지 않을 수 있어요' :
+                    '데이터베이스에 없는 제품이에요'}
                 </h3>
                 <p className="text-xs text-text-secondary leading-relaxed">
-                  {result.status === 'error_future_category' ? '아래 정보는 AI 추정 기반 참고용이에요. 곧 정식 지원할게요!' :
-                    result.status === 'error_unsupported_category' ? '처방약·조리 음식은 성분 기준이 달라요. 담당 의료진에게 문의하세요.' :
-                      result.status === 'error_image_quality' ? '제품 하나만 가까이서, 밝은 곳에서 다시 찍어주시면 더 정확해요.' :
-                        '이미지 기반으로 분석한 참고용 정보예요. 정확한 확인은 다시 스캔해 주세요.'}
+                  {result.status === 'error_food_estimate' ? '아래 정보는 참고용으로만 활용해주세요. 더 정확한 분석은 포장지가 보이도록 다시 찍어주세요.' :
+                    result.status === 'error_future_category' ? '아래 정보는 AI 추정 기반 참고용이에요. 곧 정식 지원할게요!' :
+                    result.status === 'error_unsupported_category' ? '처방약은 성분 기준이 달라요. 담당 의료진에게 문의하세요.' :
+                    result.status === 'error_image_quality' ? '제품 하나만 가까이서, 밝은 곳에서 다시 찍어주시면 더 정확해요.' :
+                    '이미지 기반으로 분석한 참고용 정보예요. 정확한 확인은 다시 스캔해 주세요.'}
                 </p>
               </div>
             </div>
@@ -531,7 +541,8 @@ function ResultContent() {
                     )) : (
                       <Card className="bg-bg-surface border-border-subtle shadow-sm">
                         <CardContent className="p-6 text-center">
-                          <p className="text-text-secondary text-sm">추천할 만한 대체 제품이 없습니다.</p>
+                          <p className="text-text-secondary text-sm">아직 검증된 대체 제품 데이터를 모으고 있어요.</p>
+                          <p className="text-text-secondary text-xs mt-1">업데이트되면 여기서 바로 확인할 수 있어요!</p>
                         </CardContent>
                       </Card>
                     )}

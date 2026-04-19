@@ -160,9 +160,7 @@ function MainView({
 }) {
   const router = useRouter();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [faqItems, setFaqItems] = useState<FaqItem[]>(
-    FAQ_ITEMS.map((item, idx) => ({ id: idx, question: item.q, answer: item.a, sort_order: idx }))
-  );
+  const [faqItems, setFaqItems] = useState<FaqItem[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
@@ -171,7 +169,7 @@ function MainView({
     const supabase = createClient();
     (async () => {
       // FAQ + 문의 내역 병렬 fetch
-      const [faqResult, { data: { user } }] = await Promise.all([
+      const [{ data: faqData }, { data: { user } }] = await Promise.all([
         supabase
           .from('faq_items')
           .select('id, question, answer, sort_order')
@@ -179,9 +177,16 @@ function MainView({
         supabase.auth.getUser(),
       ]);
 
-      // DB FAQ 정상 응답 시 교체 (테이블 없거나 에러면 초기값 유지)
-      if (!faqResult.error && faqResult.data && faqResult.data.length > 0) {
-        setFaqItems(faqResult.data);
+      // DB에서 가져온 FAQ가 있으면 사용, 없으면 하드코딩 fallback
+      if (faqData && faqData.length > 0) {
+        setFaqItems(faqData);
+      } else {
+        setFaqItems(FAQ_ITEMS.map((item, idx) => ({
+          id: idx,
+          question: item.q,
+          answer: item.a,
+          sort_order: idx,
+        })));
       }
 
       if (!user) {
