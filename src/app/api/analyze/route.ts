@@ -385,68 +385,7 @@ export async function POST(req: Request) {
     const mimeTypeMatch = imageBase64.match(/data:([^;]+);/);
     const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
 
-    // 1. 경량 식별 호출: 제품명 + 바코드만 먼저 추출해 캐시 조회
-    try {
-      const identifyRes = await withRetry(() => ai.models.generateContent({
-        model: 'gemini-2.0-flash',
-        contents: {
-          parts: [
-            { inlineData: { data: base64Data, mimeType } },
-            { text: `이 이미지에서 제품명과 바코드 숫자만 알려줘. JSON: {"productName": "이름 또는 알 수 없음", "detectedBarcode": "숫자만 또는 빈 문자열"}` },
-          ],
-        },
-        config: { responseMimeType: 'application/json' },
-      }));
-
-      const identified = JSON.parse(identifyRes.text?.trim() ?? '{}');
-      const idBarcode = identified.detectedBarcode?.trim();
-      const idName = identified.productName?.trim();
-
-      const cacheKey = idBarcode
-        ? `barcode:${idBarcode}`
-        : idName && idName !== '알 수 없음'
-          ? `product:${normalizeProductName(idName)}`
-          : null;
-
-      if (cacheKey) {
-        const { data: cached } = await supabase
-          .from('products')
-          .select('result_json, product_name, hit_count')
-          .eq('cache_key', cacheKey)
-          .maybeSingle();
-
-        if (cached) {
-          supabase.from('products')
-            .update({ hit_count: (cached.hit_count ?? 0) + 1 })
-            .eq('cache_key', cacheKey)
-            .then(() => {});
-
-          const result = { ...(cached.result_json as object) };
-
-          if (hasWeekInfo) {
-            try {
-              const weekRes = await withRetry(() => ai.models.generateContent({
-                model: 'gemini-2.0-flash',
-                contents: {
-                  parts: [{
-                    text: `임신 ${pregnancyWeeks}주차 임산부가 "${cached.product_name}"을 섭취할 때 주의사항을 2-3문장으로 작성해줘. JSON: {"weekAnalysis": "..."}`,
-                  }],
-                },
-                config: { responseMimeType: 'application/json' },
-              }));
-              const weekData = JSON.parse(weekRes.text?.trim() ?? '{}');
-              if (weekData.weekAnalysis) (result as any).weekAnalysis = weekData.weekAnalysis;
-            } catch {}
-          }
-
-          return NextResponse.json({ success: true, result, fromCache: true });
-        }
-      }
-    } catch {
-      // 식별 실패 시 전체 분석으로 진행
-    }
-
-    // 2. 전체 이미지 분석 + DB 안전 제품 목록을 대체 제품 힌트로 전달
+    // 전체 이미지 분석 + DB 안전 제품 목록을 대체 제품 힌트로 전달
     const dbSafeProducts = await getDBSafeProducts(supabase);
     const dbAltsHint = dbSafeProducts.length > 0
       ? `\n★대체 제품 제약★: 아래는 실제로 안전 판정을 받은 제품 목록이야. alternatives는 반드시 이 목록에 있는 제품 이름만 사용해줘. 목록에 관련 제품이 없으면 alternatives를 빈 배열([])로 반환해줘. 절대 목록 외의 제품을 만들어 넣지 마.\n[${dbSafeProducts.join(', ')}]`
