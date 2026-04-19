@@ -60,7 +60,8 @@ export default function ScanPage() {
 
   const incrementGuestCount = () => {
     if (authUser) return;
-    const next = guestScansUsed + 1;
+    const current = parseInt(localStorage.getItem(GUEST_KEY) || '0', 10);
+    const next = current + 1;
     localStorage.setItem(GUEST_KEY, String(next));
     setGuestScansUsed(next);
   };
@@ -87,12 +88,19 @@ export default function ScanPage() {
           video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
         });
         if (!isMounted) { stream.getTracks().forEach(t => t.stop()); return; }
-        // 연속 자동 초점 활성화 (지원 기기에서 근접 촬영 시 흐림 방지)
+        // 초점 및 줌 최적화 (지원 기기에서 근접 촬영 시 흐림 방지)
         try {
           const track = stream.getVideoTracks()[0];
           const capabilities = track.getCapabilities() as any;
+          const advanced: Record<string, unknown>[] = [];
           if (capabilities.focusMode?.includes('continuous')) {
-            await (track.applyConstraints as any)({ advanced: [{ focusMode: 'continuous' }] });
+            advanced.push({ focusMode: 'continuous' });
+          }
+          if (capabilities.zoom && capabilities.zoom.max >= 2) {
+            advanced.push({ zoom: 2 });
+          }
+          if (advanced.length > 0) {
+            await (track.applyConstraints as any)({ advanced });
           }
         } catch {}
         if (videoRef.current) {
@@ -105,7 +113,9 @@ export default function ScanPage() {
               if (result && !isScanningRef.current) {
                 const barcode = result.getText().trim();
                 if (!barcode || barcode.length < 8) return; // 빈 문자열 또는 부분 읽기 무시 (EAN/UPC 최소 8자리)
-                if (!hasScans) { handleNoScans(); return; }
+                const used = parseInt(localStorage.getItem(GUEST_KEY) || '0', 10);
+                const canScan = authUser ? hasScans : (GUEST_LIMIT - used) > 0;
+                if (!canScan) { handleNoScans(); return; }
                 isScanningRef.current = true;
                 setIsScanning(true);
                 videoRef.current?.pause();
