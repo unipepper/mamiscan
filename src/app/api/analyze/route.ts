@@ -325,14 +325,15 @@ export async function POST(req: Request) {
         delete saveResult.weekAnalysis;
         delete saveResult.imageUrl;
 
-        supabase.from('products').insert({
+        const { error: insertError } = await supabase.from('products').insert({
           cache_key: cacheKey,
           product_name: product.productName,
           result_json: saveResult,
           status: result.status,
           barcode,
           hit_count: 0,
-        }).then(({ error }) => { if (error) console.error('[products insert barcode]', error); });
+        });
+        if (insertError) console.error('[products insert barcode]', insertError);
 
         return NextResponse.json({ success: true, result });
       }
@@ -478,24 +479,26 @@ ${hasWeekInfo
         if (barcodeData?.imageUrl) result.imageUrl = barcodeData.imageUrl;
         delete saveResult.imageUrl;
 
-        supabase.from('products').upsert({
+        const { error: upsertError1 } = await supabase.from('products').upsert({
           cache_key: `barcode:${detectedBarcode}`,
           product_name: result.productName,
           result_json: saveResult,
           status: result.status,
           barcode: detectedBarcode,
           hit_count: 0,
-        }, { onConflict: 'cache_key', ignoreDuplicates: true }).then(({ error }) => { if (error) console.error('[products upsert barcode-ocr]', error); });
+        }, { onConflict: 'cache_key', ignoreDuplicates: true });
+        if (upsertError1) console.error('[products upsert barcode-ocr]', upsertError1);
       } else {
         // 바코드 미인식: 제품명 기반 키
-        supabase.from('products').upsert({
+        const { error: upsertError2 } = await supabase.from('products').upsert({
           cache_key: `product:${result.productName.toLowerCase().trim()}`,
           product_name: result.productName,
           result_json: saveResult,
           status: result.status,
           barcode: null,
           hit_count: 0,
-        }, { onConflict: 'cache_key', ignoreDuplicates: true }).then(({ error }) => { if (error) console.error('[products upsert product-name]', error); });
+        }, { onConflict: 'cache_key', ignoreDuplicates: true });
+        if (upsertError2) console.error('[products upsert product-name]', upsertError2);
       }
     }
 
