@@ -32,14 +32,19 @@ function ResultContent() {
   const hasAnalyzedRef = useRef(false);
   const ITEM_H = 56;
 
-  // sessionStorage 읽기를 동기적으로 수행 (useState 초기화 함수는 React 18에서 한 번만 실행됨)
-  // 비동기 체인 내부에서 읽으면 StrictMode 이중 실행 시 두 번째 콜백이 이미 삭제된 값을 읽는 레이스 컨디션 발생
-  const [scanImage] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null;
+  // scanImage는 useEffect에서 한 번만 읽음 (ref로 이중 실행 방지)
+  const [scanImage, setScanImage] = useState<string | null>(null);
+  const hasFetchedImageRef = useRef(false);
+
+  useEffect(() => {
+    if (hasFetchedImageRef.current) return;
+    hasFetchedImageRef.current = true;
     const img = sessionStorage.getItem('scanImage');
-    if (img) sessionStorage.removeItem('scanImage');
-    return img;
-  });
+    if (img) {
+      sessionStorage.removeItem('scanImage');
+      setScanImage(img);
+    }
+  }, []);
 
   useEffect(() => {
     if (showWeekModal) {

@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 @theme {
   --color-primary: #F28C82;
   --color-primary-strong: #E06F64;

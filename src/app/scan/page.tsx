@@ -242,7 +242,7 @@ export default function ScanPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1 bg-black text-white relative overflow-hidden">
+    <div className="fixed inset-0 bg-black text-white overflow-hidden">
       <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover z-0" />
       <div className="absolute inset-0 z-20 pointer-events-none">
         {/* Top */}
@@ -281,7 +281,7 @@ export default function ScanPage() {
         )}
 
         {/* Bottom */}
-        <div ref={bottomControlsRef} className="absolute bottom-0 left-0 right-0 flex flex-col justify-end pb-8 pointer-events-auto">
+        <div ref={bottomControlsRef} className="absolute bottom-0 left-0 right-0 flex flex-col justify-end pointer-events-auto" style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))' }}>
           <div className="px-4 mb-6">
             {!authUser ? (
               <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center justify-between cursor-pointer" onClick={() => router.push('/login')}>

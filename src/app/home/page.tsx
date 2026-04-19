@@ -142,7 +142,7 @@ export default function HomePage() {
             <p className="text-sm text-text-secondary mb-5 max-w-[240px]">
               임산부 기준 성분 분석부터 안전한 대체 제품 추천까지 5초면 충분해요.
             </p>
-            <Button className="w-full h-12 text-base font-semibold shadow-md" onClick={() => router.push(profile ? '/scan' : '/login')}>
+            <Button className="w-full h-12 text-base font-semibold shadow-md" onClick={() => router.push('/scan')}>
               <Scan className="mr-2 h-5 w-5" />
               5초 안에 확인하기
             </Button>

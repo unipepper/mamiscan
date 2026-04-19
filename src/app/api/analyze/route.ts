@@ -123,13 +123,29 @@ async function matchIngredientRules(
   return matched;
 }
 
+/** products 테이블에서 안전 판정(success)된 제품명 목록 조회 */
+async function getDBSafeProducts(
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<string[]> {
+  const { data } = await supabase
+    .from('products')
+    .select('product_name')
+    .eq('status', 'success')
+    .order('hit_count', { ascending: false })
+    .limit(20);
+  return data?.map(d => d.product_name) ?? [];
+}
+
 async function callGeminiBarcode(
   product: { productName: string; brand: string; rawIngredients: string },
   pregnancyWeeks: number | null,
-  matchedIngredients: MatchedIngredient[] = []
+  matchedIngredients: MatchedIngredient[] = [],
+  dbSafeProducts: string[] = []
 ) {
   const hasWeekInfo = pregnancyWeeks !== undefined && pregnancyWeeks !== null;
   const hasMatched = matchedIngredients.length > 0;
+  const hasDBAlts = dbSafeProducts.length > 0;
+
   const response = await withRetry(() => ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: {
@@ -153,6 +169,12 @@ status는 "success", "caution", "danger" 중 하나로 설정해줘.
 ${hasWeekInfo
   ? `현재 사용자는 임신 ${pregnancyWeeks}주차입니다. description은 일반적인 설명으로 작성하고, weekAnalysis 필드에 이 주차의 임산부에게 맞는 맞춤형 섭취 조언을 작성해줘.`
   : `일반적인 임산부 기준으로 섭취 조언을 weekAnalysis에 작성해줘.`}
+
+${hasDBAlts
+  ? `★대체 제품 추천 우선순위★: 아래는 실제로 안전 판정을 받은 제품 목록이야. alternatives 추천 시 이 목록에서 관련 있는 제품을 최우선으로 골라줘. 목록에 적합한 게 없을 때만 일반적인 대체품을 추천해줘.
+[${dbSafeProducts.join(', ')}]`
+  : ''}
+
 다음 JSON 형식으로 응답해줘:
 {
   "status": "success" | "caution" | "danger",
@@ -222,9 +244,9 @@ export async function POST(req: Request) {
     if (barcode) {
       const cacheKey = `barcode:${barcode}`;
 
-      // 1. 캐시 확인
+      // 1. products 테이블 조회
       const { data: cached } = await supabase
-        .from('product_cache')
+        .from('products')
         .select('result_json, product_name, hit_count')
         .eq('cache_key', cacheKey)
         .maybeSingle();
@@ -232,7 +254,7 @@ export async function POST(req: Request) {
       if (cached) {
         // hit_count 증가 (fire-and-forget)
         supabase
-          .from('product_cache')
+          .from('products')
           .update({ hit_count: (cached.hit_count ?? 0) + 1 })
           .eq('cache_key', cacheKey)
           .then(() => {});
@@ -259,7 +281,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, result, fromCache: true });
       }
 
-      // 2. 캐시 MISS → 외부 API 조회
+      // 2. DB MISS → 외부 API 조회
       const product = await lookupBarcode(barcode, supabase);
 
       if (!product) {
@@ -287,22 +309,28 @@ export async function POST(req: Request) {
         }
         // imageBase64 있음 → 이미지 분석으로 폴백 (fall through)
       } else {
-        // 3. 룰 매칭 1차 판정 + Gemini 분석
-        const matchedIngredients = product.rawIngredients
-          ? await matchIngredientRules(supabase, product.rawIngredients)
-          : [];
-        const result = await callGeminiBarcode(product, pregnancyWeeks, matchedIngredients);
+        // 3. 룰 매칭 1차 판정 + DB 안전 제품 조회 + Gemini 분석
+        const [matchedIngredients, dbSafeProducts] = await Promise.all([
+          product.rawIngredients
+            ? matchIngredientRules(supabase, product.rawIngredients)
+            : Promise.resolve([]),
+          getDBSafeProducts(supabase),
+        ]);
+
+        const result = await callGeminiBarcode(product, pregnancyWeeks, matchedIngredients, dbSafeProducts);
         if (product.imageUrl) result.imageUrl = product.imageUrl;
 
-        // 4. 캐시 저장 (weekAnalysis 제외, imageUrl 제외)
-        const cacheResult = { ...result };
-        delete cacheResult.weekAnalysis;
-        delete cacheResult.imageUrl;
+        // 4. products 테이블에 저장 (weekAnalysis, imageUrl 제외)
+        const saveResult = { ...result };
+        delete saveResult.weekAnalysis;
+        delete saveResult.imageUrl;
 
-        supabase.from('product_cache').insert({
+        supabase.from('products').insert({
           cache_key: cacheKey,
           product_name: product.productName,
-          result_json: cacheResult,
+          result_json: saveResult,
+          status: result.status,
+          barcode,
           hit_count: 0,
         }).then(() => {});
 
@@ -317,6 +345,73 @@ export async function POST(req: Request) {
     const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
     const mimeTypeMatch = imageBase64.match(/data:([^;]+);/);
     const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+
+    // 1. 경량 식별 호출: 제품명 + 바코드만 먼저 추출해 캐시 조회
+    try {
+      const identifyRes = await withRetry(() => ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: {
+          parts: [
+            { inlineData: { data: base64Data, mimeType } },
+            { text: `이 이미지에서 제품명과 바코드 숫자만 알려줘. JSON: {"productName": "이름 또는 알 수 없음", "detectedBarcode": "숫자만 또는 빈 문자열"}` },
+          ],
+        },
+        config: { responseMimeType: 'application/json' },
+      }));
+
+      const identified = JSON.parse(identifyRes.text?.trim() ?? '{}');
+      const idBarcode = identified.detectedBarcode?.trim();
+      const idName = identified.productName?.trim();
+
+      const cacheKey = idBarcode
+        ? `barcode:${idBarcode}`
+        : idName && idName !== '알 수 없음'
+          ? `product:${idName.toLowerCase()}`
+          : null;
+
+      if (cacheKey) {
+        const { data: cached } = await supabase
+          .from('products')
+          .select('result_json, product_name, hit_count')
+          .eq('cache_key', cacheKey)
+          .maybeSingle();
+
+        if (cached) {
+          supabase.from('products')
+            .update({ hit_count: (cached.hit_count ?? 0) + 1 })
+            .eq('cache_key', cacheKey)
+            .then(() => {});
+
+          const result = { ...(cached.result_json as object) };
+
+          if (hasWeekInfo) {
+            try {
+              const weekRes = await withRetry(() => ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: {
+                  parts: [{
+                    text: `임신 ${pregnancyWeeks}주차 임산부가 "${cached.product_name}"을 섭취할 때 주의사항을 2-3문장으로 작성해줘. JSON: {"weekAnalysis": "..."}`,
+                  }],
+                },
+                config: { responseMimeType: 'application/json' },
+              }));
+              const weekData = JSON.parse(weekRes.text?.trim() ?? '{}');
+              if (weekData.weekAnalysis) (result as any).weekAnalysis = weekData.weekAnalysis;
+            } catch {}
+          }
+
+          return NextResponse.json({ success: true, result, fromCache: true });
+        }
+      }
+    } catch {
+      // 식별 실패 시 전체 분석으로 진행
+    }
+
+    // 2. 전체 이미지 분석 + DB 안전 제품 목록을 대체 제품 힌트로 전달
+    const dbSafeProducts = await getDBSafeProducts(supabase);
+    const dbAltsHint = dbSafeProducts.length > 0
+      ? `\n★대체 제품 추천 우선순위★: 아래는 실제로 안전 판정을 받은 제품 목록이야. alternatives 추천 시 이 목록에서 관련 있는 제품을 최우선으로 골라줘. 목록에 적합한 게 없을 때만 일반적인 대체품을 추천해줘.\n[${dbSafeProducts.join(', ')}]`
+      : '';
 
     const response = await withRetry(() => ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -334,7 +429,7 @@ export async function POST(req: Request) {
 정상적으로 식별된 식료품인 경우 status를 "success", "caution", "danger" 중 하나로 설정해줘.
 
 ★중요★: 만약 위의 error_* status를 선택하더라도, 이미지 속 제품/음식이 무엇인지 대략적으로라도 식별할 수 있다면, productName, headline, description, ingredients, weekAnalysis에 정상적인 분석 정보를 최대한 작성해줘. 완전히 식별 불가능한 경우에만 description에 그 이유를 적어줘.
-
+${dbAltsHint}
 ${hasWeekInfo
   ? `현재 사용자는 임신 ${pregnancyWeeks}주차입니다. description은 일반적인 임산부 기준으로 작성하고, weekAnalysis 필드에는 임신 ${pregnancyWeeks}주차에 맞는 맞춤형 섭취 조언을 별도로 작성해줘.`
   : `일반적인 임산부 기준으로 섭취 조언을 weekAnalysis에 작성해줘.`}
@@ -372,29 +467,33 @@ ${hasWeekInfo
       }).catch(() => {});
     }
 
-    // 이미지 분석 결과 캐시 저장 (정상 판정만, imageBase64 제외)
+    // 이미지 분석 결과 저장 (정상 판정만, imageBase64 제외)
     if (!result.status.startsWith('error_') && result.productName && result.productName !== '알 수 없음') {
-      const cacheResult = { ...result };
-      delete cacheResult.weekAnalysis;
+      const saveResult = { ...result };
+      delete saveResult.weekAnalysis;
 
       if (detectedBarcode) {
-        // 바코드 OCR 성공: 식품안전나라 이미지 보강 + 안정적 캐시 키
+        // 바코드 OCR 성공: 식품안전나라 이미지 보강 + 바코드 기반 키
         const barcodeData = await lookupBarcode(detectedBarcode, supabase).catch(() => null);
         if (barcodeData?.imageUrl) result.imageUrl = barcodeData.imageUrl;
-        delete cacheResult.imageUrl;
+        delete saveResult.imageUrl;
 
-        supabase.from('product_cache').upsert({
+        supabase.from('products').upsert({
           cache_key: `barcode:${detectedBarcode}`,
           product_name: result.productName,
-          result_json: cacheResult,
+          result_json: saveResult,
+          status: result.status,
+          barcode: detectedBarcode,
           hit_count: 0,
         }, { onConflict: 'cache_key', ignoreDuplicates: true }).then(() => {});
       } else {
-        // 바코드 미인식: 제품명 기반 fallback 캐시
-        supabase.from('product_cache').upsert({
+        // 바코드 미인식: 제품명 기반 키
+        supabase.from('products').upsert({
           cache_key: `product:${result.productName.toLowerCase().trim()}`,
           product_name: result.productName,
-          result_json: cacheResult,
+          result_json: saveResult,
+          status: result.status,
+          barcode: null,
           hit_count: 0,
         }, { onConflict: 'cache_key', ignoreDuplicates: true }).then(() => {});
       }
