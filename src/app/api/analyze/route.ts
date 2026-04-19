@@ -332,7 +332,7 @@ export async function POST(req: Request) {
           status: result.status,
           barcode,
           hit_count: 0,
-        }).then(() => {});
+        }).then(({ error }) => { if (error) console.error('[products insert barcode]', error); });
 
         return NextResponse.json({ success: true, result });
       }
@@ -485,7 +485,7 @@ ${hasWeekInfo
           status: result.status,
           barcode: detectedBarcode,
           hit_count: 0,
-        }, { onConflict: 'cache_key', ignoreDuplicates: true }).then(() => {});
+        }, { onConflict: 'cache_key', ignoreDuplicates: true }).then(({ error }) => { if (error) console.error('[products upsert barcode-ocr]', error); });
       } else {
         // 바코드 미인식: 제품명 기반 키
         supabase.from('products').upsert({
@@ -495,7 +495,7 @@ ${hasWeekInfo
           status: result.status,
           barcode: null,
           hit_count: 0,
-        }, { onConflict: 'cache_key', ignoreDuplicates: true }).then(() => {});
+        }, { onConflict: 'cache_key', ignoreDuplicates: true }).then(({ error }) => { if (error) console.error('[products upsert product-name]', error); });
       }
     }
 
