@@ -83,8 +83,18 @@ export default function ScanPage() {
 
     async function setupCamera() {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+        });
         if (!isMounted) { stream.getTracks().forEach(t => t.stop()); return; }
+        // 연속 자동 초점 활성화 (지원 기기에서 근접 촬영 시 흐림 방지)
+        try {
+          const track = stream.getVideoTracks()[0];
+          const capabilities = track.getCapabilities() as any;
+          if (capabilities.focusMode?.includes('continuous')) {
+            await (track.applyConstraints as any)({ advanced: [{ focusMode: 'continuous' }] });
+          }
+        } catch {}
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.setAttribute('playsinline', 'true');
@@ -96,6 +106,9 @@ export default function ScanPage() {
                 const barcode = result.getText().trim();
                 if (!barcode || barcode.length < 8) return; // 빈 문자열 또는 부분 읽기 무시 (EAN/UPC 최소 8자리)
                 if (!hasScans) { handleNoScans(); return; }
+                isScanningRef.current = true;
+                setIsScanning(true);
+                videoRef.current?.pause();
                 // 바코드 감지와 동시에 콘텐츠 영역 크롭 캡처 (DB 미스 시 Gemini 폴백용)
                 try {
                   if (videoRef.current && videoRef.current.videoWidth > 0) {
@@ -103,8 +116,6 @@ export default function ScanPage() {
                     if (cropped) sessionStorage.setItem('scanImage', cropped);
                   }
                 } catch {}
-                isScanningRef.current = true;
-                setIsScanning(true);
                 incrementGuestCount();
                 setTimeout(() => router.push('/result?barcode=' + encodeURIComponent(barcode)), 1500);
               }
@@ -143,6 +154,7 @@ export default function ScanPage() {
     if (!hasScans) { handleNoScans(); return; }
     isScanningRef.current = true;
     setIsScanning(true);
+    videoRef.current.pause();
     try {
       const cropped = captureContentArea(videoRef.current, 0.8);
       if (cropped) {
@@ -153,6 +165,7 @@ export default function ScanPage() {
     } catch {
       setIsScanning(false);
       isScanningRef.current = false;
+      videoRef.current?.play();
     }
   };
 
@@ -274,7 +287,7 @@ export default function ScanPage() {
 
         {/* Scanning overlay */}
         {isScanning && (
-          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center backdrop-blur-sm">
+          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center backdrop-blur-sm">
             <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
             <p className="text-sm font-medium text-white drop-shadow-md">분석하고 있어요...</p>
           </div>
