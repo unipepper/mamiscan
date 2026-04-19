@@ -132,7 +132,7 @@ function ResultContent() {
 
         const parsedResult = data.result;
 
-        if (!parsedResult.status.startsWith('error_')) {
+        if (!parsedResult.status?.startsWith('error_')) {
           if (user) {
             // 이미지 압축 (실패해도 계속)
             const thumbnail = scanImage
@@ -165,10 +165,6 @@ function ResultContent() {
                 setScanHistoryId(saveData.historyId);
               }
             }
-          } else {
-            // 비로그인 LocalStorage 차감
-            const used = parseInt(localStorage.getItem('mamiscan_guest_scans') || '0', 10);
-            localStorage.setItem('mamiscan_guest_scans', String(used + 1));
           }
         }
 

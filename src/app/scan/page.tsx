@@ -30,6 +30,12 @@ export default function ScanPage() {
   const [authUser, setAuthUser] = useState<any>(null);
   const [guestScansUsed, setGuestScansUsed] = useState(0);
 
+  // 카메라 콜백은 [] deps useEffect 안에서 실행되므로 state 클로저가 stale해짐.
+  // ref로 최신값을 항상 참조한다.
+  const authUserRef = useRef<any>(null);
+  const isActiveRef = useRef(false);
+  const remainingScansRef = useRef(0);
+
   const GUEST_LIMIT = 3;
   const GUEST_KEY = 'mamiscan_guest_scans';
 
@@ -42,14 +48,19 @@ export default function ScanPage() {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       setAuthUser(user);
+      authUserRef.current = user;
       if (user) {
         const now = new Date().toISOString();
         const [{ data: scanRights }, { data: activeSub }] = await Promise.all([
           supabase.from('user_entitlements').select('scan_count').eq('user_id', user.id).in('type', ['scan5', 'trial', 'admin']).eq('status', 'active').gt('expires_at', now).gt('scan_count', 0),
           supabase.from('user_entitlements').select('id').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'active').gt('expires_at', now).maybeSingle(),
         ]);
-        setUserProfile({ isActive: !!activeSub });
-        setRemainingScans(scanRights?.reduce((s: number, c: any) => s + c.scan_count, 0) ?? 0);
+        const active = !!activeSub;
+        const scans = scanRights?.reduce((s: number, c: any) => s + c.scan_count, 0) ?? 0;
+        setUserProfile({ isActive: active });
+        isActiveRef.current = active;
+        setRemainingScans(scans);
+        remainingScansRef.current = scans;
       }
     });
   }, []);
@@ -59,7 +70,7 @@ export default function ScanPage() {
   const hasScans = authUser ? (isActive || remainingScans > 0) : guestRemaining > 0;
 
   const incrementGuestCount = () => {
-    if (authUser) return;
+    if (authUserRef.current) return;
     const current = parseInt(localStorage.getItem(GUEST_KEY) || '0', 10);
     const next = current + 1;
     localStorage.setItem(GUEST_KEY, String(next));
@@ -113,9 +124,20 @@ export default function ScanPage() {
               if (result && !isScanningRef.current) {
                 const barcode = result.getText().trim();
                 if (!barcode || barcode.length < 8) return; // 빈 문자열 또는 부분 읽기 무시 (EAN/UPC 최소 8자리)
-                const used = parseInt(localStorage.getItem(GUEST_KEY) || '0', 10);
-                const canScan = authUser ? hasScans : (GUEST_LIMIT - used) > 0;
-                if (!canScan) { handleNoScans(); return; }
+                const currentUser = authUserRef.current;
+                const canScan = currentUser
+                  ? (isActiveRef.current || remainingScansRef.current > 0)
+                  : (GUEST_LIMIT - parseInt(localStorage.getItem(GUEST_KEY) || '0', 10)) > 0;
+                if (!canScan) {
+                  if (!currentUser) {
+                    setToastMessage('무료 체험 3회를 모두 사용했어요. 로그인하고 계속 이용해보세요!');
+                    setTimeout(() => { setToastMessage(null); router.push('/login'); }, 2000);
+                  } else {
+                    setToastMessage('남은 스캔 횟수가 없어요. 스캔권을 충전해주세요.');
+                    setTimeout(() => { setToastMessage(null); router.push('/pricing'); }, 2000);
+                  }
+                  return;
+                }
                 isScanningRef.current = true;
                 setIsScanning(true);
                 videoRef.current?.pause();

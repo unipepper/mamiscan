@@ -227,7 +227,9 @@ ${hasDBAlts
       responseSchema: RESPONSE_SCHEMA,
     },
   }));
-  return JSON.parse(response.text?.trim() ?? '{}');
+  const parsed = JSON.parse(response.text?.trim() ?? '{}');
+  if (!parsed.status) throw new Error('Gemini returned empty or invalid response');
+  return parsed;
 }
 
 const FAILURE_REASON_MAP: Record<string, string> = {
@@ -495,6 +497,7 @@ ${hasWeekInfo
     }));
 
     const result = JSON.parse(response.text?.trim() ?? '{}');
+    if (!result.status) throw new Error('Gemini returned empty or invalid response');
     const detectedBarcode = result.detectedBarcode?.trim();
     delete result.detectedBarcode;
     result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts);

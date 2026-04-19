@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { analyzeErrorReport } from '@/lib/ai/error-report-analyzer';
 
 type InquiryBody = {
   type: 'inquiry';
@@ -88,15 +89,27 @@ export async function POST(req: Request) {
     }
   } else {
     const { scanHistoryId } = payload as ErrorReportBody;
-    const { error } = await adminSupabase.from('scan_error_reports').insert({
-      user_id: user?.id ?? null,
-      body: body.trim(),
-      scan_history_id: scanHistoryId ?? null,
-      attachments: attachmentsValue,
-    });
-    if (error) {
+    const { data: inserted, error } = await adminSupabase
+      .from('scan_error_reports')
+      .insert({
+        user_id: user?.id ?? null,
+        body: body.trim(),
+        scan_history_id: scanHistoryId ?? null,
+        attachments: attachmentsValue,
+      })
+      .select('id')
+      .single();
+    if (error || !inserted) {
       console.error('[support/submit] scan_error_reports insert error:', error);
       return NextResponse.json({ error: 'db_error' }, { status: 500 });
+    }
+
+    // scan_history_id가 있으면 백그라운드에서 AI 분석 실행
+    if (scanHistoryId) {
+      const reportId = inserted.id;
+      after(async () => {
+        await analyzeErrorReport(reportId);
+      });
     }
   }
 
