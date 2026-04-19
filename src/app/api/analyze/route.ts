@@ -181,7 +181,7 @@ async function callGeminiBarcode(
   const hasDBAlts = dbSafeProducts.length > 0;
 
   const response = await withRetry(() => ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-2.0-flash',
     contents: {
       parts: [
         {
@@ -302,7 +302,7 @@ export async function POST(req: Request) {
         if (hasWeekInfo) {
           try {
             const weekRes = await withRetry(() => ai.models.generateContent({
-              model: 'gemini-2.5-flash',
+              model: 'gemini-2.0-flash',
               contents: {
                 parts: [{
                   text: `임신 ${pregnancyWeeks}주차 임산부가 "${cached.product_name}"을 섭취할 때 주의사항을 2-3문장으로 작성해줘. JSON: {"weekAnalysis": "..."}`,
@@ -388,7 +388,7 @@ export async function POST(req: Request) {
     // 1. 경량 식별 호출: 제품명 + 바코드만 먼저 추출해 캐시 조회
     try {
       const identifyRes = await withRetry(() => ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.0-flash',
         contents: {
           parts: [
             { inlineData: { data: base64Data, mimeType } },
@@ -426,7 +426,7 @@ export async function POST(req: Request) {
           if (hasWeekInfo) {
             try {
               const weekRes = await withRetry(() => ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-2.0-flash',
                 contents: {
                   parts: [{
                     text: `임신 ${pregnancyWeeks}주차 임산부가 "${cached.product_name}"을 섭취할 때 주의사항을 2-3문장으로 작성해줘. JSON: {"weekAnalysis": "..."}`,
@@ -453,7 +453,7 @@ export async function POST(req: Request) {
       : '\nalternatives는 빈 배열([])로 반환해줘.';
 
     const response = await withRetry(() => ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.0-flash',
       contents: {
         parts: [
           { inlineData: { data: base64Data, mimeType } },
@@ -561,7 +561,14 @@ ${hasWeekInfo
       err?.status === 503 ||
       String(err?.message ?? '').includes('503') ||
       String(err?.message ?? '').includes('UNAVAILABLE');
-    const message = is503
+    const is429 =
+      err?.status === 429 ||
+      String(err?.message ?? '').includes('429') ||
+      String(err?.message ?? '').includes('RESOURCE_EXHAUSTED') ||
+      String(err?.message ?? '').includes('quota');
+    const message = is429
+      ? '지금 분석 요청이 너무 많아요. 잠시 후 다시 시도해주세요.'
+      : is503
       ? '지금 분석이 많이 몰려 있어요. 잠시 후 다시 시도해주세요.'
       : '분석 중 오류가 발생했어요.';
     return NextResponse.json({ success: false, message }, { status: 500 });
