@@ -9,3 +9,5 @@ coverage/
 !.env.example
 .env.local
 data/
+.vercel
+.env*.local

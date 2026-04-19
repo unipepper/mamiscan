@@ -34,6 +34,7 @@ function ResultContent() {
 
   // scanImage는 useEffect에서 한 번만 읽음 (ref로 이중 실행 방지)
   const [scanImage, setScanImage] = useState<string | null>(null);
+  const [imageReady, setImageReady] = useState(false);
   const hasFetchedImageRef = useRef(false);
 
   useEffect(() => {
@@ -44,6 +45,7 @@ function ResultContent() {
       sessionStorage.removeItem('scanImage');
       setScanImage(img);
     }
+    setImageReady(true);
   }, []);
 
   useEffect(() => {
@@ -57,6 +59,7 @@ function ResultContent() {
   }, [showWeekModal]);
 
   useEffect(() => {
+    if (!imageReady) return;
     if (hasAnalyzedRef.current) return;
     hasAnalyzedRef.current = true;
 
@@ -176,7 +179,7 @@ function ResultContent() {
         setIsLoading(false);
       }
     });
-  }, [barcode, scanImage]);
+  }, [barcode, scanImage, imageReady]);
 
   const displayImageSrc = scanImage ?? result?.userImageUrl ?? null;
   const pregnancyWeeks = userProfile?.pregnancy_weeks;
