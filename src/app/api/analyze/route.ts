@@ -69,19 +69,44 @@ async function lookupBarcode(barcode: string, supabase: Awaited<ReturnType<typeo
       `https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02?serviceKey=${key}&pageNo=1&numOfRows=3&type=json&BAR_CD=${barcode}`
     ),
     fetch(
-      `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=image_front_small_url`
+      `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,brands,ingredients_text,image_front_small_url`
     ),
   ]);
 
   let imageUrl = '';
+  let offProduct: { productName: string; brand: string; rawIngredients: string } | null = null;
+
   if (offRes.status === 'fulfilled' && offRes.value.ok) {
     const offData = await offRes.value.json();
-    imageUrl = offData?.product?.image_front_small_url ?? '';
+    const p = offData?.product;
+    if (p) {
+      imageUrl = p.image_front_small_url ?? '';
+      if (p.product_name || p.ingredients_text) {
+        offProduct = {
+          productName: p.product_name ?? '알 수 없는 제품',
+          brand: p.brands ?? '',
+          rawIngredients: p.ingredients_text ?? '',
+        };
+      }
+    }
   }
 
   const fsData = fsRes.status === 'fulfilled' ? await fsRes.value.json() : null;
   const rows = fsData?.body?.items;
-  if (!rows || rows.length === 0) return null;
+
+  // 한국 DB 우선, 없으면 Open Food Facts 폴백
+  if (!rows || rows.length === 0) {
+    if (!offProduct) return null;
+
+    supabase.from('barcode_items').upsert({
+      barcode,
+      name: offProduct.productName,
+      brand: offProduct.brand,
+      ingredients: offProduct.rawIngredients,
+    }, { onConflict: 'barcode', ignoreDuplicates: true }).then(() => {});
+
+    return { ...offProduct, imageUrl };
+  }
 
   const productName = rows[0].FOOD_NM_KR ?? '알 수 없는 제품';
   const brand = rows[0].MAKER_NM ?? '';
@@ -134,23 +159,6 @@ async function getDBSafeProducts(
     .order('hit_count', { ascending: false })
     .limit(20);
   return data?.map(d => d.product_name) ?? [];
-}
-
-/** 식품안전나라 API — 제품명으로 실존 여부 확인 */
-async function lookupByName(productName: string): Promise<boolean> {
-  try {
-    const key = process.env.FOOD_SAFETY_API_KEY!;
-    const encoded = encodeURIComponent(productName);
-    const res = await fetch(
-      `https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02?serviceKey=${key}&pageNo=1&numOfRows=3&type=json&FOOD_NM_KR=${encoded}`
-    );
-    if (!res.ok) return false;
-    const data = await res.json();
-    const rows = data?.body?.items;
-    return Array.isArray(rows) && rows.length > 0;
-  } catch {
-    return false;
-  }
 }
 
 /** 제품명 정규화 — 괄호/영문 병기 제거 후 소문자 trim */
@@ -440,14 +448,6 @@ ${hasWeekInfo
     const detectedBarcode = result.detectedBarcode?.trim();
     delete result.detectedBarcode;
     result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts);
-
-    // 포장 제품 실존 검증 (success/caution/danger + 바코드 미인식 경우)
-    if (!result.status.startsWith('error_') && result.productName && result.productName !== '알 수 없음' && !detectedBarcode) {
-      const exists = await lookupByName(result.productName);
-      if (!exists) {
-        result.status = 'error_db_mismatch';
-      }
-    }
 
     // 판정 불가 → unsupported_logs 저장 (fire-and-forget)
     if (result.status.startsWith('error_') && FAILURE_REASON_MAP[result.status]) {
