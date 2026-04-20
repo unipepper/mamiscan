@@ -1,12 +1,58 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, Sparkles, Star, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { createClient } from '@/lib/supabase/client';
 
 export default function PricingPage() {
   const router = useRouter();
+  const [remainingScans, setRemainingScans] = useState<number | null>(null);
+  const [isActive, setIsActive] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const now = new Date().toISOString();
+      const [{ data: scanRights }, { data: activeSub }] = await Promise.all([
+        supabase
+          .from('user_entitlements')
+          .select('scan_count')
+          .eq('user_id', user.id)
+          .in('type', ['scan5', 'trial', 'admin'])
+          .eq('status', 'active')
+          .gt('expires_at', now)
+          .gt('scan_count', 0),
+        supabase
+          .from('user_entitlements')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('type', 'monthly')
+          .eq('status', 'active')
+          .gt('expires_at', now)
+          .maybeSingle(),
+      ]);
+      setIsActive(!!activeSub);
+      setRemainingScans(scanRights?.reduce((s: number, c: any) => s + c.scan_count, 0) ?? 0);
+    });
+  }, []);
+
+  const headingText = () => {
+    if (isActive) return '더 많은 기능을 이용해보세요';
+    if (remainingScans === null) return '스캔권 구매';
+    if (remainingScans > 0) return `스캔권을 추가로 충전할 수 있어요`;
+    return '무료 체험 스캔권을\n모두 사용했어요';
+  };
+
+  const subText = () => {
+    if (remainingScans !== null && remainingScans > 0) {
+      return `잔여 스캔권 ${remainingScans}회가 남아 있어요. 추가로 충전하면 더 오래 이용할 수 있어요.`;
+    }
+    return '장볼 때마다 계속 확인하려면 스캔권이 필요해요.';
+  };
 
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas pb-20">
@@ -22,11 +68,11 @@ export default function PricingPage() {
           <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-full mb-2">
             <Sparkles className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-[26px] leading-[35px] font-bold text-text-primary">
-            무료 체험 6회를<br />모두 사용했어요
+          <h1 className="text-[26px] leading-[35px] font-bold text-text-primary whitespace-pre-line">
+            {headingText()}
           </h1>
           <p className="text-sm text-text-secondary">
-            장볼 때마다 계속 확인하려면 스캔권이 필요해요.
+            {subText()}
           </p>
         </section>
 

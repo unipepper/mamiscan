@@ -133,11 +133,20 @@ function ResultContent() {
         const parsedResult = data.result;
 
         if (!parsedResult.status?.startsWith('error_')) {
-          if (user) {
+          if (!user) {
+            // 비로그인 게스트: 분석 성공 시에만 횟수 차감
+            const current = parseInt(localStorage.getItem('mamiscan_guest_scans') || '0', 10);
+            localStorage.setItem('mamiscan_guest_scans', String(current + 1));
+          } else {
             // 이미지 압축 (실패해도 계속)
             const thumbnail = scanImage
               ? await compressThumbnail(scanImage).catch(() => null)
               : null;
+
+            // 바코드 스캔이면 result_json에 바코드 포함 — 오류 제보 분석기가 올바른 products 캐시를 찾는 데 필요
+            const resultToSave = barcode
+              ? { ...parsedResult, detectedBarcode: barcode }
+              : parsedResult;
 
             const saveRes = await fetch('/api/scan/save', {
               method: 'POST',
@@ -145,7 +154,7 @@ function ResultContent() {
               body: JSON.stringify({
                 productName: parsedResult.productName || '알 수 없는 제품',
                 status: parsedResult.status,
-                resultJson: parsedResult,
+                resultJson: resultToSave,
                 imageBase64: thumbnail,
               }),
             }).catch(() => null);

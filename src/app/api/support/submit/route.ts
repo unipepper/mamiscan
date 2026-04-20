@@ -104,8 +104,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'db_error' }, { status: 500 });
     }
 
-    // scan_history_id가 있으면 백그라운드에서 AI 분석 실행
+    // scan_history_id가 있으면 products 캐시 무효화 + 백그라운드 AI 분석 실행
     if (scanHistoryId) {
+      const { data: history } = await adminSupabase
+        .from('scan_history')
+        .select('product_name')
+        .eq('id', scanHistoryId)
+        .maybeSingle();
+
+      if (history?.product_name) {
+        await adminSupabase
+          .from('products')
+          .delete()
+          .ilike('product_name', history.product_name);
+      }
+
       const reportId = inserted.id;
       after(async () => {
         await analyzeErrorReport(reportId);

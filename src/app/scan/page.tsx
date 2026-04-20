@@ -69,14 +69,6 @@ export default function ScanPage() {
   const guestRemaining = GUEST_LIMIT - guestScansUsed;
   const hasScans = authUser ? (isActive || remainingScans > 0) : guestRemaining > 0;
 
-  const incrementGuestCount = () => {
-    if (authUserRef.current) return;
-    const current = parseInt(localStorage.getItem(GUEST_KEY) || '0', 10);
-    const next = current + 1;
-    localStorage.setItem(GUEST_KEY, String(next));
-    setGuestScansUsed(next);
-  };
-
   const handleNoScans = () => {
     if (!authUser) {
       setToastMessage('무료 체험 3회를 모두 사용했어요. 로그인하고 계속 이용해보세요!');
@@ -123,6 +115,7 @@ export default function ScanPage() {
               if (!isMounted) return;
               if (result && !isScanningRef.current) {
                 const barcode = result.getText().trim();
+                console.log('[scan] barcode detected:', barcode, '| format:', result.getBarcodeFormat());
                 if (!barcode || barcode.length < 8) return; // 빈 문자열 또는 부분 읽기 무시 (EAN/UPC 최소 8자리)
                 const currentUser = authUserRef.current;
                 const canScan = currentUser
@@ -148,7 +141,6 @@ export default function ScanPage() {
                     if (cropped) sessionStorage.setItem('scanImage', cropped);
                   }
                 } catch {}
-                incrementGuestCount();
                 setTimeout(() => router.push('/result?barcode=' + encodeURIComponent(barcode)), 1500);
               }
               if (err && !(err instanceof NotFoundException)) {
@@ -187,11 +179,11 @@ export default function ScanPage() {
     isScanningRef.current = true;
     setIsScanning(true);
     videoRef.current.pause();
+    console.log('[scan] camera button pressed → image-only path (no barcode detected by ZXing)');
     try {
       const cropped = captureContentArea(videoRef.current, 0.8);
       if (cropped) {
         sessionStorage.setItem('scanImage', cropped);
-        incrementGuestCount();
         router.push('/result');
       }
     } catch {
@@ -234,12 +226,10 @@ export default function ScanPage() {
           try {
             const result = await codeReaderRef.current!.decodeFromImageElement(img);
             const barcode = result.getText();
-            incrementGuestCount();
             setTimeout(() => router.push('/result?barcode=' + encodeURIComponent(barcode)), 1500);
           } catch {
             setToastMessage('바코드를 찾지 못해 식료품 AI 분석으로 전환합니다.');
             sessionStorage.setItem('scanImage', dataUrl);
-            incrementGuestCount();
             setTimeout(() => router.push('/result'), 2000);
           }
         };

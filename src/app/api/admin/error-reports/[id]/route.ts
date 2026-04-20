@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { analyzeErrorReport } from '@/lib/ai/error-report-analyzer';
 
 function createAdminClient() {
   return createSupabaseClient(
@@ -81,6 +82,36 @@ export async function GET(req: Request, ctx: RouteContext) {
   }
 
   return NextResponse.json({ report, productCache });
+}
+
+/**
+ * POST /api/admin/error-reports/[id]
+ * AI 분석 수동 재실행 (이미 분석됐어도 덮어씀)
+ */
+export async function POST(req: Request, ctx: RouteContext) {
+  const secret = req.headers.get('x-admin-secret');
+  if (secret !== process.env.ADMIN_SECRET) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+
+  const { id } = await ctx.params;
+  const reportId = Number(id);
+  if (!reportId || isNaN(reportId)) {
+    return NextResponse.json({ error: 'invalid_id' }, { status: 400 });
+  }
+
+  await analyzeErrorReport(reportId);
+
+  // 분석 완료 후 결과 반환
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('scan_error_reports')
+    .select('id, ai_analysis, ai_confidence, correction_type, ai_analyzed_at')
+    .eq('id', reportId)
+    .single();
+
+  if (error) return NextResponse.json({ error: 'db_error' }, { status: 500 });
+  return NextResponse.json({ success: true, data });
 }
 
 /**
