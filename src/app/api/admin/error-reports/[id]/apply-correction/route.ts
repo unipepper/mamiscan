@@ -18,6 +18,7 @@ type Ingredient = {
 
 type ApprovedChanges = {
   status?: string;
+  productName?: string;
   headline?: string;
   description?: string;
   ingredients?: Ingredient[];
@@ -99,34 +100,45 @@ export async function POST(req: Request, ctx: RouteContext) {
   const normalized = scanHistory.product_name.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
   const cacheKey = detectedBarcode ? `barcode:${detectedBarcode}` : `product:${normalized}`;
 
-  // 2. products 현재 result_json 조회
-  const { data: product, error: productErr } = await supabase
+  // 2. products 현재 row 조회 (오류 제보로 삭제됐을 수 있으므로 없어도 계속 진행)
+  const { data: product } = await supabase
     .from('products')
     .select('cache_key, status, result_json')
     .eq('cache_key', cacheKey)
-    .single();
+    .maybeSingle();
 
-  if (productErr || !product) {
-    return NextResponse.json({ error: 'product_not_found', cache_key: cacheKey }, { status: 404 });
-  }
+  // 3. result_json 베이스 결정: products 캐시 있으면 그것, 없으면 scan_history 기반으로 재구성
+  const baseResult: Record<string, unknown> = product
+    ? (product.result_json as Record<string, unknown>)
+    : (() => {
+        const base = { ...(resultJson as Record<string, unknown>) };
+        // scan_history.result_json에서 저장 불필요 필드 제거
+        delete base.weekAnalysis;
+        delete base.imageUrl;
+        delete base.detectedBarcode;
+        return base;
+      })();
 
-  // 3. result_json에 변경사항 병합
-  const currentResult = product.result_json as Record<string, unknown>;
-  const updatedResult: Record<string, unknown> = { ...currentResult };
+  // 4. 변경사항 병합
+  const updatedResult: Record<string, unknown> = { ...baseResult };
 
+  if (changes.productName !== undefined) updatedResult.productName = changes.productName;
   if (changes.headline !== undefined) updatedResult.headline = changes.headline;
   if (changes.description !== undefined) updatedResult.description = changes.description;
   if (changes.ingredients !== undefined) updatedResult.ingredients = changes.ingredients;
   if (changes.status !== undefined) updatedResult.status = changes.status;
 
-  // 4. products UPDATE
+  // 5. products UPSERT (없으면 INSERT, 있으면 UPDATE)
   const { data: updatedProduct, error: updateErr } = await supabase
     .from('products')
-    .update({
+    .upsert({
+      cache_key: cacheKey,
+      product_name: changes.productName ?? scanHistory.product_name,
       result_json: updatedResult,
-      ...(changes.status ? { status: changes.status } : {}),
-    })
-    .eq('cache_key', cacheKey)
+      status: changes.status ?? (product?.status as string) ?? (updatedResult.status as string),
+      barcode: detectedBarcode ?? null,
+      hit_count: 0,
+    }, { onConflict: 'cache_key' })
     .select('cache_key, status, result_json')
     .single();
 
