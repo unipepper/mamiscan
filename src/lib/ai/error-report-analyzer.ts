@@ -137,7 +137,6 @@ async function saveFailure(
   await supabase
     .from('scan_error_reports')
     .update({
-      ai_status: 'analyzed',
       ai_confidence: 'unclear',
       correction_type: 'unverifiable',
       ai_analysis: {
@@ -270,7 +269,6 @@ export async function analyzeErrorReport(reportId: number): Promise<void> {
     const { error: updateErr } = await supabase
       .from('scan_error_reports')
       .update({
-        ai_status: 'analyzed',
         ai_analysis: {
           diagnosis: parsed.diagnosis,
           evidence: parsed.evidence,

@@ -96,7 +96,6 @@ export async function POST(req: Request) {
         body: body.trim(),
         scan_history_id: scanHistoryId ?? null,
         attachments: attachmentsValue,
-        ai_status: scanHistoryId ? 'pending' : 'not_applicable',
       })
       .select('id')
       .single();
