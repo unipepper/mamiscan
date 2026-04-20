@@ -181,7 +181,7 @@ async function callGeminiBarcode(
   const hasDBAlts = dbSafeProducts.length > 0;
 
   const response = await withRetry(() => ai.models.generateContent({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     contents: {
       parts: [
         {
@@ -302,7 +302,7 @@ export async function POST(req: Request) {
         if (hasWeekInfo) {
           try {
             const weekRes = await withRetry(() => ai.models.generateContent({
-              model: 'gemini-2.0-flash',
+              model: 'gemini-2.5-flash',
               contents: {
                 parts: [{
                   text: `임신 ${pregnancyWeeks}주차 임산부가 "${cached.product_name}"을 섭취할 때 주의사항을 2-3문장으로 작성해줘. JSON: {"weekAnalysis": "..."}`,
@@ -392,7 +392,7 @@ export async function POST(req: Request) {
       : '\nalternatives는 빈 배열([])로 반환해줘.';
 
     const response = await withRetry(() => ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: {
         parts: [
           { inlineData: { data: base64Data, mimeType } },
