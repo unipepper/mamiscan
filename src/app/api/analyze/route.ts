@@ -446,7 +446,8 @@ ${hasWeekInfo
     const result = JSON.parse(response.text?.trim() ?? '{}');
     if (!result.status) throw new Error('Gemini returned empty or invalid response');
     const detectedBarcode = result.detectedBarcode?.trim();
-    delete result.detectedBarcode;
+    // detectedBarcode는 클라이언트에 그대로 전달 — scan_history에 저장되어 오류 제보 분석 시 cache_key 복원에 사용됨
+    // products 저장 시에는 saveResult에서 별도 제거
     result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts);
 
     // 판정 불가 → unsupported_logs 저장 (fire-and-forget)
@@ -463,6 +464,7 @@ ${hasWeekInfo
     if (!result.status.startsWith('error_') && result.productName && result.productName !== '알 수 없음') {
       const saveResult = { ...result };
       delete saveResult.weekAnalysis;
+      delete saveResult.detectedBarcode;
 
       if (detectedBarcode) {
         // 바코드 OCR 성공: 식품안전나라 이미지 보강 + 바코드 기반 키
