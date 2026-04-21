@@ -463,6 +463,12 @@ ${hasWeekInfo
     // products 저장 시에는 saveResult에서 별도 제거
     result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts);
 
+    // error_image_quality: 식품이 아닌 화면 등 식별 불가 케이스.
+    // Gemini가 대체 제품 힌트 목록의 이름을 productName에 잘못 채우는 경우를 방지.
+    if (result.status === 'error_image_quality') {
+      result.productName = '';
+    }
+
     // 판정 불가 → unsupported_logs 저장 (fire-and-forget)
     if (result.status.startsWith('error_') && FAILURE_REASON_MAP[result.status]) {
       saveUnsupportedLog(supabase, {

@@ -291,8 +291,9 @@ function ResultContent() {
 
   const isError = result.status.startsWith('error_');
 
-  // Error with no product identified → full error screen (유형별 CTA)
-  if (isError && !(result.productName && result.productName.trim())) {
+  // Error with no product identified, or image quality error → full error screen (유형별 CTA)
+  // error_image_quality는 productName이 있어도 전체 에러 화면을 표시 (식별 불가 케이스)
+  if (isError && (result.status === 'error_image_quality' || !(result.productName && result.productName.trim()))) {
     const errorConfig: Record<string, { head: string; body: string; primaryLabel: string; primaryAction: () => void; secondaryLabel?: string; secondaryAction?: () => void }> = {
       error_future_category: {
         head: '아직 이 제품은 확인하기 어려워요',
