@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CheckCircle, XCircle, Edit2, Save, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Edit2, Save, X, Sparkles, RefreshCw } from 'lucide-react';
 
 type Ingredient = { name: string; status: string; reason: string };
 
@@ -103,6 +103,7 @@ export default function ErrorReportDetailPage({ params }: { params: Promise<{ id
 
   const [isApplying, setIsApplying] = useState(false);
   const [isDismissing, setIsDismissing] = useState(false);
+  const [isRequestingAI, setIsRequestingAI] = useState(false);
   const [actionResult, setActionResult] = useState<string>('');
 
   // 관리자 편집 모드 (suggested_changes를 직접 수정 가능)
@@ -204,6 +205,39 @@ export default function ErrorReportDetailPage({ params }: { params: Promise<{ id
       setActionResult('요청 실패');
     } finally {
       setIsDismissing(false);
+    }
+  }
+
+  async function handleRequestAI() {
+    setIsRequestingAI(true);
+    setActionResult('');
+    try {
+      const res = await fetch(`/api/admin/error-reports/${id}`, {
+        method: 'POST',
+        headers: { 'x-admin-secret': secret },
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setActionResult(`AI 분석 실패: ${json.error}`);
+        return;
+      }
+      // 분석 결과를 리포트에 반영
+      const d = json.data;
+      setReport(prev => prev ? {
+        ...prev,
+        ai_analysis: d.ai_analysis,
+        ai_confidence: d.ai_confidence,
+        correction_type: d.correction_type,
+        ai_analyzed_at: d.ai_analyzed_at,
+      } : prev);
+      if (d.ai_analysis?.suggested_changes) {
+        setEditedChanges(JSON.stringify(d.ai_analysis.suggested_changes, null, 2));
+      }
+      setActionResult('AI 분석이 완료됐습니다.');
+    } catch {
+      setActionResult('AI 분석 요청 실패');
+    } finally {
+      setIsRequestingAI(false);
     }
   }
 
@@ -318,10 +352,22 @@ export default function ErrorReportDetailPage({ params }: { params: Promise<{ id
 
           {/* 패널 3: AI 분석 & 수정 제안 */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">AI 분석 & 수정 제안</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-700">AI 분석 & 수정 제안</h2>
+              <button
+                onClick={handleRequestAI}
+                disabled={isRequestingAI}
+                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isRequestingAI
+                  ? <><RefreshCw className="w-3 h-3 animate-spin" /> 분석 중...</>
+                  : <><Sparkles className="w-3 h-3" />{report.ai_analyzed_at ? 'AI 재분석' : 'AI 제안 요청'}</>
+                }
+              </button>
+            </div>
 
             {!report.ai_analyzed_at ? (
-              <p className="text-sm text-blue-500">AI 분석 진행 중...</p>
+              <p className="text-sm text-gray-400">아직 AI 분석이 실행되지 않았습니다.</p>
             ) : report.ai_analysis ? (
               <>
                 {/* 신뢰도 배지 */}

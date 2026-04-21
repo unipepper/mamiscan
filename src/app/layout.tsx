@@ -18,8 +18,8 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" suppressHydrationWarning>
-      <body suppressHydrationWarning className="bg-bg-canvas min-h-screen">
-        <div className="mx-auto max-w-md min-h-screen flex flex-col">
+      <body suppressHydrationWarning className="bg-bg-canvas h-full overflow-hidden">
+        <div className="mx-auto max-w-md h-full flex flex-col overflow-y-auto">
           {children}
         </div>
       </body>
