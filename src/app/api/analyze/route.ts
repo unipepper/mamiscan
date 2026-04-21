@@ -176,16 +176,20 @@ function normalizeProductName(name: string): string {
   return name.toLowerCase().trim().replace(/\s*\(.*?\)\s*/g, '').trim();
 }
 
-/** Gemini가 반환한 alternatives 중 DB에 없는 항목 제거 */
+/** Gemini가 반환한 alternatives 중 DB에 없는 항목 제거, 현재 제품 자기 자신 제외 */
 function filterAlternatives(
   alternatives: { name: string; brand: string; price: string }[],
-  dbSafeProducts: string[]
+  dbSafeProducts: string[],
+  currentProductName?: string
 ): { name: string; brand: string; price: string }[] {
   if (!alternatives?.length || !dbSafeProducts.length) return [];
   const safeSet = new Set(dbSafeProducts.map(n => n.toLowerCase().trim()));
-  return alternatives.filter(alt =>
-    safeSet.has(alt.name?.toLowerCase().trim())
-  );
+  const currentNorm = currentProductName?.toLowerCase().trim();
+  return alternatives.filter(alt => {
+    const altNorm = alt.name?.toLowerCase().trim();
+    if (currentNorm && altNorm === currentNorm) return false; // 자기 자신 제외
+    return safeSet.has(altNorm);
+  });
 }
 
 async function callGeminiBarcode(
@@ -218,6 +222,7 @@ ${JSON.stringify(matchedIngredients)}
   : ''}
 
 status는 "success", "caution", "danger" 중 하나로 설정해줘.
+★카페인 음료 필수 규칙★: 녹차, 홍차, 우롱차, 커피, 에너지드링크 등 카페인이 함유된 음료는 카페인 함량이 낮더라도 반드시 "caution" 이상으로 분류해줘. 임산부는 하루 총 카페인 섭취량(200mg 미만 권고)을 관리해야 하기 때문이야.
 ${hasWeekInfo
   ? `현재 사용자는 임신 ${pregnancyWeeks}주차입니다. description은 일반적인 설명으로 작성하고, weekAnalysis 필드에 이 주차의 임산부에게 맞는 맞춤형 섭취 조언을 작성해줘.`
   : `일반적인 임산부 기준으로 섭취 조언을 weekAnalysis에 작성해줘.`}
@@ -282,6 +287,7 @@ async function saveUnsupportedLog(
 }
 
 export async function POST(req: Request) {
+  const _t0 = Date.now();
   try {
     // pregnancyWeeks는 클라이언트에서 전달할 수도 있고(비캐시 경로 호환),
     // 생략 시 서버에서 직접 조회 — 클라이언트 auth 대기 없이 즉시 호출 가능하도록
@@ -329,6 +335,7 @@ export async function POST(req: Request) {
 
         // weekAnalysis는 클라이언트가 /api/analyze/week 엔드포인트로 별도 요청
         // (캐시 히트 시 Gemini를 추가 호출하지 않아 응답 속도 대폭 개선)
+        console.log(`[analyze] CACHE_HIT barcode=${barcode} total=${Date.now()-_t0}ms`);
         return NextResponse.json({
           success: true,
           result,
@@ -374,9 +381,11 @@ export async function POST(req: Request) {
           getDBSafeProducts(supabase),
         ]);
 
+        const _tGemini = Date.now();
         const result = await callGeminiBarcode(product, pregnancyWeeks, matchedIngredients, dbSafeProducts);
+        console.log(`[analyze] BARCODE_MISS barcode=${barcode} gemini=${Date.now()-_tGemini}ms total=${Date.now()-_t0}ms`);
         if (product.imageUrl) result.imageUrl = product.imageUrl;
-        result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts);
+        result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts, product.productName);
 
         // 4. products 테이블에 저장 (weekAnalysis, imageUrl 제외)
         const saveResult = { ...result };
@@ -431,6 +440,7 @@ export async function POST(req: Request) {
 - "error_db_mismatch": 바코드는 인식되나 제품을 도저히 알 수 없는 경우
 
 ★중요★: 어떤 status든 이미지에서 음식/제품을 식별할 수 있다면 productName, headline, description, ingredients, weekAnalysis에 분석 정보를 최대한 작성해줘. 완전히 식별 불가능한 경우에만 description에 그 이유를 짧게 적어줘.
+★카페인 음료 필수 규칙★: 녹차, 홍차, 우롱차, 커피, 에너지드링크 등 카페인이 함유된 음료는 카페인 함량이 낮더라도 반드시 "caution" 이상으로 분류해줘. 임산부는 하루 총 카페인 섭취량(200mg 미만 권고)을 관리해야 하기 때문이야.
 ${dbAltsHint}
 ${hasWeekInfo
   ? `현재 사용자는 임신 ${pregnancyWeeks}주차입니다. description은 일반적인 임산부 기준으로 작성하고, weekAnalysis 필드에는 임신 ${pregnancyWeeks}주차에 맞는 맞춤형 섭취 조언을 별도로 작성해줘.`
@@ -459,9 +469,34 @@ ${hasWeekInfo
     const result = JSON.parse(response.text?.trim() ?? '{}');
     if (!result.status) throw new Error('Gemini returned empty or invalid response');
     const detectedBarcode = result.detectedBarcode?.trim();
+
+    // 이미지 분석 후 캐시 일치 확인 — Gemini는 호출마다 다른 결과를 줄 수 있으므로
+    // 이미 저장된 결과가 있으면 그것을 우선 반환해 일관성 유지
+    if (!result.status.startsWith('error_') && result.productName) {
+      const cacheKeysToCheck: string[] = [];
+      if (detectedBarcode) cacheKeysToCheck.push(`barcode:${detectedBarcode}`);
+      cacheKeysToCheck.push(`product:${normalizeProductName(result.productName)}`);
+
+      const { data: existingCache } = await supabase
+        .from('products')
+        .select('result_json, product_name, hit_count, cache_key')
+        .in('cache_key', cacheKeysToCheck)
+        .order('hit_count', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingCache) {
+        supabase.from('products').update({ hit_count: (existingCache.hit_count ?? 0) + 1 })
+          .eq('cache_key', existingCache.cache_key).then(() => {});
+        const cachedResult = { ...(existingCache.result_json as object) };
+        if (detectedBarcode) (cachedResult as any).detectedBarcode = detectedBarcode;
+        console.log(`[analyze] IMAGE_CACHE_HIT key=${existingCache.cache_key} total=${Date.now()-_t0}ms`);
+        return NextResponse.json({ success: true, result: cachedResult, fromCache: true });
+      }
+    }
     // detectedBarcode는 클라이언트에 그대로 전달 — scan_history에 저장되어 오류 제보 분석 시 cache_key 복원에 사용됨
     // products 저장 시에는 saveResult에서 별도 제거
-    result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts);
+    result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts, result.productName);
 
     // error_image_quality: 식품이 아닌 화면 등 식별 불가 케이스.
     // Gemini가 대체 제품 힌트 목록의 이름을 productName에 잘못 채우는 경우를 방지.
@@ -514,6 +549,7 @@ ${hasWeekInfo
       }
     }
 
+    console.log(`[analyze] IMAGE total=${Date.now()-_t0}ms`);
     return NextResponse.json({ success: true, result });
   } catch (err: any) {
     console.error('[analyze] error:', err);
