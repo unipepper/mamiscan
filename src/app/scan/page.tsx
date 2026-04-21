@@ -6,6 +6,7 @@ import { Camera, X, ScanLine, Image as ImageIcon, Info, Lock, RefreshCw, MoreVer
 import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import { compressForAnalysis } from '@/lib/compressImage';
 
 interface UserProfile {
   isActive: boolean;
@@ -229,7 +230,10 @@ export default function ScanPage() {
             setTimeout(() => router.push('/result?barcode=' + encodeURIComponent(barcode)), 1500);
           } catch {
             setToastMessage('바코드를 찾지 못해 식료품 AI 분석으로 전환합니다.');
-            sessionStorage.setItem('scanImage', dataUrl);
+            // 앨범 이미지는 풀 해상도 → Vercel 4.5MB 제한 초과 방지를 위해 압축 후 저장
+            compressForAnalysis(dataUrl)
+              .then(compressed => sessionStorage.setItem('scanImage', compressed))
+              .catch(() => sessionStorage.setItem('scanImage', dataUrl));
             setTimeout(() => router.push('/result'), 2000);
           }
         };

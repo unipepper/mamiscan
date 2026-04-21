@@ -275,6 +275,18 @@ ${hasDBAlts
   return parsed;
 }
 
+/**
+ * Gemini가 ingredients에 danger 성분을 표기했는데 전체 status를 낮게 설정하는 경우를 방지.
+ * ingredients 중 하나라도 danger면 전체 status를 danger로 올림.
+ */
+function normalizeStatus(result: Record<string, any>): void {
+  if (!result.ingredients?.length) return;
+  const hasDanger = result.ingredients.some((i: any) => i.status === 'danger');
+  if (hasDanger && result.status !== 'danger') {
+    result.status = 'danger';
+  }
+}
+
 const FAILURE_REASON_MAP: Record<string, string> = {
   error_future_category: 'category_future',
   error_unsupported_category: 'category_blocked',
@@ -402,6 +414,7 @@ export async function POST(req: Request) {
 
         const _tGemini = Date.now();
         const result = await callGeminiBarcode(product, pregnancyWeeks, matchedIngredients, dbSafeProducts);
+        normalizeStatus(result);
         console.log(`[analyze] BARCODE_MISS barcode=${barcode} gemini=${Date.now()-_tGemini}ms total=${Date.now()-_t0}ms`);
         if (product.imageUrl) result.imageUrl = product.imageUrl;
         result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts, product.productName);
@@ -487,6 +500,7 @@ ${hasWeekInfo
 
     const result = JSON.parse(response.text?.trim() ?? '{}');
     if (!result.status) throw new Error('Gemini returned empty or invalid response');
+    normalizeStatus(result);
     const detectedBarcode = result.detectedBarcode?.trim();
 
     // 이미지 분석 후 캐시 일치 확인 — Gemini는 호출마다 다른 결과를 줄 수 있으므로

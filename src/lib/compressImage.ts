@@ -1,4 +1,32 @@
 /**
+ * Base64 data URL을 Gemini 분석용으로 압축 (max 1400px, JPEG quality 0.82)
+ * 목표 크기: 150~350KB — 라벨 텍스트 인식 가능 + Vercel 4.5MB 제한 여유
+ */
+export async function compressForAnalysis(dataUrl: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 1400;
+      let { width, height } = img;
+      if (width > height) {
+        if (width > MAX) { height = Math.round(height * MAX / width); width = MAX; }
+      } else {
+        if (height > MAX) { width = Math.round(width * MAX / height); height = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('canvas context unavailable')); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+/**
  * Base64 data URL을 max 480px (긴 쪽), JPEG quality 0.65로 압축해 반환
  * 목표 크기: 30~45KB
  */
