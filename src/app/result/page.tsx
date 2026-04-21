@@ -122,11 +122,12 @@ function ResultContent() {
       body: JSON.stringify({
         barcode: barcode || null,
         imageBase64: scanImage || null,
-        // pregnancyWeeks 생략 → 서버에서 인증 유저의 pregnancy_weeks 자동 조회
       }),
     });
 
-    authPromise.then(async ({ user, prof }) => {
+    // analyze 결과를 auth 완료 기다리지 않고 즉시 처리 → 결과 화면 빠르게 표시
+    // scan save / weekAnalysis 등 auth 필요한 작업은 auth 완료 후 백그라운드 처리
+    (async () => {
       try {
         const res = await analyzePromise;
         if (!res.ok) throw new Error('Server error');
@@ -135,80 +136,83 @@ function ResultContent() {
 
         const parsedResult = data.result;
 
-        // 캐시 히트 + 임신 주차 있는 경우: 결과를 먼저 보여주고 weekAnalysis를 비동기로 채움
-        if (data.fromCache && data.needsWeekAnalysis && data.productName) {
-          setResult(parsedResult);
-          setIsLoading(false);
-          fetch('/api/analyze/week', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              productName: data.productName,
-              pregnancyWeeks: prof?.pregnancy_weeks,
-            }),
-          })
-            .then(r => r.json())
-            .then(weekData => {
-              if (weekData.weekAnalysis) {
-                setResult((prev: any) => prev ? { ...prev, weekAnalysis: weekData.weekAnalysis } : prev);
-              }
-            })
-            .catch(() => {});
-          return;
-        }
+        // 결과 즉시 표시
+        setResult(parsedResult);
+        setIsLoading(false);
 
-        if (!parsedResult.status?.startsWith('error_')) {
-          if (!user) {
-            // 비로그인 게스트: 분석 성공 시에만 횟수 차감
-            const current = parseInt(localStorage.getItem('mamiscan_guest_scans') || '0', 10);
-            localStorage.setItem('mamiscan_guest_scans', String(current + 1));
-          } else {
-            // 이미지 압축 (실패해도 계속)
-            const thumbnail = scanImage
-              ? await compressThumbnail(scanImage).catch(() => null)
-              : null;
-
-            // 바코드 스캔이면 result_json에 바코드 포함 — 오류 제보 분석기가 올바른 products 캐시를 찾는 데 필요
-            const resultToSave = barcode
-              ? { ...parsedResult, detectedBarcode: barcode }
-              : parsedResult;
-
-            const saveRes = await fetch('/api/scan/save', {
+        // auth 완료 후 백그라운드 작업 (scan save, weekAnalysis)
+        authPromise.then(async ({ user, prof }) => {
+          // 캐시 히트 + 임신 주차 있는 경우: weekAnalysis 비동기로 채움
+          if (data.fromCache && data.needsWeekAnalysis && data.productName) {
+            fetch('/api/analyze/week', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                productName: parsedResult.productName || '알 수 없는 제품',
-                status: parsedResult.status,
-                resultJson: resultToSave,
-                imageBase64: thumbnail,
+                productName: data.productName,
+                pregnancyWeeks: prof?.pregnancy_weeks,
               }),
-            }).catch(() => null);
+            })
+              .then(r => r.json())
+              .then(weekData => {
+                if (weekData.weekAnalysis) {
+                  setResult((prev: any) => prev ? { ...prev, weekAnalysis: weekData.weekAnalysis } : prev);
+                }
+              })
+              .catch(() => {});
+            return;
+          }
 
-            if (saveRes?.status === 403) {
-              router.replace('/pricing');
-              return;
-            }
+          if (!parsedResult.status?.startsWith('error_')) {
+            if (!user) {
+              // 비로그인 게스트: 분석 성공 시에만 횟수 차감
+              const current = parseInt(localStorage.getItem('mamiscan_guest_scans') || '0', 10);
+              localStorage.setItem('mamiscan_guest_scans', String(current + 1));
+            } else {
+              // 이미지 압축 (실패해도 계속)
+              const thumbnail = scanImage
+                ? await compressThumbnail(scanImage).catch(() => null)
+                : null;
 
-            if (saveRes?.ok) {
-              const saveData = await saveRes.json().catch(() => null);
-              if (saveData?.imagePath) {
-                parsedResult.userImageUrl = saveData.imagePath;
-                setSavedImageUrl(saveData.imagePath);
+              // 바코드 스캔이면 result_json에 바코드 포함 — 오류 제보 분석기가 올바른 products 캐시를 찾는 데 필요
+              const resultToSave = barcode
+                ? { ...parsedResult, detectedBarcode: barcode }
+                : parsedResult;
+
+              const saveRes = await fetch('/api/scan/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  productName: parsedResult.productName || '알 수 없는 제품',
+                  status: parsedResult.status,
+                  resultJson: resultToSave,
+                  imageBase64: thumbnail,
+                }),
+              }).catch(() => null);
+
+              if (saveRes?.status === 403) {
+                router.replace('/pricing');
+                return;
               }
-              if (saveData?.historyId) {
-                setScanHistoryId(saveData.historyId);
+
+              if (saveRes?.ok) {
+                const saveData = await saveRes.json().catch(() => null);
+                if (saveData?.imagePath) {
+                  setSavedImageUrl(saveData.imagePath);
+                  // result는 이미 표시 중이므로 userImageUrl만 업데이트
+                  setResult((r: any) => r ? { ...r, userImageUrl: saveData.imagePath } : r);
+                }
+                if (saveData?.historyId) {
+                  setScanHistoryId(saveData.historyId);
+                }
               }
             }
           }
-        }
-
-        setResult(parsedResult);
+        }).catch(() => {});
       } catch {
         setError('분석 중 오류가 발생했습니다. 다시 시도해주세요.');
-      } finally {
         setIsLoading(false);
       }
-    });
+    })();
   }, [barcode, scanImage, imageReady]);
 
   const displayImageSrc = scanImage ?? result?.userImageUrl ?? null;
