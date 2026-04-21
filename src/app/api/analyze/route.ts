@@ -64,14 +64,43 @@ const RESPONSE_SCHEMA = {
 
 /**
  * 바코드로 제품 정보 조회
- * 1순위: 식품안전나라 C005(바코드연계제품정보) — 한국 식품 등록률 높음, 원재료 없음
+ * 1순위: 식품안전나라 C005(바코드연계제품정보) + HACCP 병렬 — 한국 식품 등록률 높음
+ *        C005: 제품명/분류/PRDLST_REPORT_NO, HACCP: 원재료 + 알레르기 + 이미지
  * 2순위: OpenFoodFacts — 글로벌 DB, 원재료 포함
  * 모두 없으면 null → 이미지 분석 폴백
  */
+
+/** HACCP XML에서 단일 태그 값 추출 */
+function extractXmlTag(xml: string, tag: string): string {
+  const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
+  return match?.[1]?.trim() ?? '';
+}
+
+async function lookupHaccp(reportNo: string): Promise<{ rawIngredients: string; allergyInfo: string; imageUrl: string } | null> {
+  const haccpKey = process.env.FOOD_SAFETY_API_KEY;
+  if (!haccpKey || !reportNo) return null;
+  try {
+    const encodedKey = encodeURIComponent(haccpKey);
+    const res = await fetch(
+      `https://apis.data.go.kr/B553748/CertImgListServiceV3/getCertImgListServiceV3?serviceKey=${encodedKey}&prdlstReportNo=${reportNo}&pageNo=1&numOfRows=1`
+    );
+    if (!res.ok) return null;
+    const xml = await res.text();
+    if (!xml.includes('<item>')) return null;
+    return {
+      rawIngredients: extractXmlTag(xml, 'rawmtrl'),
+      allergyInfo:    extractXmlTag(xml, 'allergy'),
+      imageUrl:       extractXmlTag(xml, 'imgurl1'),
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function lookupBarcode(barcode: string, supabase: Awaited<ReturnType<typeof createClient>>) {
   const koreaKey = process.env.FOOD_SAFETY_KOREA_API_KEY;
 
-  // ── 1. 식품안전나라 C005 ──
+  // ── 1. 식품안전나라 C005 + HACCP 병렬 ──
   if (koreaKey) {
     try {
       const c005Res = await fetch(
@@ -85,21 +114,26 @@ async function lookupBarcode(barcode: string, supabase: Awaited<ReturnType<typeo
           const productName = row.PRDLST_NM ?? '';
           const brand = row.BSSH_NM ?? '';
           const productType = row.PRDLST_DCNM ?? ''; // 제품 분류명 (Gemini 컨텍스트용)
+          const reportNo = row.PRDLST_REPORT_NO ?? '';
 
           if (productName) {
+            // HACCP API: 품목보고번호로 원재료 + 알레르기 + 이미지 조회
+            const haccp = await lookupHaccp(reportNo);
+
             supabase.from('barcode_items').upsert({
               barcode,
               name: productName,
               brand,
-              ingredients: '', // C005에는 원재료 없음
+              ingredients: haccp?.rawIngredients ?? '',
             }, { onConflict: 'barcode', ignoreDuplicates: true }).then(() => {});
 
             return {
               productName,
               brand,
-              rawIngredients: '', // 원재료 없음 — Gemini가 제품명 기반으로 분석
-              productType,        // Gemini 프롬프트에 분류 힌트로 전달
-              imageUrl: '',
+              rawIngredients: haccp?.rawIngredients ?? '',
+              allergyInfo:    haccp?.allergyInfo ?? '',
+              productType,
+              imageUrl:       haccp?.imageUrl ?? '',
             };
           }
         }
@@ -122,6 +156,7 @@ async function lookupBarcode(barcode: string, supabase: Awaited<ReturnType<typeo
           productName: p.product_name ?? '알 수 없는 제품',
           brand: p.brands ?? '',
           rawIngredients: p.ingredients_text ?? '',
+          allergyInfo: '',
           imageUrl: p.image_front_small_url ?? '',
         };
 
@@ -190,9 +225,14 @@ async function getDBSafeProducts(
   return data?.map(d => d.product_name) ?? [];
 }
 
-/** 제품명 정규화 — 괄호/영문 병기 제거 후 소문자 trim */
+/** 제품명 정규화 — 괄호 제거 + 연속 공백 정리 + 소문자 trim */
 function normalizeProductName(name: string): string {
-  return name.toLowerCase().trim().replace(/\s*\(.*?\)\s*/g, '').trim();
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/\s*\(.*?\)\s*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /** Gemini가 반환한 alternatives 중 DB에 없는 항목 제거, 현재 제품 자기 자신 제외 */
@@ -212,7 +252,7 @@ function filterAlternatives(
 }
 
 async function callGeminiBarcode(
-  product: { productName: string; brand: string; rawIngredients: string; productType?: string },
+  product: { productName: string; brand: string; rawIngredients: string; allergyInfo?: string; productType?: string },
   pregnancyWeeks: number | null,
   matchedIngredients: MatchedIngredient[] = [],
   dbSafeProducts: string[] = []
@@ -230,7 +270,7 @@ async function callGeminiBarcode(
 
 제품명: ${product.productName}
 제조사: ${product.brand}${product.productType ? `\n식품 분류: ${product.productType}` : ''}
-원재료명: ${product.rawIngredients || '정보 없음 (제품명과 식품 분류를 기반으로 일반적인 성분을 추론해서 분석해줘)'}
+원재료명: ${product.rawIngredients || '정보 없음 (제품명과 식품 분류를 기반으로 일반적인 성분을 추론해서 분석해줘)'}${product.allergyInfo && product.allergyInfo !== '없음' ? `\n알레르기 유발물질: ${product.allergyInfo}` : ''}
 
 ${hasMatched
   ? `★규칙 기반 판정 완료 성분★ (이 판정을 절대 변경하지 말고 ingredients 배열에 그대로 포함해줘):
@@ -329,9 +369,20 @@ export async function POST(req: Request) {
     }
 
     const supabase = await createClient();
+    const cacheKey = barcode ? `barcode:${barcode}` : null;
 
-    // 현재 유저 (비로그인이면 null)
-    const { data: { user } } = await supabase.auth.getUser();
+    // auth + 사전 조회 병렬 실행
+    // - 바코드 경로: auth와 동시에 products 캐시 조회
+    // - 이미지 경로: auth와 동시에 DB 안전 제품 목록 조회
+    const [{ data: { user } }, prefetchData] = await Promise.all([
+      supabase.auth.getUser(),
+      cacheKey
+        ? supabase.from('products')
+            .select('result_json, product_name, hit_count, brand, raw_ingredients, allergy_info')
+            .eq('cache_key', cacheKey)
+            .maybeSingle() as unknown as Promise<any>
+        : getDBSafeProducts(supabase) as Promise<any>,
+    ]);
     const userId = user?.id ?? null;
 
     // pregnancy_weeks: 클라이언트 전달값 우선, 없으면 서버에서 직접 조회
@@ -345,21 +396,17 @@ export async function POST(req: Request) {
 
     // ── 바코드 우선 분석 (이미지가 함께 있어도 바코드 먼저 시도) ──
     if (barcode) {
-      const cacheKey = `barcode:${barcode}`;
+      const barcodeCacheKey = `barcode:${barcode}`;
 
-      // 1. products 테이블 조회
-      const { data: cached } = await supabase
-        .from('products')
-        .select('result_json, product_name, hit_count')
-        .eq('cache_key', cacheKey)
-        .maybeSingle();
+      // 1. products 테이블 조회 (auth와 병렬로 이미 완료됨)
+      const { data: cached } = prefetchData as { data: any };
 
-      if (cached) {
+      if (cached && cached.result_json !== null) {
         // hit_count 증가 (fire-and-forget)
         supabase
           .from('products')
           .update({ hit_count: (cached.hit_count ?? 0) + 1 })
-          .eq('cache_key', cacheKey)
+          .eq('cache_key', barcodeCacheKey)
           .then(() => {});
 
         const result = { ...(cached.result_json as object) };
@@ -376,8 +423,18 @@ export async function POST(req: Request) {
         });
       }
 
-      // 2. DB MISS → 외부 API 조회
-      const product = await lookupBarcode(barcode, supabase);
+      // 2. DB MISS (또는 벌크 적재된 result_json=null 항목) → 제품 정보 확보
+      // 벌크 적재 시 raw_ingredients가 이미 저장된 경우 C005+HACCP API 호출 스킵
+      const product = cached?.raw_ingredients
+        ? {
+            productName:   cached.product_name,
+            brand:         cached.brand ?? '',
+            rawIngredients: cached.raw_ingredients,
+            allergyInfo:   cached.allergy_info ?? '',
+            productType:   '',
+            imageUrl:      '',
+          }
+        : await lookupBarcode(barcode, supabase);
 
       if (!product) {
         if (!imageBase64) {
@@ -424,15 +481,19 @@ export async function POST(req: Request) {
         delete saveResult.weekAnalysis;
         delete saveResult.imageUrl;
 
-        const { error: insertError } = await supabase.from('products').insert({
-          cache_key: cacheKey,
+        const { error: insertError } = await supabase.from('products').upsert({
+          cache_key: barcodeCacheKey,
           product_name: product.productName,
+          normalized_name: normalizeProductName(product.productName),
+          brand: product.brand || null,
+          raw_ingredients: product.rawIngredients || null,
+          allergy_info: product.allergyInfo || null,
           result_json: saveResult,
           status: result.status,
           barcode,
           hit_count: 0,
-        });
-        if (insertError) console.error('[products insert barcode]', insertError);
+        }, { onConflict: 'cache_key' });
+        if (insertError) console.error('[products upsert barcode]', insertError);
 
         return NextResponse.json({ success: true, result });
       }
@@ -447,7 +508,10 @@ export async function POST(req: Request) {
     const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
 
     // 전체 이미지 분석 + DB 안전 제품 목록을 대체 제품 힌트로 전달
-    const dbSafeProducts = await getDBSafeProducts(supabase);
+    // 순수 이미지 경로: auth와 병렬로 prefetch됨 / 바코드 DB 미스 폴백 경로: 별도 조회
+    const dbSafeProducts: string[] = !barcode
+      ? (prefetchData as string[])
+      : await getDBSafeProducts(supabase);
     const dbAltsHint = dbSafeProducts.length > 0
       ? `\n★대체 제품 제약★: 아래는 실제로 안전 판정을 받은 제품 목록이야. alternatives는 반드시 이 목록에 있는 제품 이름만 사용해줘. 목록에 관련 제품이 없으면 alternatives를 빈 배열([])로 반환해줘. 절대 목록 외의 제품을 만들어 넣지 마.\n[${dbSafeProducts.join(', ')}]`
       : '\nalternatives는 빈 배열([])로 반환해줘.';
@@ -518,7 +582,7 @@ ${hasWeekInfo
         .limit(1)
         .maybeSingle();
 
-      if (existingCache) {
+      if (existingCache && existingCache.result_json !== null) {
         supabase.from('products').update({ hit_count: (existingCache.hit_count ?? 0) + 1 })
           .eq('cache_key', existingCache.cache_key).then(() => {});
         const cachedResult = { ...(existingCache.result_json as object) };
@@ -554,30 +618,45 @@ ${hasWeekInfo
       delete saveResult.detectedBarcode;
 
       if (detectedBarcode) {
-        // 바코드 OCR 성공: 식품안전나라 이미지 보강 + 바코드 기반 키
-        const barcodeData = await lookupBarcode(detectedBarcode, supabase).catch(() => null);
-        if (barcodeData?.imageUrl) result.imageUrl = barcodeData.imageUrl;
+        // 바코드 OCR 성공: 먼저 저장 후 이미지 보강은 fire-and-forget (응답 속도 우선)
         delete saveResult.imageUrl;
 
         const { error: upsertError1 } = await supabase.from('products').upsert({
           cache_key: `barcode:${detectedBarcode}`,
           product_name: result.productName,
+          normalized_name: normalizeProductName(result.productName),
+          brand: null,
           result_json: saveResult,
           status: result.status,
           barcode: detectedBarcode,
           hit_count: 0,
-        }, { onConflict: 'cache_key', ignoreDuplicates: true });
+        }, { onConflict: 'cache_key' });
         if (upsertError1) console.error('[products upsert barcode-ocr]', upsertError1);
+
+        // 식품안전나라 이미지 URL 보강 (응답 후 비동기 — 다음 캐시 히트 시 제공)
+        lookupBarcode(detectedBarcode, supabase)
+          .then(barcodeData => {
+            if (barcodeData?.imageUrl) {
+              const updatedJson = { ...saveResult, imageUrl: barcodeData.imageUrl };
+              supabase.from('products')
+                .update({ result_json: updatedJson })
+                .eq('cache_key', `barcode:${detectedBarcode}`)
+                .then(() => {});
+            }
+          })
+          .catch(() => {});
       } else {
         // 바코드 미인식: 제품명 기반 키
         const { error: upsertError2 } = await supabase.from('products').upsert({
           cache_key: `product:${normalizeProductName(result.productName)}`,
           product_name: result.productName,
+          normalized_name: normalizeProductName(result.productName),
+          brand: null,
           result_json: saveResult,
           status: result.status,
           barcode: null,
           hit_count: 0,
-        }, { onConflict: 'cache_key', ignoreDuplicates: true });
+        }, { onConflict: 'cache_key' });
         if (upsertError2) console.error('[products upsert product-name]', upsertError2);
       }
     }
