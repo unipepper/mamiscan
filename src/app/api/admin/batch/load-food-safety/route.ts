@@ -8,15 +8,6 @@ function createAdminClient() {
   );
 }
 
-function normalizeProductName(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/\s*\(.*?\)\s*/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 function extractXmlTag(xml: string, tag: string): string {
   const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
   return match?.[1]?.trim() ?? '';
@@ -168,10 +159,9 @@ export async function POST(req: Request) {
 
   for (const item of results) {
     const { error } = await supabase.from('products').upsert({
-      cache_key:       `barcode:${item.barcode}`,
-      product_name:    item.productName,
-      normalized_name: normalizeProductName(item.productName),
-      brand:           item.brand,
+      cache_key:    `barcode:${item.barcode}`,
+      product_name: item.productName,
+      brand:        item.brand,
       raw_ingredients: item.rawIngredients,
       allergy_info:    item.allergyInfo,
       result_json:     null,   // lazy-fill: 첫 스캔 시 Gemini 분석

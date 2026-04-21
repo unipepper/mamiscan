@@ -484,7 +484,6 @@ export async function POST(req: Request) {
         const { error: insertError } = await supabase.from('products').upsert({
           cache_key: barcodeCacheKey,
           product_name: product.productName,
-          normalized_name: normalizeProductName(product.productName),
           brand: product.brand || null,
           raw_ingredients: product.rawIngredients || null,
           allergy_info: product.allergyInfo || null,
@@ -624,7 +623,6 @@ ${hasWeekInfo
         const { error: upsertError1 } = await supabase.from('products').upsert({
           cache_key: `barcode:${detectedBarcode}`,
           product_name: result.productName,
-          normalized_name: normalizeProductName(result.productName),
           brand: null,
           result_json: saveResult,
           status: result.status,
@@ -650,7 +648,6 @@ ${hasWeekInfo
         const { error: upsertError2 } = await supabase.from('products').upsert({
           cache_key: `product:${normalizeProductName(result.productName)}`,
           product_name: result.productName,
-          normalized_name: normalizeProductName(result.productName),
           brand: null,
           result_json: saveResult,
           status: result.status,

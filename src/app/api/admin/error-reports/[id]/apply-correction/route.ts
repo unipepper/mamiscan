@@ -130,19 +130,12 @@ export async function POST(req: Request, ctx: RouteContext) {
 
   // 5. products UPSERT (없으면 INSERT, 있으면 UPDATE)
   const correctedProductName = changes.productName ?? scanHistory.product_name;
-  const normalizedName = correctedProductName
-    .toLowerCase()
-    .trim()
-    .replace(/\s*\(.*?\)\s*/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
 
   const { data: updatedProduct, error: updateErr } = await supabase
     .from('products')
     .upsert({
       cache_key: cacheKey,
       product_name: correctedProductName,
-      normalized_name: normalizedName,
       brand: (product?.result_json as any)?.brand ?? null,
       result_json: updatedResult,
       status: changes.status ?? (product?.status as string) ?? (updatedResult.status as string),
