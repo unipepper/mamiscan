@@ -29,6 +29,7 @@ export default function ScanPage() {
   const headerRef = useRef<HTMLDivElement>(null);
   const bottomControlsRef = useRef<HTMLDivElement>(null);
   const [authUser, setAuthUser] = useState<any>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [guestScansUsed, setGuestScansUsed] = useState(0);
 
   // 카메라 콜백은 [] deps useEffect 안에서 실행되므로 state 클로저가 stale해짐.
@@ -48,8 +49,6 @@ export default function ScanPage() {
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      setAuthUser(user);
-      authUserRef.current = user;
       if (user) {
         const now = new Date().toISOString();
         const [{ data: scanRights }, { data: activeSub }] = await Promise.all([
@@ -58,11 +57,18 @@ export default function ScanPage() {
         ]);
         const active = !!activeSub;
         const scans = scanRights?.reduce((s: number, c: any) => s + c.scan_count, 0) ?? 0;
-        setUserProfile({ isActive: active });
+        // 모든 상태를 await 이후 동기적으로 한 번에 업데이트 → React 18이 단일 렌더로 배치
+        authUserRef.current = user;
         isActiveRef.current = active;
-        setRemainingScans(scans);
         remainingScansRef.current = scans;
+        setAuthUser(user);
+        setUserProfile({ isActive: active });
+        setRemainingScans(scans);
+      } else {
+        authUserRef.current = null;
+        setAuthUser(null);
       }
+      setIsProfileLoading(false);
     });
   }, []);
 
@@ -322,7 +328,7 @@ export default function ScanPage() {
         {/* Bottom */}
         <div ref={bottomControlsRef} className="absolute bottom-0 left-0 right-0 flex flex-col justify-end pointer-events-auto" style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))' }}>
           <div className="px-4 mb-6">
-            {!authUser ? (
+            {isProfileLoading ? null : !authUser ? (
               <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center justify-between cursor-pointer" onClick={() => router.push('/login')}>
                 <div className="flex items-center space-x-2">
                   <ScanLine className="w-4 h-4 text-primary" />

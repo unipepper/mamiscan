@@ -9,6 +9,19 @@ import { createClient } from '@/lib/supabase/client';
 import { compressThumbnail } from '@/lib/compressImage';
 import { Suspense } from 'react';
 
+function cleanBrand(brand: string): string {
+  return brand
+    .replace(/^주식회사\s+/i, '')
+    .replace(/\s+주식회사$/i, '')
+    .replace(/^\(주\)\s*/i, '')
+    .replace(/\s*\(주\)$/i, '')
+    .replace(/^㈜\s*/, '')
+    .replace(/\s*㈜$/, '')
+    .replace(/^유한회사\s+/i, '')
+    .replace(/\s+유한회사$/i, '')
+    .trim();
+}
+
 function ResultContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -182,7 +195,7 @@ function ResultContent() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  productName: parsedResult.productName || '알 수 없는 제품',
+                  productName: (parsedResult.brand?.trim() ? `${cleanBrand(parsedResult.brand)} ${parsedResult.productName}` : parsedResult.productName) || '알 수 없는 제품',
                   status: parsedResult.status,
                   resultJson: resultToSave,
                   imageBase64: thumbnail,
@@ -294,6 +307,9 @@ function ResultContent() {
   if (!result) return null;
 
   const isError = result.status.startsWith('error_');
+  const displayProductName = result.brand?.trim()
+    ? `${cleanBrand(result.brand)} ${result.productName}`
+    : result.productName;
 
   // Error with no product identified, or image quality error → full error screen (유형별 CTA)
   // error_image_quality는 productName이 있어도 전체 에러 화면을 표시 (식별 불가 케이스)
@@ -437,7 +453,7 @@ function ResultContent() {
                 isError ? 'text-text-secondary' :
                 result.status === 'success' ? 'text-success-fg/70' :
                 result.status === 'danger' ? 'text-danger-fg/70' : 'text-caution-fg/70'
-              }`}>{result.productName}</p>
+              }`}>{displayProductName}</p>
 
               {/* 촬영 이미지 (제품명 아래, 설명 위) */}
               {displayImageSrc && (

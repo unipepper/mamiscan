@@ -179,7 +179,21 @@ async function lookupBarcode(barcode: string, supabase: Awaited<ReturnType<typeo
 
 type MatchedIngredient = { name: string; status: string; reason: string };
 
-// ingredient_rules는 자주 바뀌지 않으므로 서버 프로세스 내에서 5분간 캐싱
+/**
+ * [판정 흐름 — 1단계: ingredient_rules 키워드 매칭]
+ *
+ * DB의 ingredient_rules 테이블(F1~F17, 알코올·카페인·날생선 등)에서
+ * rawIngredients 텍스트에 포함된 키워드를 찾아 danger/caution 판정을 확정한다.
+ *
+ * 매칭된 성분은 callGeminiBarcode()에 그대로 주입되며,
+ * Gemini는 이 판정을 변경하지 못하도록 프롬프트에서 고정 지시함.
+ *
+ * ※ 이 단계는 바코드 경로(rawIngredients 있을 때)에만 실행됨.
+ *    이미지 분석 경로(식당 음식, 조리 음식 등)는 ingredient_rules를 거치지 않으므로
+ *    Gemini 프롬프트에 직접 안전 규칙을 명시해 커버함 (★카페인/★날생선 규칙 참고).
+ *
+ * ingredient_rules는 자주 바뀌지 않으므로 서버 프로세스 내에서 5분간 캐싱.
+ */
 let _rulesCache: { keyword: string; risk_level: string; reason_ko: string }[] | null = null;
 let _rulesCacheExpiry = 0;
 
@@ -282,6 +296,7 @@ ${JSON.stringify(matchedIngredients)}
 
 status는 "success", "caution", "danger" 중 하나로 설정해줘.
 ★카페인 음료 필수 규칙★: 녹차, 홍차, 우롱차, 커피, 에너지드링크 등 카페인이 함유된 음료는 카페인 함량이 낮더라도 반드시 "caution" 이상으로 분류해줘. 임산부는 하루 총 카페인 섭취량(200mg 미만 권고)을 관리해야 하기 때문이야.
+★날생선·날해산물 필수 규칙★: 생선회, 회, 날것의 생선, 날새우, 날굴, 날조개, 스시(날것 토핑), 세비체 등 익히지 않은 생선·해산물이 포함된 경우 반드시 "danger"로 분류해줘. 리스테리아균·기생충(아니사키스)·노로바이러스 감염 위험이 있어 임신 중 섭취를 피해야 하기 때문이야.
 ${hasWeekInfo
   ? `현재 사용자는 임신 ${pregnancyWeeks}주차입니다. description은 일반적인 설명으로 작성하고, weekAnalysis 필드에 이 주차의 임산부에게 맞는 맞춤형 섭취 조언을 작성해줘.`
   : `일반적인 임산부 기준으로 섭취 조언을 weekAnalysis에 작성해줘.`}
@@ -409,7 +424,7 @@ export async function POST(req: Request) {
           .eq('cache_key', barcodeCacheKey)
           .then(() => {});
 
-        const result = { ...(cached.result_json as object) };
+        const result = { ...(cached.result_json as object), brand: cached.brand || undefined };
 
         // weekAnalysis는 클라이언트가 /api/analyze/week 엔드포인트로 별도 요청
         // (캐시 히트 시 Gemini를 추가 호출하지 않아 응답 속도 대폭 개선)
@@ -473,6 +488,7 @@ export async function POST(req: Request) {
         const result = await callGeminiBarcode(product, pregnancyWeeks, matchedIngredients, dbSafeProducts);
         normalizeStatus(result);
         console.log(`[analyze] BARCODE_MISS barcode=${barcode} gemini=${Date.now()-_tGemini}ms total=${Date.now()-_t0}ms`);
+        if (product.brand) result.brand = product.brand;
         if (product.imageUrl) result.imageUrl = product.imageUrl;
         result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts, product.productName);
 
@@ -536,6 +552,7 @@ export async function POST(req: Request) {
 
 ★중요★: 어떤 status든 이미지에서 음식/제품을 식별할 수 있다면 productName, headline, description, ingredients, weekAnalysis에 분석 정보를 최대한 작성해줘. 완전히 식별 불가능한 경우에만 description에 그 이유를 짧게 적어줘.
 ★카페인 음료 필수 규칙★: 녹차, 홍차, 우롱차, 커피, 에너지드링크 등 카페인이 함유된 음료는 카페인 함량이 낮더라도 반드시 "caution" 이상으로 분류해줘. 임산부는 하루 총 카페인 섭취량(200mg 미만 권고)을 관리해야 하기 때문이야.
+★날생선·날해산물 필수 규칙★: 생선회, 회, 날것의 생선, 날새우, 날굴, 날조개, 스시(날것 토핑), 세비체 등 익히지 않은 생선·해산물이 포함된 경우 반드시 "danger"로 분류해줘. 리스테리아균·기생충(아니사키스)·노로바이러스 감염 위험이 있어 임신 중 섭취를 피해야 하기 때문이야.
 ${dbAltsHint}
 ${hasWeekInfo
   ? `현재 사용자는 임신 ${pregnancyWeeks}주차입니다. description은 일반적인 임산부 기준으로 작성하고, weekAnalysis 필드에는 임신 ${pregnancyWeeks}주차에 맞는 맞춤형 섭취 조언을 별도로 작성해줘.`

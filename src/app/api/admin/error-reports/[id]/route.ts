@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { analyzeErrorReport } from '@/lib/ai/error-report-analyzer';
 
@@ -100,18 +100,9 @@ export async function POST(req: Request, ctx: RouteContext) {
     return NextResponse.json({ error: 'invalid_id' }, { status: 400 });
   }
 
-  await analyzeErrorReport(reportId);
+  after(() => analyzeErrorReport(reportId));
 
-  // 분석 완료 후 결과 반환
-  const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from('scan_error_reports')
-    .select('id, ai_analysis, ai_confidence, correction_type, ai_analyzed_at')
-    .eq('id', reportId)
-    .single();
-
-  if (error) return NextResponse.json({ error: 'db_error' }, { status: 500 });
-  return NextResponse.json({ success: true, data });
+  return NextResponse.json({ ok: true }, { status: 202 });
 }
 
 /**
