@@ -99,8 +99,8 @@ export default function ScanPage() {
           if (capabilities.focusMode?.includes('continuous')) {
             advanced.push({ focusMode: 'continuous' });
           }
-          if (capabilities.zoom && capabilities.zoom.max >= 1.5) {
-            advanced.push({ zoom: 1.5 });
+          if (capabilities.zoom && capabilities.zoom.max >= 1.3) {
+            advanced.push({ zoom: 1.3 });
           }
           if (advanced.length > 0) {
             await (track.applyConstraints as any)({ advanced });

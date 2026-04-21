@@ -605,7 +605,7 @@ function ResultContent() {
       {/* Bottom Action Panel */}
       <div className="fixed bottom-0 w-full max-w-md left-1/2 -translate-x-1/2 p-4 bg-bg-surface border-t border-border-subtle z-50">
         <div className="flex space-x-3">
-          <Button variant="secondary" className="flex-1" onClick={() => router.push('/history')}>히스토리 보기</Button>
+          <Button variant="secondary" className="flex-1" onClick={() => router.push('/home')}>홈으로</Button>
           <Button className="flex-1" onClick={() => router.push('/scan')}>다른 제품 스캔</Button>
         </div>
       </div>
