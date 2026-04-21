@@ -125,13 +125,23 @@ async function lookupBarcode(barcode: string, supabase: Awaited<ReturnType<typeo
 
 type MatchedIngredient = { name: string; status: string; reason: string };
 
+// ingredient_rules는 자주 바뀌지 않으므로 서버 프로세스 내에서 5분간 캐싱
+let _rulesCache: { keyword: string; risk_level: string; reason_ko: string }[] | null = null;
+let _rulesCacheExpiry = 0;
+
 async function matchIngredientRules(
   supabase: Awaited<ReturnType<typeof createClient>>,
   rawIngredients: string
 ): Promise<MatchedIngredient[]> {
-  const { data: rules } = await supabase
-    .from('ingredient_rules')
-    .select('keyword, risk_level, reason_ko');
+  const now = Date.now();
+  if (!_rulesCache || now > _rulesCacheExpiry) {
+    const { data: rules } = await supabase
+      .from('ingredient_rules')
+      .select('keyword, risk_level, reason_ko');
+    _rulesCache = rules ?? [];
+    _rulesCacheExpiry = now + 5 * 60 * 1000; // 5분
+  }
+  const rules = _rulesCache;
   if (!rules) return [];
 
   const text = rawIngredients.toLowerCase();
@@ -189,7 +199,7 @@ async function callGeminiBarcode(
   const hasDBAlts = dbSafeProducts.length > 0;
 
   const response = await withRetry(() => ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-2.0-flash',
     contents: {
       parts: [
         {
@@ -272,8 +282,9 @@ async function saveUnsupportedLog(
 
 export async function POST(req: Request) {
   try {
-    const { imageBase64, barcode, pregnancyWeeks } = await req.json();
-    const hasWeekInfo = pregnancyWeeks !== undefined && pregnancyWeeks !== null;
+    // pregnancyWeeks는 클라이언트에서 전달할 수도 있고(비캐시 경로 호환),
+    // 생략 시 서버에서 직접 조회 — 클라이언트 auth 대기 없이 즉시 호출 가능하도록
+    const { imageBase64, barcode, pregnancyWeeks: clientWeeks } = await req.json();
 
     if (!imageBase64 && !barcode) {
       return NextResponse.json({ error: 'no_input' }, { status: 400 });
@@ -284,6 +295,15 @@ export async function POST(req: Request) {
     // 현재 유저 (비로그인이면 null)
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id ?? null;
+
+    // pregnancy_weeks: 클라이언트 전달값 우선, 없으면 서버에서 직접 조회
+    let pregnancyWeeks: number | null = clientWeeks ?? null;
+    if (pregnancyWeeks === null && userId) {
+      const { data: prof } = await supabase
+        .from('users').select('pregnancy_weeks').eq('id', userId).single();
+      pregnancyWeeks = prof?.pregnancy_weeks ?? null;
+    }
+    const hasWeekInfo = pregnancyWeeks !== undefined && pregnancyWeeks !== null;
 
     // ── 바코드 우선 분석 (이미지가 함께 있어도 바코드 먼저 시도) ──
     if (barcode) {
@@ -306,24 +326,15 @@ export async function POST(req: Request) {
 
         const result = { ...(cached.result_json as object) };
 
-        // 주차 있으면 weekAnalysis만 경량 재생성
-        if (hasWeekInfo) {
-          try {
-            const weekRes = await withRetry(() => ai.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: {
-                parts: [{
-                  text: `임신 ${pregnancyWeeks}주차 임산부가 "${cached.product_name}"을 섭취할 때 주의사항을 2-3문장으로 작성해줘. JSON: {"weekAnalysis": "..."}`,
-                }],
-              },
-              config: { responseMimeType: 'application/json' },
-            }));
-            const weekData = JSON.parse(weekRes.text?.trim() ?? '{}');
-            if (weekData.weekAnalysis) (result as any).weekAnalysis = weekData.weekAnalysis;
-          } catch {}
-        }
-
-        return NextResponse.json({ success: true, result, fromCache: true });
+        // weekAnalysis는 클라이언트가 /api/analyze/week 엔드포인트로 별도 요청
+        // (캐시 히트 시 Gemini를 추가 호출하지 않아 응답 속도 대폭 개선)
+        return NextResponse.json({
+          success: true,
+          result,
+          fromCache: true,
+          productName: cached.product_name,
+          needsWeekAnalysis: hasWeekInfo,
+        });
       }
 
       // 2. DB MISS → 외부 API 조회
@@ -400,7 +411,7 @@ export async function POST(req: Request) {
       : '\nalternatives는 빈 배열([])로 반환해줘.';
 
     const response = await withRetry(() => ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.0-flash',
       contents: {
         parts: [
           { inlineData: { data: base64Data, mimeType } },

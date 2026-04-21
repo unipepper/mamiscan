@@ -108,29 +108,54 @@ function ResultContent() {
       return;
     }
 
-    // 일반 스캔 진입: 인증 후 분석 API 호출
-    authPromise.then(async ({ user, prof }) => {
-      if (!barcode && !scanImage) {
-        setError('스캔 데이터가 없어요. 다시 촬영해 주세요.');
-        setIsLoading(false);
-        return;
-      }
+    if (!barcode && !scanImage) {
+      setError('스캔 데이터가 없어요. 다시 촬영해 주세요.');
+      setIsLoading(false);
+      return;
+    }
 
+    // 일반 스캔 진입: auth와 분석 API를 병렬로 실행 (auth 대기 없이 즉시 분석 시작)
+    // pregnancy_weeks는 서버에서 직접 조회하므로 클라이언트에서 전달 불필요
+    const analyzePromise = fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        barcode: barcode || null,
+        imageBase64: scanImage || null,
+        // pregnancyWeeks 생략 → 서버에서 인증 유저의 pregnancy_weeks 자동 조회
+      }),
+    });
+
+    authPromise.then(async ({ user, prof }) => {
       try {
-        const res = await fetch('/api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            barcode: barcode || null,
-            imageBase64: scanImage || null,
-            pregnancyWeeks: prof?.pregnancy_weeks ?? null,
-          }),
-        });
+        const res = await analyzePromise;
         if (!res.ok) throw new Error('Server error');
         const data = await res.json();
         if (!data.success) throw new Error(data.message || 'Analysis failed');
 
         const parsedResult = data.result;
+
+        // 캐시 히트 + 임신 주차 있는 경우: 결과를 먼저 보여주고 weekAnalysis를 비동기로 채움
+        if (data.fromCache && data.needsWeekAnalysis && data.productName) {
+          setResult(parsedResult);
+          setIsLoading(false);
+          fetch('/api/analyze/week', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              productName: data.productName,
+              pregnancyWeeks: prof?.pregnancy_weeks,
+            }),
+          })
+            .then(r => r.json())
+            .then(weekData => {
+              if (weekData.weekAnalysis) {
+                setResult((prev: any) => prev ? { ...prev, weekAnalysis: weekData.weekAnalysis } : prev);
+              }
+            })
+            .catch(() => {});
+          return;
+        }
 
         if (!parsedResult.status?.startsWith('error_')) {
           if (!user) {
