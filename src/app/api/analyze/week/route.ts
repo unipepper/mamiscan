@@ -11,13 +11,13 @@ export async function POST(req: Request) {
     }
 
     const res = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: {
         parts: [{
           text: `임신 ${pregnancyWeeks}주차 임산부가 "${productName}"을 섭취할 때 주의사항을 2-3문장으로 작성해줘. JSON: {"weekAnalysis": "..."}`,
         }],
       },
-      config: { responseMimeType: 'application/json' },
+      config: { responseMimeType: 'application/json', thinkingConfig: { thinkingBudget: 0 } },
     });
 
     const data = JSON.parse(res.text?.trim() ?? '{}');

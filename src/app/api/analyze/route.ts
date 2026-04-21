@@ -199,7 +199,7 @@ async function callGeminiBarcode(
   const hasDBAlts = dbSafeProducts.length > 0;
 
   const response = await withRetry(() => ai.models.generateContent({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
     contents: {
       parts: [
         {
@@ -243,6 +243,7 @@ ${hasDBAlts
     config: {
       responseMimeType: 'application/json',
       responseSchema: RESPONSE_SCHEMA,
+      thinkingConfig: { thinkingBudget: 0 },
     },
   }));
   const parsed = JSON.parse(response.text?.trim() ?? '{}');
@@ -411,7 +412,7 @@ export async function POST(req: Request) {
       : '\nalternatives는 빈 배열([])로 반환해줘.';
 
     const response = await withRetry(() => ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       contents: {
         parts: [
           { inlineData: { data: base64Data, mimeType } },
@@ -451,6 +452,7 @@ ${hasWeekInfo
       config: {
         responseMimeType: 'application/json',
         responseSchema: RESPONSE_SCHEMA,
+        thinkingConfig: { thinkingBudget: 0 },
       },
     }));
 
