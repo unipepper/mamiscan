@@ -62,65 +62,84 @@ const RESPONSE_SCHEMA = {
   required: ['status', 'productName', 'headline', 'description', 'ingredients', 'alternatives', 'weekAnalysis'],
 };
 
+/**
+ * 바코드로 제품 정보 조회
+ * 1순위: 식품안전나라 C005(바코드연계제품정보) — 한국 식품 등록률 높음, 원재료 없음
+ * 2순위: OpenFoodFacts — 글로벌 DB, 원재료 포함
+ * 모두 없으면 null → 이미지 분석 폴백
+ */
 async function lookupBarcode(barcode: string, supabase: Awaited<ReturnType<typeof createClient>>) {
-  const key = process.env.FOOD_SAFETY_API_KEY!;
-  const [fsRes, offRes] = await Promise.allSettled([
-    fetch(
-      `https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02?serviceKey=${key}&pageNo=1&numOfRows=3&type=json&BAR_CD=${barcode}`
-    ),
-    fetch(
-      `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,brands,ingredients_text,image_front_small_url`
-    ),
-  ]);
+  const koreaKey = process.env.FOOD_SAFETY_KOREA_API_KEY;
 
-  let imageUrl = '';
-  let offProduct: { productName: string; brand: string; rawIngredients: string } | null = null;
+  // ── 1. 식품안전나라 C005 ──
+  if (koreaKey) {
+    try {
+      const c005Res = await fetch(
+        `https://openapi.foodsafetykorea.go.kr/api/${koreaKey}/C005/json/1/3/BAR_CD=${barcode}`
+      );
+      if (c005Res.ok) {
+        const c005Data = await c005Res.json();
+        const rows = c005Data?.C005?.row;
+        if (rows && rows.length > 0) {
+          const row = rows[0];
+          const productName = row.PRDLST_NM ?? '';
+          const brand = row.BSSH_NM ?? '';
+          const productType = row.PRDLST_DCNM ?? ''; // 제품 분류명 (Gemini 컨텍스트용)
 
-  if (offRes.status === 'fulfilled' && offRes.value.ok) {
-    const offData = await offRes.value.json();
-    const p = offData?.product;
-    if (p) {
-      imageUrl = p.image_front_small_url ?? '';
-      if (p.product_name || p.ingredients_text) {
-        offProduct = {
-          productName: p.product_name ?? '알 수 없는 제품',
-          brand: p.brands ?? '',
-          rawIngredients: p.ingredients_text ?? '',
-        };
+          if (productName) {
+            supabase.from('barcode_items').upsert({
+              barcode,
+              name: productName,
+              brand,
+              ingredients: '', // C005에는 원재료 없음
+            }, { onConflict: 'barcode', ignoreDuplicates: true }).then(() => {});
+
+            return {
+              productName,
+              brand,
+              rawIngredients: '', // 원재료 없음 — Gemini가 제품명 기반으로 분석
+              productType,        // Gemini 프롬프트에 분류 힌트로 전달
+              imageUrl: '',
+            };
+          }
+        }
       }
+    } catch {
+      // C005 실패 시 OpenFoodFacts 폴백
     }
   }
 
-  const fsData = fsRes.status === 'fulfilled' ? await fsRes.value.json() : null;
-  const rows = fsData?.body?.items;
+  // ── 2. OpenFoodFacts ──
+  try {
+    const offRes = await fetch(
+      `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,brands,ingredients_text,image_front_small_url`
+    );
+    if (offRes.ok) {
+      const offData = await offRes.json();
+      const p = offData?.product;
+      if (p && (p.product_name || p.ingredients_text)) {
+        const offProduct = {
+          productName: p.product_name ?? '알 수 없는 제품',
+          brand: p.brands ?? '',
+          rawIngredients: p.ingredients_text ?? '',
+          imageUrl: p.image_front_small_url ?? '',
+        };
 
-  // 한국 DB 우선, 없으면 Open Food Facts 폴백
-  if (!rows || rows.length === 0) {
-    if (!offProduct) return null;
+        supabase.from('barcode_items').upsert({
+          barcode,
+          name: offProduct.productName,
+          brand: offProduct.brand,
+          ingredients: offProduct.rawIngredients,
+        }, { onConflict: 'barcode', ignoreDuplicates: true }).then(() => {});
 
-    supabase.from('barcode_items').upsert({
-      barcode,
-      name: offProduct.productName,
-      brand: offProduct.brand,
-      ingredients: offProduct.rawIngredients,
-    }, { onConflict: 'barcode', ignoreDuplicates: true }).then(() => {});
-
-    return { ...offProduct, imageUrl };
+        return offProduct;
+      }
+    }
+  } catch {
+    // OpenFoodFacts 실패
   }
 
-  const productName = rows[0].FOOD_NM_KR ?? '알 수 없는 제품';
-  const brand = rows[0].MAKER_NM ?? '';
-  const rawIngredients = rows[0].RAWMTRL_NM ?? '';
-
-  // barcode_items 저장 (fire-and-forget, 이미 있으면 무시)
-  supabase.from('barcode_items').upsert({
-    barcode,
-    name: productName,
-    brand,
-    ingredients: rawIngredients,
-  }, { onConflict: 'barcode', ignoreDuplicates: true }).then(() => {});
-
-  return { productName, brand, rawIngredients, imageUrl };
+  return null;
 }
 
 type MatchedIngredient = { name: string; status: string; reason: string };
@@ -193,7 +212,7 @@ function filterAlternatives(
 }
 
 async function callGeminiBarcode(
-  product: { productName: string; brand: string; rawIngredients: string },
+  product: { productName: string; brand: string; rawIngredients: string; productType?: string },
   pregnancyWeeks: number | null,
   matchedIngredients: MatchedIngredient[] = [],
   dbSafeProducts: string[] = []
@@ -210,8 +229,8 @@ async function callGeminiBarcode(
           text: `다음 식품 정보를 바탕으로 임산부가 섭취해도 안전한지 분석해줘.
 
 제품명: ${product.productName}
-제조사: ${product.brand}
-원재료명: ${product.rawIngredients || '정보 없음'}
+제조사: ${product.brand}${product.productType ? `\n식품 분류: ${product.productType}` : ''}
+원재료명: ${product.rawIngredients || '정보 없음 (제품명과 식품 분류를 기반으로 일반적인 성분을 추론해서 분석해줘)'}
 
 ${hasMatched
   ? `★규칙 기반 판정 완료 성분★ (이 판정을 절대 변경하지 말고 ingredients 배열에 그대로 포함해줘):
