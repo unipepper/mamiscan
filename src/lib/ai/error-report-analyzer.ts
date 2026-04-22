@@ -196,13 +196,20 @@ export async function analyzeErrorReport(reportId: number): Promise<void> {
     // 2. products 캐시에서 현재 저장된 분석 결과 조회
     //    detectedBarcode가 있으면 barcode: 키, 없으면 product: 키로 조회
     const detectedBarcode = resultJson?.detectedBarcode as string | undefined;
-    let productRecord: { status: string; result_json: unknown } | null = null;
+    let productRecord: {
+      status: string;
+      result_json: unknown;
+      brand?: string | null;
+      raw_ingredients?: string | null;
+      allergy_info?: string | null;
+      cache_key?: string;
+    } | null = null;
 
     if (detectedBarcode) {
       const cacheKey = `barcode:${detectedBarcode}`;
       const { data } = await supabase
         .from('products')
-        .select('status, result_json')
+        .select('status, result_json, brand, raw_ingredients, allergy_info, cache_key')
         .eq('cache_key', cacheKey)
         .maybeSingle();
       productRecord = data;
@@ -213,7 +220,7 @@ export async function analyzeErrorReport(reportId: number): Promise<void> {
       const normalized = productName.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
       const { data } = await supabase
         .from('products')
-        .select('status, result_json')
+        .select('status, result_json, brand, raw_ingredients, allergy_info, cache_key')
         .eq('cache_key', `product:${normalized}`)
         .maybeSingle();
       productRecord = data;
@@ -266,6 +273,16 @@ export async function analyzeErrorReport(reportId: number): Promise<void> {
     };
 
     // 5. 분석 결과 저장
+    const rescannedResult = productRecord
+      ? {
+          status: productRecord.status,
+          ingredients: (productRecord.result_json as Record<string, unknown>)?.ingredients ?? [],
+          source: 'products_cache',
+          cache_key: productRecord.cache_key,
+          fetched_at: new Date().toISOString(),
+        }
+      : null;
+
     const { error: updateErr } = await supabase
       .from('scan_error_reports')
       .update({
@@ -273,6 +290,7 @@ export async function analyzeErrorReport(reportId: number): Promise<void> {
           diagnosis: parsed.diagnosis,
           evidence: parsed.evidence,
           suggested_changes: parsed.suggested_changes ?? null,
+          rescanned_result: rescannedResult,
         },
         ai_confidence: parsed.confidence,
         correction_type: parsed.correction_type,

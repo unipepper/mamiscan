@@ -4,6 +4,10 @@
     {
       "path": "/api/admin/batch/map-barcodes",
       "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/admin/cleanup/stale-products",
+      "schedule": "0 18 * * *"
     }
   ]
 }

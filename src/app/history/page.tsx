@@ -180,6 +180,14 @@ export default function HistoryPage() {
           </div>
         )}
 
+        {/* 보관 정책 안내 */}
+        {!isLoading && isActive && groupedHistory.length > 0 && (
+          <p className="text-xs text-text-tertiary text-center pb-2">
+            기록은 스캔 후 90일이 지나면 자동으로 사라져요.<br />
+            중요한 결과는 스크린샷으로 저장해두세요.
+          </p>
+        )}
+
         {/* Not logged in */}
         {!isLoading && !authUser && (
           <div className="mt-4 bg-primary/5 border border-primary/20 rounded-xl p-6 text-center">

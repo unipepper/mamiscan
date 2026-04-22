@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Shield } from 'lucide-react';
 
-const EFFECTIVE_DATE = '2026년 4월 17일';
+const EFFECTIVE_DATE = '2026년 4월 22일';
 
 export default function PrivacyPage() {
   const router = useRouter();
@@ -178,9 +178,14 @@ export default function PrivacyPage() {
               </thead>
               <tbody>
                 <tr>
-                  <Td>회원 정보(이메일, 닉네임), 스캔 히스토리, 임신 주차</Td>
+                  <Td>회원 정보(이메일, 닉네임), 임신 주차</Td>
                   <Td>회원 탈퇴 즉시 파기</Td>
                   <Td>목적 달성 즉시 파기 원칙</Td>
+                </tr>
+                <tr>
+                  <Td>스캔 히스토리</Td>
+                  <Td>스캔일로부터 <strong className="text-text-primary">90일</strong> 후 자동 삭제<br />(회원 탈퇴 시 즉시 파기)</Td>
+                  <Td>서비스 운영 정책</Td>
                 </tr>
                 <tr>
                   <Td>결제·거래 기록</Td>
