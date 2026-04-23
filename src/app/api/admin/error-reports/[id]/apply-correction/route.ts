@@ -97,7 +97,9 @@ export async function POST(req: Request, ctx: RouteContext) {
 
   const resultJson = scanHistory.result_json as Record<string, unknown>;
   const detectedBarcode = resultJson?.detectedBarcode as string | undefined;
-  const normalized = scanHistory.product_name.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
+  // 관리자가 올바른 제품명을 입력한 경우 그것으로 cache_key 생성 (Case 2b: 이미지 오분석)
+  const correctedProductName = (changes.productName ?? scanHistory.product_name).trim();
+  const normalized = correctedProductName.toLowerCase().replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
   const cacheKey = detectedBarcode ? `barcode:${detectedBarcode}` : `product:${normalized}`;
 
   // 2. products 현재 row 조회 (오류 제보로 삭제됐을 수 있으므로 없어도 계속 진행)
@@ -129,8 +131,6 @@ export async function POST(req: Request, ctx: RouteContext) {
   if (changes.status !== undefined) updatedResult.status = changes.status;
 
   // 5. products UPSERT (없으면 INSERT, 있으면 UPDATE)
-  const correctedProductName = changes.productName ?? scanHistory.product_name;
-
   const { data: updatedProduct, error: updateErr } = await supabase
     .from('products')
     .upsert({

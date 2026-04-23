@@ -1,6 +1,6 @@
 import { NextResponse, after } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { analyzeErrorReport } from '@/lib/ai/error-report-analyzer';
+import { rescanProduct } from '@/lib/ai/error-report-rescanner';
 
 function createAdminClient() {
   return createSupabaseClient(
@@ -86,7 +86,9 @@ export async function GET(req: Request, ctx: RouteContext) {
 
 /**
  * POST /api/admin/error-reports/[id]
- * AI 분석 수동 재실행 (이미 분석됐어도 덮어씀)
+ * 올바른 제품명으로 Gemini 풀 재스캔 실행 (이미 분석됐어도 덮어씀)
+ *
+ * Body: { product_name: string }
  */
 export async function POST(req: Request, ctx: RouteContext) {
   const secret = req.headers.get('x-admin-secret');
@@ -100,7 +102,19 @@ export async function POST(req: Request, ctx: RouteContext) {
     return NextResponse.json({ error: 'invalid_id' }, { status: 400 });
   }
 
-  after(() => analyzeErrorReport(reportId));
+  let body: { product_name?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
+  }
+
+  const productName = body.product_name?.trim();
+  if (!productName) {
+    return NextResponse.json({ error: 'product_name_required' }, { status: 400 });
+  }
+
+  after(() => rescanProduct(reportId, productName));
 
   return NextResponse.json({ ok: true }, { status: 202 });
 }

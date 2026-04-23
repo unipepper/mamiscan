@@ -126,6 +126,13 @@ export default function HistoryPage() {
           />
         </div>
 
+        {/* 보관 정책 안내 */}
+        {!isLoading && isActive && groupedHistory.length > 0 && (
+          <p className="text-xs text-text-tertiary text-center">
+            기록은 스캔 후 90일이 지나면 자동으로 사라져요. 중요한 결과는 스크린샷으로 저장해두세요.
+          </p>
+        )}
+
         {isLoading && (
           <div className="flex justify-center py-10">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -180,13 +187,6 @@ export default function HistoryPage() {
           </div>
         )}
 
-        {/* 보관 정책 안내 */}
-        {!isLoading && isActive && groupedHistory.length > 0 && (
-          <p className="text-xs text-text-tertiary text-center pb-2">
-            기록은 스캔 후 90일이 지나면 자동으로 사라져요.<br />
-            중요한 결과는 스크린샷으로 저장해두세요.
-          </p>
-        )}
 
         {/* Not logged in */}
         {!isLoading && !authUser && (

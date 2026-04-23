@@ -56,68 +56,40 @@ const ANALYSIS_SCHEMA = {
   required: ['diagnosis', 'evidence', 'confidence', 'correction_type'],
 };
 
-function buildPrompt(params: {
-  reportBody: string;
-  productName: string;
-  productStatus: string;
-  ingredients: unknown;
-  rawIngredients?: string | null;
-}): string {
-  const { reportBody, productName, productStatus, ingredients, rawIngredients } = params;
-
-  const statusLabel: Record<string, string> = {
-    success: '안전 (먹어도 됩니다)',
-    caution: '주의 (적당히 섭취 가능)',
-    danger: '위험 (섭취 자제 권장)',
-  };
-
-  const lines = [
+function buildPrompt(reportBody: string, productName: string): string {
+  return [
     '당신은 임신부 식품 스캐너 앱의 분석 품질 담당자입니다.',
-    '유저 오류 제보를 읽고, 실제 DB 데이터와 비교해 수정이 필요한지 판단하세요.',
+    '아래 유저 제보와 제품명을 바탕으로 임신 중 식품 안전성을 판단하고 스캔 결과 수정 제안을 생성하세요.',
+    '',
+    '[제품명]',
+    productName,
     '',
     '[유저 제보]',
     reportBody,
-    '',
-    '[앱이 보여준 결과]',
-    `제품명: ${productName}`,
-    `판정: ${statusLabel[productStatus] ?? productStatus}`,
-    `성분 분석: ${JSON.stringify(ingredients, null, 2)}`,
-  ];
-
-  if (rawIngredients) {
-    lines.push(
-      '',
-      '[원재료명 원본 (공공데이터 식품안전처 API)]',
-      rawIngredients,
-    );
-  }
-
-  lines.push(
     '',
     '---',
     '',
     '다음 JSON 스키마에 맞게 출력하세요:',
     '- diagnosis: 한 문장 진단 (무엇이 문제인지)',
-    '- evidence: 판단 근거 (구체적인 데이터 인용)',
+    '- evidence: 판단 근거 (제품 특성, 성분, 임신 안전성 기준 인용)',
     '- confidence: "high" | "medium" | "low" | "unclear"',
-    '  · high: 데이터로 명확히 확인 가능한 오류',
+    '  · high: 명확히 판단 가능',
     '  · medium: 개연성은 있지만 확신 불가',
     '  · low: 가능성은 낮으나 배제 불가',
     '  · unclear: 제보 내용이 불명확하거나 판단 불가',
     '- correction_type: 아래 중 하나',
-    '  · "status_change": 판정(safe/caution/danger)이 잘못됨',
+    '  · "status_change": 판정(success/caution/danger)이 잘못됨',
     '  · "ingredient_correction": 특정 성분 분석이 잘못됨',
     '  · "product_name": 제품명이 잘못됨',
-    '  · "unverifiable": 오류는 있을 수 있으나 데이터로 검증 불가',
+    '  · "unverifiable": 판단 불가',
     '  · "user_error": 유저의 오해이며 앱 결과가 정확함',
     '- suggested_changes: correction_type이 "user_error" 또는 "unverifiable"이면 null,',
     '  그 외에는 변경되어야 할 필드만 포함 (status, headline, description, ingredients 중 해당하는 것)',
+    '  status 값은 "success" | "caution" | "danger" 중 하나',
     '',
     '주의: 수정 제안은 임신 중 식품 안전성 기준(CDC/FDA/NHS/ACOG/MFDS)을 따르세요.',
     '확실하지 않으면 more conservative(더 주의하는 방향)으로 판단하세요.',
-  );
-
-  return lines.join('\n');
+  ].join('\n');
 }
 
 /** service_role 클라이언트 (백그라운드 함수용, 쿠키 불필요) */
@@ -157,18 +129,14 @@ export async function analyzeErrorReport(reportId: number): Promise<void> {
   const supabase = createAdminClient();
 
   try {
-    // 1. 제보 + 연결된 스캔 이력 조회
+    // 1. 제보 + 제품명 조회
     const { data: report, error: reportErr } = await supabase
       .from('scan_error_reports')
       .select(`
         id,
         body,
-        scan_history_id,
         scan_history (
-          id,
-          product_name,
-          status,
-          result_json
+          product_name
         )
       `)
       .eq('id', reportId)
@@ -188,68 +156,8 @@ export async function analyzeErrorReport(reportId: number): Promise<void> {
       return;
     }
 
-    const resultJson = scanHistory.result_json as Record<string, unknown>;
-    const productName: string = scanHistory.product_name;
-    const productStatus: string = scanHistory.status;
-    const ingredients = resultJson?.ingredients ?? [];
-
-    // 2. products 캐시에서 현재 저장된 분석 결과 조회
-    //    detectedBarcode가 있으면 barcode: 키, 없으면 product: 키로 조회
-    const detectedBarcode = resultJson?.detectedBarcode as string | undefined;
-    let productRecord: {
-      status: string;
-      result_json: unknown;
-      brand?: string | null;
-      raw_ingredients?: string | null;
-      allergy_info?: string | null;
-      cache_key?: string;
-    } | null = null;
-
-    if (detectedBarcode) {
-      const cacheKey = `barcode:${detectedBarcode}`;
-      const { data } = await supabase
-        .from('products')
-        .select('status, result_json, brand, raw_ingredients, allergy_info, cache_key')
-        .eq('cache_key', cacheKey)
-        .maybeSingle();
-      productRecord = data;
-    }
-
-    if (!productRecord) {
-      // product: 키 또는 product_name으로 fallback 조회
-      const normalized = productName.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
-      const { data } = await supabase
-        .from('products')
-        .select('status, result_json, brand, raw_ingredients, allergy_info, cache_key')
-        .eq('cache_key', `product:${normalized}`)
-        .maybeSingle();
-      productRecord = data;
-    }
-
-    // 3. 바코드 스캔이면 barcode_items에서 원재료명 원본 조회
-    let rawIngredients: string | null = null;
-    if (detectedBarcode) {
-      const { data: barcodeItem } = await supabase
-        .from('barcode_items')
-        .select('ingredients')
-        .eq('barcode', detectedBarcode)
-        .maybeSingle();
-      rawIngredients = barcodeItem?.ingredients ?? null;
-    }
-
-    // 분석 기준: products 캐시 있으면 그것 사용, 없으면 scan_history 데이터 사용
-    const analysisStatus = productRecord?.status ?? productStatus;
-    const analysisIngredients =
-      (productRecord?.result_json as Record<string, unknown>)?.ingredients ?? ingredients;
-
-    // 4. Gemini 2.5 Flash 분석
-    const prompt = buildPrompt({
-      reportBody: report.body,
-      productName,
-      productStatus: analysisStatus,
-      ingredients: analysisIngredients,
-      rawIngredients,
-    });
+    // 2. Gemini 분석 — 제품명 + 제보 내용만 사용
+    const prompt = buildPrompt(report.body, scanHistory.product_name);
 
     const geminiResponse = await withRetry(() =>
       ai.models.generateContent({
@@ -272,17 +180,7 @@ export async function analyzeErrorReport(reportId: number): Promise<void> {
       suggested_changes: Record<string, unknown> | null;
     };
 
-    // 5. 분석 결과 저장
-    const rescannedResult = productRecord
-      ? {
-          status: productRecord.status,
-          ingredients: (productRecord.result_json as Record<string, unknown>)?.ingredients ?? [],
-          source: 'products_cache',
-          cache_key: productRecord.cache_key,
-          fetched_at: new Date().toISOString(),
-        }
-      : null;
-
+    // 3. 분석 결과 저장
     const { error: updateErr } = await supabase
       .from('scan_error_reports')
       .update({
@@ -290,7 +188,6 @@ export async function analyzeErrorReport(reportId: number): Promise<void> {
           diagnosis: parsed.diagnosis,
           evidence: parsed.evidence,
           suggested_changes: parsed.suggested_changes ?? null,
-          rescanned_result: rescannedResult,
         },
         ai_confidence: parsed.confidence,
         correction_type: parsed.correction_type,
