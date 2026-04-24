@@ -100,7 +100,11 @@ export async function POST(req: Request) {
       },
     });
 
-    const raw = response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    const raw = response.text?.trim() ?? '';
+    if (!raw) {
+      console.error('[admin/scans/reanalyze] Gemini returned empty response');
+      return NextResponse.json({ error: 'gemini_empty_response' }, { status: 500 });
+    }
     const parsed = JSON.parse(raw) as {
       status: 'success' | 'caution' | 'danger';
       headline: string;
