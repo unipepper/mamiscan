@@ -425,6 +425,7 @@ export async function POST(req: Request) {
           .then(() => {});
 
         const result = { ...(cached.result_json as object), brand: cached.brand || undefined };
+        if (!cached.raw_ingredients) (result as any).inferred = true;
 
         // weekAnalysis는 클라이언트가 /api/analyze/week 엔드포인트로 별도 요청
         // (캐시 히트 시 Gemini를 추가 호출하지 않아 응답 속도 대폭 개선)
@@ -486,6 +487,7 @@ export async function POST(req: Request) {
 
         const _tGemini = Date.now();
         const result = await callGeminiBarcode(product, pregnancyWeeks, matchedIngredients, dbSafeProducts);
+        if (!product.rawIngredients) result.inferred = true;
         normalizeStatus(result);
         console.log(`[analyze] BARCODE_MISS barcode=${barcode} gemini=${Date.now()-_tGemini}ms total=${Date.now()-_t0}ms`);
         if (product.brand) result.brand = product.brand;
