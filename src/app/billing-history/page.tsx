@@ -49,10 +49,10 @@ export default function BillingHistoryPage() {
   const [scanHistories, setScanHistories] = useState<ScanHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
-  const [expandedIds, setExpandedIds] = useState<Set<string> | null>(null); // null = all expanded
+  const [expandedIds, setExpandedIds] = useState<Set<string> | null>(new Set()); // empty Set = all collapsed
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-  const [refundReason, setRefundReason] = useState<'simple' | 'duplicate'>('simple');
+  const [refundReason, setRefundReason] = useState<'mind_change' | 'not_useful' | 'ux_issue' | 'scan_quality' | 'price' | 'other'>('mind_change');
   const [isRefunding, setIsRefunding] = useState(false);
   const [refundMessage, setRefundMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -378,7 +378,7 @@ export default function BillingHistoryPage() {
                         </div>
                       ) : (
                         <button
-                          onClick={() => { setSelectedTx(tx); setRefundReason('simple'); setRefundMessage(null); setIsRefundModalOpen(true); }}
+                          onClick={() => { setSelectedTx(tx); setRefundReason('mind_change'); setRefundMessage(null); setIsRefundModalOpen(true); }}
                           className="text-xs font-medium text-text-secondary hover:text-text-primary underline underline-offset-2"
                         >
                           환불 요청
@@ -398,7 +398,7 @@ export default function BillingHistoryPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-xl">
             <div className="flex items-center justify-between p-4 border-b border-border-subtle">
-              <h3 className="font-bold text-lg text-text-primary">결제 취소 / 환불</h3>
+              <h3 className="font-bold text-lg text-text-primary">환불 신청</h3>
               <button onClick={() => setIsRefundModalOpen(false)} className="p-1 text-text-secondary hover:text-text-primary">
                 <X className="w-5 h-5" />
               </button>
@@ -421,11 +421,15 @@ export default function BillingHistoryPage() {
               <div className="space-y-3">
                 <p className="text-sm font-bold text-text-primary">환불 사유를 선택해주세요</p>
                 {[
-                  { value: 'simple', label: '단순 변심 / 결제 취소', desc: '첫 사용 전인 경우 즉시 전액 환불됩니다.' },
-                  { value: 'duplicate', label: '중복 결제 / 장애 결제', desc: '운영자 확인 후 전액 환불됩니다. (1~2일 소요)' },
+                  { value: 'mind_change',  label: '단순 변심이에요',            desc: '첫 사용 전인 경우 즉시 전액 환불됩니다.' },
+                  { value: 'not_useful',   label: '기대한 기능과 달랐어요',      desc: '첫 사용 전인 경우 즉시 전액 환불됩니다.' },
+                  { value: 'ux_issue',     label: '앱 이용이 불편해요',          desc: '첫 사용 전인 경우 즉시 전액 환불됩니다.' },
+                  { value: 'scan_quality', label: '스캔 결과가 만족스럽지 않아요', desc: '첫 사용 전인 경우 즉시 전액 환불됩니다.' },
+                  { value: 'price',        label: '가격이 부담돼요',             desc: '첫 사용 전인 경우 즉시 전액 환불됩니다.' },
+                  { value: 'other',        label: '기타',                       desc: '첫 사용 전인 경우 즉시 전액 환불됩니다.' },
                 ].map(({ value, label, desc }) => (
                   <label key={value} className="flex items-start space-x-3 p-3 border border-border-subtle rounded-xl cursor-pointer hover:bg-bg-canvas transition-colors">
-                    <input type="radio" name="refundReason" value={value} checked={refundReason === value} onChange={() => setRefundReason(value as 'simple' | 'duplicate')} className="mt-0.5" />
+                    <input type="radio" name="refundReason" value={value} checked={refundReason === value} onChange={() => setRefundReason(value as 'mind_change' | 'not_useful' | 'ux_issue' | 'scan_quality' | 'price' | 'other')} className="mt-0.5" />
                     <div>
                       <p className="text-sm font-medium text-text-primary">{label}</p>
                       <p className="text-xs text-text-secondary mt-1">{desc}</p>
