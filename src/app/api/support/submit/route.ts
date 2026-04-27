@@ -116,7 +116,7 @@ export async function POST(req: Request) {
         await adminSupabase
           .from('products')
           .delete()
-          .ilike('product_name', history.product_name);
+          .eq('product_name', history.product_name);
       }
 
       const reportId = inserted.id;

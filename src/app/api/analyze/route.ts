@@ -125,7 +125,9 @@ async function lookupBarcode(barcode: string, supabase: Awaited<ReturnType<typeo
               name: productName,
               brand,
               ingredients: haccp?.rawIngredients ?? '',
-            }, { onConflict: 'barcode', ignoreDuplicates: true }).then(() => {});
+            }, { onConflict: 'barcode', ignoreDuplicates: true }).then(({ error }) => {
+              if (error) console.error('[analyze] barcode_items upsert failed (C005):', error);
+            });
 
             return {
               productName,
@@ -165,7 +167,9 @@ async function lookupBarcode(barcode: string, supabase: Awaited<ReturnType<typeo
           name: offProduct.productName,
           brand: offProduct.brand,
           ingredients: offProduct.rawIngredients,
-        }, { onConflict: 'barcode', ignoreDuplicates: true }).then(() => {});
+        }, { onConflict: 'barcode', ignoreDuplicates: true }).then(({ error }) => {
+          if (error) console.error('[analyze] barcode_items upsert failed (OFF):', error);
+        });
 
         return offProduct;
       }
@@ -422,7 +426,9 @@ export async function POST(req: Request) {
           .from('products')
           .update({ hit_count: (cached.hit_count ?? 0) + 1 })
           .eq('cache_key', barcodeCacheKey)
-          .then(() => {});
+          .then(({ error }) => {
+            if (error) console.error('[analyze] hit_count update failed (barcode):', error);
+          });
 
         const result = { ...(cached.result_json as object), brand: cached.brand || undefined };
         if (!cached.raw_ingredients) (result as any).inferred = true;
@@ -602,7 +608,10 @@ ${hasWeekInfo
 
       if (existingCache && existingCache.result_json !== null) {
         supabase.from('products').update({ hit_count: (existingCache.hit_count ?? 0) + 1 })
-          .eq('cache_key', existingCache.cache_key).then(() => {});
+          .eq('cache_key', existingCache.cache_key)
+          .then(({ error }) => {
+            if (error) console.error('[analyze] hit_count update failed (image):', error);
+          });
         const cachedResult = { ...(existingCache.result_json as object) };
         if (detectedBarcode) (cachedResult as any).detectedBarcode = detectedBarcode;
         console.log(`[analyze] IMAGE_CACHE_HIT key=${existingCache.cache_key} total=${Date.now()-_t0}ms`);
@@ -658,10 +667,12 @@ ${hasWeekInfo
               supabase.from('products')
                 .update({ result_json: updatedJson })
                 .eq('cache_key', `barcode:${detectedBarcode}`)
-                .then(() => {});
+                .then(({ error }) => {
+                  if (error) console.error('[analyze] products image-url update failed:', error);
+                });
             }
           })
-          .catch(() => {});
+          .catch((e: unknown) => console.error('[analyze] lookupBarcode post-save failed:', e));
       } else {
         // 바코드 미인식: 제품명 기반 키
         const { error: upsertError2 } = await supabase.from('products').upsert({

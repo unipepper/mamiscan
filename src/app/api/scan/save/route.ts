@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { deductScan } from '@/lib/entitlement';
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -9,102 +10,12 @@ export async function POST(req: Request) {
   const { productName, status, resultJson, imageBase64 } = await req.json();
 
   // ── 1. 이용권 차감 ──────────────────────────────────────────────
-  const now = new Date().toISOString();
-
-  // 활성 무제한 이용권
-  const { data: activeSub } = await supabase
-    .from('user_entitlements')
-    .select('id, expires_at')
-    .eq('user_id', user.id)
-    .eq('type', 'monthly')
-    .eq('status', 'active')
-    .gt('expires_at', now)
-    .maybeSingle();
-
-  let entitlementId: string;
-  let usageType: 'subscription' | 'scan';
-  let usageDescription: string;
-
-  if (activeSub) {
-    entitlementId = activeSub.id;
-    usageType = 'subscription';
-    usageDescription = '스캔 사용 (무제한)';
-  } else {
-    // 2. 대기 중인 무제한 이용권 확인
-    const { data: pendingSub } = await supabase
-      .from('user_entitlements')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('type', 'monthly')
-      .eq('status', 'pending')
-      .maybeSingle();
-
-    // 3. 무제한 이용권 없을 때: pause된 스캔권 복원
-    if (!pendingSub) {
-      await supabase
-        .from('user_entitlements')
-        .update({ status: 'active' })
-        .eq('user_id', user.id)
-        .in('type', ['scan5', 'trial', 'admin'])
-        .eq('status', 'pending')
-        .gt('expires_at', now)
-        .gt('scan_count', 0);
-    }
-
-    // 4. FIFO: 만료 임박 순으로 횟수권 차감
-    const { data: scanRights } = await supabase
-      .from('user_entitlements')
-      .select('id, scan_count')
-      .eq('user_id', user.id)
-      .in('type', ['scan5', 'trial', 'admin'])
-      .eq('status', 'active')
-      .gt('expires_at', now)
-      .gt('scan_count', 0)
-      .order('expires_at', { ascending: true })
-      .limit(1);
-
-    if (!scanRights || scanRights.length === 0) {
-      // 5. 스캔권 없음 → 대기 중인 무제한 이용권 첫 스캔으로 활성화
-      if (!pendingSub) {
-        return NextResponse.json({ error: 'no_scans' }, { status: 403 });
-      }
-
-      const startedAt = new Date();
-      const expiresAt = new Date(startedAt);
-      expiresAt.setDate(expiresAt.getDate() + 30);
-
-      await supabase
-        .from('user_entitlements')
-        .update({ status: 'active', started_at: startedAt.toISOString(), expires_at: expiresAt.toISOString() })
-        .eq('id', pendingSub.id);
-
-      // 무제한 활성화 시 활성 스캔권 모두 pause
-      await supabase
-        .from('user_entitlements')
-        .update({ status: 'pending' })
-        .eq('user_id', user.id)
-        .in('type', ['scan5', 'trial', 'admin'])
-        .eq('status', 'active');
-
-      entitlementId = pendingSub.id;
-      usageType = 'subscription';
-      usageDescription = '스캔 사용 (무제한 첫 사용)';
-    } else {
-      const scanRight = scanRights[0];
-      const { error: updateError } = await supabase
-        .from('user_entitlements')
-        .update({ scan_count: scanRight.scan_count! - 1 })
-        .eq('id', scanRight.id);
-
-      if (updateError) {
-        return NextResponse.json({ error: 'db_error' }, { status: 500 });
-      }
-
-      entitlementId = scanRight.id;
-      usageType = 'scan';
-      usageDescription = '스캔 사용';
-    }
+  const deductResult = await deductScan(supabase, user.id);
+  if (!deductResult.ok) {
+    return NextResponse.json({ error: deductResult.error }, { status: deductResult.status });
   }
+
+  const { entitlementId, type: usageType, description: usageDescription } = deductResult;
 
   // ── 2. scan_history INSERT ──────────────────────────────────────
   const { data: inserted, error: insertError } = await supabase

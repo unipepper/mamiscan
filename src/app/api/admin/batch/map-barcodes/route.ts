@@ -96,7 +96,9 @@ export async function POST(req: Request) {
     supabase.from('products')
       .update({ barcode })
       .eq('cache_key', entry.cache_key)
-      .then(() => {});
+      .then(({ error }) => {
+        if (error) console.error('[map-barcodes] products barcode update failed:', error);
+      });
 
     mapped++;
   }
