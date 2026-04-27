@@ -120,13 +120,13 @@ async function lookupBarcode(barcode: string, supabase: Awaited<ReturnType<typeo
             // HACCP API: 품목보고번호로 원재료 + 알레르기 + 이미지 조회
             const haccp = await lookupHaccp(reportNo);
 
-            supabase.from('barcode_items').upsert({
+            supabase.from('catalog_items').upsert({
               barcode,
               name: productName,
               brand,
               ingredients: haccp?.rawIngredients ?? '',
             }, { onConflict: 'barcode', ignoreDuplicates: true }).then(({ error }) => {
-              if (error) console.error('[analyze] barcode_items upsert failed (C005):', error);
+              if (error) console.error('[analyze] catalog_items upsert failed (C005):', error);
             });
 
             return {
@@ -162,13 +162,13 @@ async function lookupBarcode(barcode: string, supabase: Awaited<ReturnType<typeo
           imageUrl: p.image_front_small_url ?? '',
         };
 
-        supabase.from('barcode_items').upsert({
+        supabase.from('catalog_items').upsert({
           barcode,
           name: offProduct.productName,
           brand: offProduct.brand,
           ingredients: offProduct.rawIngredients,
         }, { onConflict: 'barcode', ignoreDuplicates: true }).then(({ error }) => {
-          if (error) console.error('[analyze] barcode_items upsert failed (OFF):', error);
+          if (error) console.error('[analyze] catalog_items upsert failed (OFF):', error);
         });
 
         return offProduct;

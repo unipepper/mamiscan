@@ -8,7 +8,7 @@ async function findBarcodeInDB(
   productName: string
 ): Promise<string | null> {
   const { data } = await supabase
-    .from('barcode_items')
+    .from('catalog_items')
     .select('barcode')
     .ilike('name', `%${productName}%`)
     .limit(1)
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
     const productName = entry.product_name;
     if (!productName) { skipped++; continue; }
 
-    // 1순위: barcode_items 테이블
+    // 1순위: catalog_items 테이블
     let barcode = await findBarcodeInDB(supabase, productName);
 
     // 2순위: 식품안전나라 Open API
