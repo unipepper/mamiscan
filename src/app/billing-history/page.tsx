@@ -53,6 +53,7 @@ export default function BillingHistoryPage() {
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [refundReason, setRefundReason] = useState<'mind_change' | 'not_useful' | 'ux_issue' | 'scan_quality' | 'price' | 'other'>('mind_change');
+  const [refundDetail, setRefundDetail] = useState('');
   const [isRefunding, setIsRefunding] = useState(false);
   const [refundMessage, setRefundMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -85,7 +86,7 @@ export default function BillingHistoryPage() {
       const res = await fetch('/api/user/refund', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionId: selectedTx.id, reason: refundReason }),
+        body: JSON.stringify({ transactionId: selectedTx.id, reason: refundReason, detail: refundDetail.trim() || undefined }),
       });
       const data = await res.json();
       if (data.success) {
@@ -378,7 +379,7 @@ export default function BillingHistoryPage() {
                         </div>
                       ) : (
                         <button
-                          onClick={() => { setSelectedTx(tx); setRefundReason('mind_change'); setRefundMessage(null); setIsRefundModalOpen(true); }}
+                          onClick={() => { setSelectedTx(tx); setRefundReason('mind_change'); setRefundDetail(''); setRefundMessage(null); setIsRefundModalOpen(true); }}
                           className="text-xs font-medium text-text-secondary hover:text-text-primary underline underline-offset-2"
                         >
                           환불 요청
@@ -420,21 +421,52 @@ export default function BillingHistoryPage() {
               </div>
               <div className="space-y-3">
                 <p className="text-sm font-bold text-text-primary">환불 사유를 선택해주세요</p>
-                {[
-                  { value: 'mind_change',  label: '단순 변심이에요',            desc: '첫 사용 전인 경우 즉시 전액 환불됩니다.' },
-                  { value: 'not_useful',   label: '기대한 기능과 달랐어요',      desc: '첫 사용 전인 경우 즉시 전액 환불됩니다.' },
-                  { value: 'ux_issue',     label: '앱 이용이 불편해요',          desc: '첫 사용 전인 경우 즉시 전액 환불됩니다.' },
-                  { value: 'scan_quality', label: '스캔 결과가 만족스럽지 않아요', desc: '첫 사용 전인 경우 즉시 전액 환불됩니다.' },
-                  { value: 'price',        label: '가격이 부담돼요',             desc: '첫 사용 전인 경우 즉시 전액 환불됩니다.' },
-                  { value: 'other',        label: '기타',                       desc: '첫 사용 전인 경우 즉시 전액 환불됩니다.' },
-                ].map(({ value, label, desc }) => (
-                  <label key={value} className="flex items-start space-x-3 p-3 border border-border-subtle rounded-xl cursor-pointer hover:bg-bg-canvas transition-colors">
-                    <input type="radio" name="refundReason" value={value} checked={refundReason === value} onChange={() => setRefundReason(value as 'mind_change' | 'not_useful' | 'ux_issue' | 'scan_quality' | 'price' | 'other')} className="mt-0.5" />
-                    <div>
+                {([
+                  { value: 'mind_change',  label: '단순 변심',            subs: null },
+                  { value: 'not_useful',   label: '기능 불일치',      subs: [
+                    { value: 'db_coverage',      label: '스캔 가능한 제품이 너무 적어요' },
+                    { value: 'analysis_shallow', label: '성분 분석 내용이 너무 단순해요' },
+                    { value: 'no_personalization', label: '아이 월령/나이에 맞는 정보가 없어요' },
+                    { value: 'allergy_lacking',  label: '알레르기 정보가 부족해요' },
+                    { value: 'competitor_has_it', label: '비슷한 앱에서 이미 제공하는 기능이에요' },
+                  ]},
+                  { value: 'ux_issue',     label: '이용 불편',          subs: [
+                    { value: 'scan_fails',   label: '바코드 스캔이 잘 안 돼요' },
+                    { value: 'ui_complex',   label: '화면 구성이 복잡해요' },
+                    { value: 'hard_to_find', label: '원하는 정보를 찾기 어려워요' },
+                    { value: 'app_slow',     label: '앱이 느리거나 자주 멈춰요' },
+                  ]},
+                  { value: 'scan_quality', label: '스캔 결과 불만족', subs: null },
+                  { value: 'price',        label: '가격 부담',       subs: null },
+                  { value: 'other',        label: '기타',                        subs: null },
+                ] as const).map(({ value, label, subs }) => (
+                  <div key={value}>
+                    <label className="flex items-center space-x-3 p-3 border border-border-subtle rounded-xl cursor-pointer hover:bg-bg-canvas transition-colors">
+                      <input type="radio" name="refundReason" value={value} checked={refundReason === value} onChange={() => { setRefundReason(value as 'mind_change' | 'not_useful' | 'ux_issue' | 'scan_quality' | 'price' | 'other'); setRefundDetail(''); }} />
                       <p className="text-sm font-medium text-text-primary">{label}</p>
-                      <p className="text-xs text-text-secondary mt-1">{desc}</p>
-                    </div>
-                  </label>
+                    </label>
+                    {refundReason === value && subs && (
+                      <div className="mt-2 ml-4 space-y-2">
+                        <p className="text-xs text-text-secondary">어떤 점이 아쉬우셨나요? <span className="text-text-disabled">(선택사항)</span></p>
+                        {subs.map(sub => (
+                          <label key={sub.value} className="flex items-center space-x-2.5 px-3 py-2.5 border border-border-subtle rounded-lg cursor-pointer hover:bg-bg-canvas transition-colors">
+                            <input type="radio" name="refundDetail" value={sub.value} checked={refundDetail === sub.value} onChange={() => setRefundDetail(sub.value)} />
+                            <p className="text-sm text-text-primary">{sub.label}</p>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    {refundReason === value && value === 'other' && (
+                      <textarea
+                        value={refundDetail}
+                        onChange={e => setRefundDetail(e.target.value)}
+                        placeholder="어떤 점이 아쉬우셨나요? (선택사항)"
+                        maxLength={300}
+                        rows={3}
+                        className="mt-2 w-full text-sm text-text-primary placeholder:text-text-secondary bg-bg-canvas border border-border-subtle rounded-xl px-3 py-2 resize-none focus:outline-none focus:border-primary"
+                      />
+                    )}
+                  </div>
                 ))}
               </div>
               <div className="bg-neutral-bg rounded-lg p-3 flex items-start space-x-2">
