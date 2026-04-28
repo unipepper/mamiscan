@@ -7,6 +7,7 @@ import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { compressForAnalysis } from '@/lib/compressImage';
+import { pendingAnalyze } from '@/lib/pendingAnalyze';
 
 interface UserProfile {
   isActive: boolean;
@@ -148,7 +149,14 @@ export default function ScanPage() {
                     if (cropped) sessionStorage.setItem('scanImage', cropped);
                   }
                 } catch {}
-                setTimeout(() => router.push('/result?barcode=' + encodeURIComponent(barcode)), 1500);
+                // 감지 즉시 분석 API 프리페치 — result 페이지에서 재사용해 대기 시간 단축
+                pendingAnalyze.promise = fetch('/api/analyze', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ barcode }),
+                });
+                pendingAnalyze.barcode = barcode;
+                setTimeout(() => router.push('/result?barcode=' + encodeURIComponent(barcode)), 300);
               }
               if (err && !(err instanceof NotFoundException)) {
                 if (err.message?.includes('Video stream has ended')) return;

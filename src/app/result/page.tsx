@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
 import { compressThumbnail } from '@/lib/compressImage';
+import { pendingAnalyze } from '@/lib/pendingAnalyze';
 import { Suspense } from 'react';
+import LoadingTips from '@/components/LoadingTips';
 
 function cleanBrand(brand: string): string {
   return brand
@@ -128,15 +130,18 @@ function ResultContent() {
     }
 
     // 일반 스캔 진입: auth와 분석 API를 병렬로 실행 (auth 대기 없이 즉시 분석 시작)
-    // pregnancy_weeks는 서버에서 직접 조회하므로 클라이언트에서 전달 불필요
-    const analyzePromise = fetch('/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        barcode: barcode || null,
-        imageBase64: scanImage || null,
-      }),
-    });
+    // 바코드 경로는 scan 페이지에서 감지 즉시 프리페치를 시작했으므로 재사용
+    const hasPrefetch = barcode && pendingAnalyze.barcode === barcode && pendingAnalyze.promise;
+    const analyzePromise = hasPrefetch
+      ? pendingAnalyze.promise!.finally(() => { pendingAnalyze.promise = null; pendingAnalyze.barcode = null; })
+      : fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            barcode: barcode || null,
+            imageBase64: scanImage || null,
+          }),
+        });
 
     // analyze 결과를 auth 완료 기다리지 않고 즉시 처리 → 결과 화면 빠르게 표시
     // scan save / weekAnalysis 등 auth 필요한 작업은 auth 완료 후 백그라운드 처리
@@ -285,7 +290,11 @@ function ResultContent() {
     return (
       <div className="flex flex-col flex-1 bg-bg-canvas items-center justify-center min-h-screen">
         <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-        <p className="text-text-primary font-medium">식료품을 분석하고 있어요...</p>
+        <p className="text-text-primary font-medium mb-6">식료품을 분석하고 있어요...</p>
+        <div className="w-full max-w-xs border-t border-border-subtle pt-6">
+          <p className="text-xs text-text-tertiary text-center mb-4 font-medium">임산부 건강 정보</p>
+          <LoadingTips />
+        </div>
       </div>
     );
   }
