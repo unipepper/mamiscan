@@ -243,7 +243,6 @@ export default function ScanPage() {
             const barcode = result.getText();
             setTimeout(() => router.push('/result?barcode=' + encodeURIComponent(barcode)), 1500);
           } catch {
-            setToastMessage('바코드를 찾지 못해 식료품 AI 분석으로 전환합니다.');
             // 앨범 이미지는 풀 해상도 → Vercel 4.5MB 제한 초과 방지를 위해 압축 후 저장
             compressForAnalysis(dataUrl)
               .then(compressed => sessionStorage.setItem('scanImage', compressed))

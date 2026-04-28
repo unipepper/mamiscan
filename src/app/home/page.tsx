@@ -140,7 +140,7 @@ export default function HomePage() {
               지금 먹어도 되는지<br />바로 확인해보세요
             </h1>
             <p className="text-sm text-text-secondary mb-5 max-w-[240px]">
-              임산부 기준 성분 분석부터 안전한 대체 제품 추천까지 5초면 충분해요.
+              임산부 기준 성분 분석부터<br />안전한 대체 제품 추천까지 5초면 충분해요.
             </p>
             <Button className="w-full h-12 text-base font-semibold shadow-md" onClick={() => router.push('/scan')}>
               <Scan className="mr-2 h-5 w-5" />
@@ -184,7 +184,7 @@ export default function HomePage() {
         <div className="text-center space-y-3">
           <h2 className="text-[18px] font-bold text-text-primary">믿을 수 있는 데이터 기준</h2>
           <p className="text-sm text-text-secondary px-4">
-            식약처(MFDS), 미국 FDA, CDC 등 공신력 있는 기관의 임산부 가이드라인을 바탕으로 분석합니다.
+            식약처(MFDS), 미국 FDA, CDC 등<br />공신력 있는 기관의 임산부 가이드라인을 바탕으로 분석합니다.
           </p>
           <div className="flex justify-center items-center space-x-6 pt-3 opacity-50 grayscale">
             <div className="font-bold text-xl">MFDS</div>

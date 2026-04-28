@@ -11,6 +11,12 @@ import { pendingAnalyze } from '@/lib/pendingAnalyze';
 import { Suspense } from 'react';
 import LoadingTips from '@/components/LoadingTips';
 
+function splitHeadline(headline: string): React.ReactNode {
+  const match = headline.match(/^(.+?(?:므로|어서|아서|이라서|해서|니까|으니까|아|어))\s+(.+)$/);
+  if (match) return <>{match[1]}<br />{match[2]}</>;
+  return headline;
+}
+
 function cleanBrand(brand: string): string {
   return brand
     .replace(/^주식회사\s+/i, '')
@@ -288,13 +294,17 @@ function ResultContent() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col flex-1 bg-bg-canvas items-center justify-center min-h-screen">
-        <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-        <p className="text-text-primary font-medium mb-6">식료품을 분석하고 있어요...</p>
-        <div className="w-full max-w-xs border-t border-border-subtle pt-6">
-          <p className="text-xs text-text-tertiary text-center mb-4 font-medium">임산부 건강 정보</p>
-          <LoadingTips />
+      <div className="flex flex-col flex-1 bg-bg-canvas items-center justify-center min-h-screen px-6">
+        <div className="flex items-center gap-1.5 mb-8">
+          {[0, 1, 2].map(i => (
+            <span
+              key={i}
+              className="w-2 h-2 rounded-full bg-text-tertiary animate-bounce"
+              style={{ animationDelay: `${i * 150}ms` }}
+            />
+          ))}
         </div>
+        <LoadingTips />
       </div>
     );
   }
@@ -326,7 +336,7 @@ function ResultContent() {
     const errorConfig: Record<string, { head: string; body: string; primaryLabel: string; primaryAction: () => void; secondaryLabel?: string; secondaryAction?: () => void }> = {
       error_future_category: {
         head: '아직 이 제품은 확인하기 어려워요',
-        body: '이 카테고리는 아직 준비 중이에요. 곧 지원할게요!',
+        body: '화장품은 곧 정식 지원할게요!',
         primaryLabel: '다른 제품 스캔하기',
         primaryAction: () => router.push('/scan'),
         secondaryLabel: '홈으로',
@@ -412,7 +422,7 @@ function ResultContent() {
                 </h3>
                 <p className="text-xs text-text-secondary leading-relaxed">
                   {result.status === 'error_food_estimate' ? '아래 정보는 참고용으로만 활용해주세요. 더 정확한 분석은 포장지가 보이도록 다시 찍어주세요.' :
-                    result.status === 'error_future_category' ? '아래 정보는 AI 추정 기반 참고용이에요. 곧 정식 지원할게요!' :
+                    result.status === 'error_future_category' ? '아래 정보는 참고용이에요. 곧 화장품도 정식 지원할게요!' :
                     result.status === 'error_unsupported_category' ? '처방약은 성분 기준이 달라요. 담당 의료진에게 문의하세요.' :
                     result.status === 'error_image_quality' ? '제품 하나만 가까이서, 밝은 곳에서 다시 찍어주시면 더 정확해요.' :
                     '이미지 기반으로 분석한 참고용 정보예요. 정확한 확인은 다시 스캔해 주세요.'}
@@ -453,11 +463,11 @@ function ResultContent() {
                   </div>
                 )}
               </div>
-              <h1 className={`text-[24px] leading-[32px] font-bold mb-1 ${
+              <h1 className={`text-[24px] leading-[32px] font-bold mb-1 break-keep ${
                 isError ? 'text-text-primary' :
                 result.status === 'success' ? 'text-success-fg' :
                 result.status === 'danger' ? 'text-danger-fg' : 'text-caution-fg'
-              }`}>{result.headline}</h1>
+              }`}>{splitHeadline(result.headline)}</h1>
               <p className={`text-sm font-medium ${displayImageSrc ? 'mb-3' : 'mb-4'} ${
                 isError ? 'text-text-secondary' :
                 result.status === 'success' ? 'text-success-fg/70' :
@@ -476,7 +486,11 @@ function ResultContent() {
                 </div>
               )}
 
-              <p className="text-sm text-text-primary leading-[1.75]">{result.description}</p>
+              <div className="space-y-2.5">
+                {result.description.split('\n').filter(Boolean).map((line: string, i: number) => (
+                  <p key={i} className="text-sm text-text-primary leading-[1.75] break-keep">{line}</p>
+                ))}
+              </div>
 
               {hasWeekInfo && result.weekAnalysis && (
                 <div className="mt-4 pt-4 border-t border-black/10 space-y-1.5">
@@ -484,7 +498,7 @@ function ResultContent() {
                     <span className="text-sm">✨</span>
                     <p className="text-xs font-bold text-primary">임신 {pregnancyWeeks}주차 맞춤 조언</p>
                   </div>
-                  <p className="text-sm text-text-primary leading-[1.75]">{result.weekAnalysis}</p>
+                  <p className="text-sm text-text-primary leading-[1.75] break-keep">{result.weekAnalysis}</p>
                 </div>
               )}
 
@@ -557,7 +571,7 @@ function ResultContent() {
                               </div>
                             </div>
                             <div className="bg-neutral-bg rounded-lg p-3 mt-3">
-                              <p className="text-sm text-text-secondary leading-relaxed">{ingredient.reason}</p>
+                              <p className="text-sm text-text-secondary leading-relaxed break-keep">{ingredient.reason}</p>
                             </div>
                           </CardContent>
                         </Card>

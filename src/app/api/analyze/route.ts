@@ -97,6 +97,57 @@ async function lookupHaccp(reportNo: string): Promise<{ rawIngredients: string; 
   }
 }
 
+async function lookupHaccpByName(productName: string): Promise<{ rawIngredients: string; allergyInfo: string; imageUrl: string } | null> {
+  const haccpKey = process.env.FOOD_SAFETY_API_KEY;
+  if (!haccpKey || !productName) return null;
+  try {
+    const encodedKey = encodeURIComponent(haccpKey);
+    const encodedName = encodeURIComponent(productName);
+    const res = await fetch(
+      `https://apis.data.go.kr/B553748/CertImgListServiceV3/getCertImgListServiceV3?serviceKey=${encodedKey}&prdlstNm=${encodedName}&pageNo=1&numOfRows=3`
+    );
+    if (!res.ok) return null;
+    const xml = await res.text();
+    if (!xml.includes('<item>')) return null;
+    const rawIngredients = extractXmlTag(xml, 'rawmtrl');
+    if (!rawIngredients) return null;
+    return {
+      rawIngredients,
+      allergyInfo: extractXmlTag(xml, 'allergy'),
+      imageUrl:    extractXmlTag(xml, 'imgurl1'),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function extractProductNameFromImage(base64Data: string, mimeType: string): Promise<string> {
+  try {
+    const res = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: {
+        parts: [
+          { inlineData: { data: base64Data, mimeType } },
+          { text: '이 이미지에서 제품명만 추출해줘. 한국어 제품이면 한국어로, 외국 제품이면 원래 표기대로. 제품이 보이지 않으면 빈 문자열.' },
+        ],
+      },
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: { productName: { type: Type.STRING } },
+          required: ['productName'],
+        },
+        thinkingConfig: { thinkingBudget: 0 },
+      },
+    });
+    const parsed = JSON.parse(res.text?.trim() ?? '{}');
+    return (parsed.productName as string) ?? '';
+  } catch {
+    return '';
+  }
+}
+
 async function lookupBarcode(barcode: string, supabase: Awaited<ReturnType<typeof createClient>>) {
   const koreaKey = process.env.FOOD_SAFETY_KOREA_API_KEY;
 
@@ -315,8 +366,8 @@ ${hasDBAlts
   "status": "success" | "caution" | "danger",
   "productName": "${product.productName}",
   "headline": "요약 헤드라인 (주의/위험 성분명 직접 언급 절대 금지)",
-  "description": "임산부 섭취와 관련된 전반적인 설명",
-  "ingredients": [{ "name": "주요 성분/특징", "status": "success" | "caution" | "danger", "reason": "이유" }],
+  "description": "임산부 섭취 관련 핵심 포인트 2~3가지를 \\n으로 구분해서 작성해줘. 각 포인트는 1~2문장으로, 수치·근거를 포함해줘. 예: '카페인이 60mg 함유되어 있어요. 임산부 하루 권고량(200mg)의 30% 수준이에요.\\n타우린은 에너지 음료에 고용량으로 들어가며, 임산부 안전성 연구가 부족해요.'",
+  "ingredients": [{ "name": "성분명 (구체적인 이름)", "status": "success" | "caution" | "danger", "reason": "구체적인 수치·성분명 포함 설명. 예: '1회 제공량당 설탕 12g 함유. WHO 하루 첨가당 권고량(25g)의 48% 수준으로 혈당 관리에 주의가 필요해요.' / '타우린 1,000mg 함유. 임산부 대상 안전성 연구가 부족해 과도한 섭취는 피하는 게 좋아요.' — 수치 정보가 없을 땐 구체적인 성분명과 작용 기전을 명시해줘." }],
   "alternatives": [{ "name": "대체 식품 이름", "brand": "브랜드명", "price": "예상 가격대" }],
   "weekAnalysis": "임신 주차에 따른 섭취 조언"
 }`,
@@ -535,6 +586,45 @@ export async function POST(req: Request) {
     const dbSafeProducts: string[] = !barcode
       ? (prefetchData as string[])
       : await getDBSafeProducts(supabase);
+
+    // ── Phase 1: 제품명 추출 → HACCP 이름 검색 → 원재료 확보 시 텍스트 분석으로 전환 ──
+    const _tPhase1 = Date.now();
+    const extractedName = await extractProductNameFromImage(base64Data, mimeType);
+    const haccpByName = extractedName ? await lookupHaccpByName(extractedName) : null;
+    console.log(`[analyze] IMAGE phase1 name="${extractedName}" haccp=${!!haccpByName} elapsed=${Date.now()-_tPhase1}ms`);
+
+    if (haccpByName?.rawIngredients) {
+      const product = {
+        productName: extractedName,
+        brand: '',
+        rawIngredients: haccpByName.rawIngredients,
+        allergyInfo: haccpByName.allergyInfo,
+        imageUrl: haccpByName.imageUrl,
+      };
+      const matchedIngredients = await matchIngredientRules(supabase, haccpByName.rawIngredients);
+      const _tGemini = Date.now();
+      const result = await callGeminiBarcode(product, pregnancyWeeks, matchedIngredients, dbSafeProducts);
+      normalizeStatus(result);
+      result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts, extractedName);
+      if (product.imageUrl) result.imageUrl = product.imageUrl;
+      console.log(`[analyze] IMAGE_HACCP_HIT name="${extractedName}" gemini=${Date.now()-_tGemini}ms total=${Date.now()-_t0}ms`);
+
+      const saveResult = { ...result };
+      delete saveResult.weekAnalysis;
+      delete saveResult.imageUrl;
+      await supabase.from('products').upsert({
+        cache_key: `product:${normalizeProductName(extractedName)}`,
+        product_name: extractedName,
+        raw_ingredients: haccpByName.rawIngredients,
+        allergy_info: haccpByName.allergyInfo || null,
+        result_json: saveResult,
+        status: result.status,
+        hit_count: 0,
+      }, { onConflict: 'cache_key' });
+
+      return NextResponse.json({ success: true, result });
+    }
+
     const dbAltsHint = dbSafeProducts.length > 0
       ? `\n★대체 제품 제약★: 아래는 실제로 안전 판정을 받은 제품 목록이야. alternatives는 반드시 이 목록에 있는 제품 이름만 사용해줘. 목록에 관련 제품이 없으면 alternatives를 빈 배열([])로 반환해줘. 절대 목록 외의 제품을 만들어 넣지 마.\n[${dbSafeProducts.join(', ')}]`
       : '\nalternatives는 빈 배열([])로 반환해줘.';
@@ -570,8 +660,8 @@ ${hasWeekInfo
   "status": "success" | "caution" | "danger" | "error_food_estimate" | "error_future_category" | "error_unsupported_category" | "error_image_quality" | "error_db_mismatch",
   "productName": "식별된 음식/제품 이름 (식별 불가시 '알 수 없음')",
   "headline": "요약 헤드라인 (주의/위험 성분명 직접 언급 절대 금지. 예: 안심하고 드셔도 좋아요, 주의가 필요한 성분이 있어요 등)",
-  "description": "임산부 섭취와 관련된 전반적인 설명 (주의/위험 성분명 직접 언급 절대 금지. 식별 불가시 그 이유를 짧게 작성. 예: '너무 어두워요', '여러 제품이 찍혔어요')",
-  "ingredients": [{ "name": "주요 성분/특징 1", "status": "success" | "caution" | "danger", "reason": "이유" }],
+  "description": "임산부 섭취 관련 핵심 포인트 2~3가지를 \\n으로 구분해서 작성해줘. 각 포인트는 1~2문장, 수치·근거 포함. 주의/위험 성분명 직접 언급 절대 금지. 식별 불가시 그 이유를 짧게 한 줄로만 작성. (예: '너무 어두워요')",
+  "ingredients": [{ "name": "성분명 (구체적인 이름)", "status": "success" | "caution" | "danger", "reason": "구체적인 수치·성분명 포함 설명. 예: '1회 제공량당 설탕 12g 함유. WHO 하루 첨가당 권고량(25g)의 48% 수준으로 혈당 관리에 주의가 필요해요.' / '카페인 60mg 함유. 임산부 하루 권고량(200mg)의 30% 수준이에요.' — 수치 정보가 없을 땐 구체적인 성분명과 작용 기전을 명시해줘." }],
   "alternatives": [{ "name": "대체 식품 이름", "brand": "브랜드명 (없으면 일반명칭)", "price": "예상 가격대" }],
   "weekAnalysis": "임신 주차에 따른 섭취 조언",
   "detectedBarcode": "이미지에서 바코드 숫자가 명확히 보이면 숫자만 (예: 8801234567890), 보이지 않으면 빈 문자열"
