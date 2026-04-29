@@ -158,7 +158,7 @@ export async function POST(req: Request) {
   let skipped = 0;
 
   for (const item of results) {
-    const { error } = await supabase.from('products').upsert({
+    const { error } = await supabase.from('catalog').upsert({
       cache_key:    `barcode:${item.barcode}`,
       product_name: item.productName,
       brand:        item.brand,

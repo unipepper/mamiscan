@@ -171,13 +171,14 @@ async function lookupBarcode(barcode: string, supabase: Awaited<ReturnType<typeo
             // HACCP API: 품목보고번호로 원재료 + 알레르기 + 이미지 조회
             const haccp = await lookupHaccp(reportNo);
 
-            supabase.from('catalog_items').upsert({
-              barcode,
-              name: productName,
+            supabase.from('catalog').upsert({
+              cache_key: `barcode:${barcode}`,
+              product_name: productName,
               brand,
-              ingredients: haccp?.rawIngredients ?? '',
-            }, { onConflict: 'barcode', ignoreDuplicates: true }).then(({ error }) => {
-              if (error) console.error('[analyze] catalog_items upsert failed (C005):', error);
+              raw_ingredients: haccp?.rawIngredients ?? '',
+              category: 'food',
+            }, { onConflict: 'cache_key', ignoreDuplicates: true }).then(({ error }) => {
+              if (error) console.error('[analyze] catalog upsert failed (C005):', error);
             });
 
             return {
@@ -213,13 +214,14 @@ async function lookupBarcode(barcode: string, supabase: Awaited<ReturnType<typeo
           imageUrl: p.image_front_small_url ?? '',
         };
 
-        supabase.from('catalog_items').upsert({
-          barcode,
-          name: offProduct.productName,
+        supabase.from('catalog').upsert({
+          cache_key: `barcode:${barcode}`,
+          product_name: offProduct.productName,
           brand: offProduct.brand,
-          ingredients: offProduct.rawIngredients,
-        }, { onConflict: 'barcode', ignoreDuplicates: true }).then(({ error }) => {
-          if (error) console.error('[analyze] catalog_items upsert failed (OFF):', error);
+          raw_ingredients: offProduct.rawIngredients,
+          category: 'food',
+        }, { onConflict: 'cache_key', ignoreDuplicates: true }).then(({ error }) => {
+          if (error) console.error('[analyze] catalog upsert failed (OFF):', error);
         });
 
         return offProduct;
@@ -286,7 +288,7 @@ async function getDBSafeProducts(
   supabase: Awaited<ReturnType<typeof createClient>>
 ): Promise<string[]> {
   const { data } = await supabase
-    .from('products')
+    .from('catalog')
     .select('product_name')
     .eq('status', 'success')
     .order('hit_count', { ascending: false })
@@ -447,7 +449,7 @@ export async function POST(req: Request) {
     const [{ data: { user } }, prefetchData] = await Promise.all([
       supabase.auth.getUser(),
       cacheKey
-        ? supabase.from('products')
+        ? supabase.from('catalog')
             .select('result_json, product_name, hit_count, brand, raw_ingredients, allergy_info')
             .eq('cache_key', cacheKey)
             .maybeSingle() as unknown as Promise<any>
@@ -474,7 +476,7 @@ export async function POST(req: Request) {
       if (cached && cached.result_json !== null) {
         // hit_count 증가 (fire-and-forget)
         supabase
-          .from('products')
+          .from('catalog')
           .update({ hit_count: (cached.hit_count ?? 0) + 1 })
           .eq('cache_key', barcodeCacheKey)
           .then(({ error }) => {
@@ -556,7 +558,7 @@ export async function POST(req: Request) {
         delete saveResult.weekAnalysis;
         delete saveResult.imageUrl;
 
-        const { error: insertError } = await supabase.from('products').upsert({
+        const { error: insertError } = await supabase.from('catalog').upsert({
           cache_key: barcodeCacheKey,
           product_name: product.productName,
           brand: product.brand || null,
@@ -612,7 +614,7 @@ export async function POST(req: Request) {
       const saveResult = { ...result };
       delete saveResult.weekAnalysis;
       delete saveResult.imageUrl;
-      await supabase.from('products').upsert({
+      await supabase.from('catalog').upsert({
         cache_key: `product:${normalizeProductName(extractedName)}`,
         product_name: extractedName,
         raw_ingredients: haccpByName.rawIngredients,
@@ -689,7 +691,7 @@ ${hasWeekInfo
       cacheKeysToCheck.push(`product:${normalizeProductName(result.productName)}`);
 
       const { data: existingCache } = await supabase
-        .from('products')
+        .from('catalog')
         .select('result_json, product_name, hit_count, cache_key')
         .in('cache_key', cacheKeysToCheck)
         .order('hit_count', { ascending: false })
@@ -697,7 +699,7 @@ ${hasWeekInfo
         .maybeSingle();
 
       if (existingCache && existingCache.result_json !== null) {
-        supabase.from('products').update({ hit_count: (existingCache.hit_count ?? 0) + 1 })
+        supabase.from('catalog').update({ hit_count: (existingCache.hit_count ?? 0) + 1 })
           .eq('cache_key', existingCache.cache_key)
           .then(({ error }) => {
             if (error) console.error('[analyze] hit_count update failed (image):', error);
@@ -738,7 +740,7 @@ ${hasWeekInfo
         // 바코드 OCR 성공: 먼저 저장 후 이미지 보강은 fire-and-forget (응답 속도 우선)
         delete saveResult.imageUrl;
 
-        const { error: upsertError1 } = await supabase.from('products').upsert({
+        const { error: upsertError1 } = await supabase.from('catalog').upsert({
           cache_key: `barcode:${detectedBarcode}`,
           product_name: result.productName,
           brand: null,
@@ -754,7 +756,7 @@ ${hasWeekInfo
           .then(barcodeData => {
             if (barcodeData?.imageUrl) {
               const updatedJson = { ...saveResult, imageUrl: barcodeData.imageUrl };
-              supabase.from('products')
+              supabase.from('catalog')
                 .update({ result_json: updatedJson })
                 .eq('cache_key', `barcode:${detectedBarcode}`)
                 .then(({ error }) => {
@@ -765,7 +767,7 @@ ${hasWeekInfo
           .catch((e: unknown) => console.error('[analyze] lookupBarcode post-save failed:', e));
       } else {
         // 바코드 미인식: 제품명 기반 키
-        const { error: upsertError2 } = await supabase.from('products').upsert({
+        const { error: upsertError2 } = await supabase.from('catalog').upsert({
           cache_key: `product:${normalizeProductName(result.productName)}`,
           product_name: result.productName,
           brand: null,

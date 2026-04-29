@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
   // 1. 분석 완료 항목 수 확인 (실제 스토리지 사용량 기준)
   const { count: analyzedCount, error: countErr } = await supabase
-    .from('products')
+    .from('catalog')
     .select('*', { count: 'exact', head: true })
     .not('result_json', 'is', null);
 
@@ -55,14 +55,14 @@ export async function POST(req: Request) {
 
   // stale 항목 수 조회 (로그용)
   const { count: staleCount } = await supabase
-    .from('products')
+    .from('catalog')
     .select('*', { count: 'exact', head: true })
     .is('result_json', null)
     .eq('hit_count', 0);
 
   // 2. 삭제 대상 조회 (로그 저장용)
   const { data: targets, error: selectErr } = await supabase
-    .from('products')
+    .from('catalog')
     .select('id, barcode, product_name, brand')
     .is('result_json', null)
     .eq('hit_count', 0);
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
 
   // 3. 삭제 실행
   const { error: deleteErr } = await supabase
-    .from('products')
+    .from('catalog')
     .delete()
     .is('result_json', null)
     .eq('hit_count', 0);

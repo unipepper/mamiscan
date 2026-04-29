@@ -114,7 +114,7 @@ export async function POST(req: Request) {
 
       if (history?.product_name) {
         await adminSupabase
-          .from('products')
+          .from('catalog')
           .delete()
           .eq('product_name', history.product_name);
       }

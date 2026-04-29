@@ -104,7 +104,7 @@ export async function POST(req: Request, ctx: RouteContext) {
 
   // 2. products 현재 row 조회 (오류 제보로 삭제됐을 수 있으므로 없어도 계속 진행)
   const { data: product } = await supabase
-    .from('products')
+    .from('catalog')
     .select('cache_key, status, result_json')
     .eq('cache_key', cacheKey)
     .maybeSingle();
@@ -132,7 +132,7 @@ export async function POST(req: Request, ctx: RouteContext) {
 
   // 5. products UPSERT (없으면 INSERT, 있으면 UPDATE)
   const { data: updatedProduct, error: updateErr } = await supabase
-    .from('products')
+    .from('catalog')
     .upsert({
       cache_key: cacheKey,
       product_name: correctedProductName,

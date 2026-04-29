@@ -76,7 +76,7 @@ type MatchedIngredient = { name: string; status: string; reason: string };
 
 async function getDBSafeProducts(supabase: ReturnType<typeof createAdminClient>): Promise<string[]> {
   const { data } = await supabase
-    .from('products')
+    .from('catalog')
     .select('product_name')
     .eq('status', 'success')
     .order('hit_count', { ascending: false })
@@ -199,7 +199,7 @@ export async function POST(req: Request) {
 
   // 분석 대상: result_json이 NULL인 제품
   const { data: targets, error: fetchErr } = await supabase
-    .from('products')
+    .from('catalog')
     .select('cache_key, product_name, brand, raw_ingredients, allergy_info')
     .is('result_json', null)
     .order('created_at', { ascending: true })
@@ -210,7 +210,7 @@ export async function POST(req: Request) {
   }
   if (!targets?.length) {
     const { count } = await supabase
-      .from('products')
+      .from('catalog')
       .select('*', { count: 'exact', head: true })
       .is('result_json', null);
     return NextResponse.json({ analyzed: 0, failed: 0, remaining: count ?? 0 });
@@ -267,7 +267,7 @@ export async function POST(req: Request) {
       delete saveResult.weekAnalysis;
 
       const { error: updateErr } = await supabase
-        .from('products')
+        .from('catalog')
         .update({ result_json: saveResult, status: result.status })
         .eq('cache_key', target.cache_key);
 
@@ -284,7 +284,7 @@ export async function POST(req: Request) {
   }
 
   const { count: remaining } = await supabase
-    .from('products')
+    .from('catalog')
     .select('*', { count: 'exact', head: true })
     .is('result_json', null);
 

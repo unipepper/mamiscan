@@ -8,9 +8,10 @@ async function findBarcodeInDB(
   productName: string
 ): Promise<string | null> {
   const { data } = await supabase
-    .from('catalog_items')
+    .from('catalog')
     .select('barcode')
-    .ilike('name', `%${productName}%`)
+    .ilike('product_name', `%${productName}%`)
+    .not('barcode', 'is', null)
     .limit(1)
     .maybeSingle();
   return data?.barcode ?? null;
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
 
   // product: 키로 저장된 이미지 분석 결과 조회
   const { data: productEntries, error } = await supabase
-    .from('products')
+    .from('catalog')
     .select('cache_key, product_name, result_json, status')
     .like('cache_key', 'product:%')
     .is('barcode', null)
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
     const productName = entry.product_name;
     if (!productName) { skipped++; continue; }
 
-    // 1순위: catalog_items 테이블
+    // 1순위: catalog 테이블
     let barcode = await findBarcodeInDB(supabase, productName);
 
     // 2순위: 식품안전나라 Open API
@@ -80,7 +81,7 @@ export async function POST(req: Request) {
 
     // barcode: 키로 products 추가 (이미 있으면 무시)
     const { error: upsertError } = await supabase
-      .from('products')
+      .from('catalog')
       .upsert({
         cache_key: `barcode:${barcode}`,
         product_name: productName,
@@ -93,7 +94,7 @@ export async function POST(req: Request) {
     if (upsertError) { skipped++; continue; }
 
     // 기존 product: 행에도 barcode 컬럼 업데이트
-    supabase.from('products')
+    supabase.from('catalog')
       .update({ barcode })
       .eq('cache_key', entry.cache_key)
       .then(({ error }) => {

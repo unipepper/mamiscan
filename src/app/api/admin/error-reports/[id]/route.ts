@@ -73,7 +73,7 @@ export async function GET(req: Request, ctx: RouteContext) {
 
     const cacheKey = detectedBarcode ? `barcode:${detectedBarcode}` : `product:${normalized}`;
     const { data: product } = await supabase
-      .from('products')
+      .from('catalog')
       .select('cache_key, status, result_json, barcode, hit_count')
       .eq('cache_key', cacheKey)
       .maybeSingle();
