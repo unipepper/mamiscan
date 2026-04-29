@@ -177,8 +177,11 @@ ${hasDBAlts
  * Response: { analyzed, failed, remaining }
  */
 export async function POST(req: Request) {
-  const secret = req.headers.get('x-admin-secret');
-  if (secret !== process.env.ADMIN_SECRET) {
+  const cronSecret = req.headers.get('authorization');
+  const adminSecret = req.headers.get('x-admin-secret');
+  const isVercelCron = cronSecret === `Bearer ${process.env.CRON_SECRET}`;
+  const isAdmin = adminSecret === process.env.ADMIN_SECRET;
+  if (!isVercelCron && !isAdmin) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 

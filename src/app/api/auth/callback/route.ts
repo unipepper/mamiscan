@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -24,7 +25,13 @@ export async function GET(request: Request) {
       }
 
       // 기존 유저: trial 이용권 확인 후 지급 (안전망)
-      const { data: existingTrial } = await supabase
+      const adminSupabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { cookies: { getAll: () => [], setAll: () => {} } }
+      );
+
+      const { data: existingTrial } = await adminSupabase
         .from('user_entitlements')
         .select('id')
         .eq('user_id', user.id)
@@ -35,7 +42,7 @@ export async function GET(request: Request) {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 30);
 
-        await supabase.from('user_entitlements').insert({
+        await adminSupabase.from('user_entitlements').insert({
           user_id: user.id,
           type: 'trial',
           status: 'active',

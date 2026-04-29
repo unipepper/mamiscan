@@ -23,10 +23,12 @@ function createAdminClient() {
 const ANALYZED_THRESHOLD = 20_000;
 
 export async function POST(req: Request) {
-  const secret = req.headers.get('x-admin-secret');
-  const isCron  = req.headers.get('x-vercel-cron') === '1';
+  const cronSecret = req.headers.get('authorization');
+  const adminSecret = req.headers.get('x-admin-secret');
+  const isCron = cronSecret === `Bearer ${process.env.CRON_SECRET}`;
+  const isAdmin = adminSecret === process.env.ADMIN_SECRET;
 
-  if (!isCron && secret !== process.env.ADMIN_SECRET) {
+  if (!isCron && !isAdmin) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 

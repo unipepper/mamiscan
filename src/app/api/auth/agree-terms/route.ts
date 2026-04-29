@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServerClient } from '@supabase/ssr';
+import { POLICY_CURRENT_VERSION } from '@/lib/policy';
 
 export async function POST() {
   const supabase = await createClient();
@@ -34,7 +35,7 @@ export async function POST() {
     .insert({
       user_id: user.id,
       terms_version: '1.0',
-      privacy_version: '1.0',
+      privacy_version: POLICY_CURRENT_VERSION,
       is_adult: true,
     });
 

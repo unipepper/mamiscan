@@ -3,7 +3,11 @@
   "crons": [
     {
       "path": "/api/admin/batch/map-barcodes",
-      "schedule": "0 18 * * *"
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/admin/batch/pre-analyze",
+      "schedule": "30 17 * * *"
     },
     {
       "path": "/api/admin/cleanup/stale-products",
