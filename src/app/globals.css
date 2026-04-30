@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
 
 html,
 body {
@@ -9,6 +10,51 @@ body {
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+}
+
+/* 한글 타이포그래피 기본값 — 토스/당근 기준 */
+body {
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+@layer base {
+  /* 헤드라인: 26-24px 수준 */
+  h1 {
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+  }
+
+  /* 섹션 제목: 22px 수준 */
+  h2 {
+    line-height: 1.4;
+    letter-spacing: -0.015em;
+  }
+
+  /* 카드 제목: 18px 수준 */
+  h3 {
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+  }
+
+  /* 본문 */
+  p {
+    line-height: 1.6;
+  }
+
+  /* 버튼: font-medium, 자간 0 */
+  button {
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+
+  /* 배지/라벨 (span): font-medium */
+  span {
+    letter-spacing: 0;
+  }
 }
 
 @theme {

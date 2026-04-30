@@ -8,4 +8,5 @@
 export const pendingAnalyze: {
   promise: Promise<Response> | null;
   barcode: string | null;
-} = { promise: null, barcode: null };
+  imageBase64: string | null;
+} = { promise: null, barcode: null, imageBase64: null };

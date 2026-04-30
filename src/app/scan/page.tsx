@@ -13,6 +13,9 @@ interface UserProfile {
   isActive: boolean;
 }
 
+// 비교 테스트: '/result' | '/result-notion' | '/result-cal'
+const RESULT_ROUTE = '/result';
+
 export default function ScanPage() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -143,20 +146,22 @@ export default function ScanPage() {
                 setIsScanning(true);
                 videoRef.current?.pause();
                 // 바코드 감지와 동시에 콘텐츠 영역 크롭 캡처 (DB 미스 시 Gemini 폴백용)
+                let capturedImage: string | null = null;
                 try {
                   if (videoRef.current && videoRef.current.videoWidth > 0) {
-                    const cropped = captureContentArea(videoRef.current, 0.6);
-                    if (cropped) sessionStorage.setItem('scanImage', cropped);
+                    capturedImage = captureContentArea(videoRef.current, 0.6);
+                    if (capturedImage) sessionStorage.setItem('scanImage', capturedImage);
                   }
                 } catch {}
-                // 감지 즉시 분석 API 프리페치 — result 페이지에서 재사용해 대기 시간 단축
+                // 감지 즉시 분석 API 프리페치 — imageBase64도 함께 전달해 C005 미스 시 이미지 폴백 가능하도록
                 pendingAnalyze.promise = fetch('/api/analyze', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ barcode }),
+                  body: JSON.stringify({ barcode, imageBase64: capturedImage }),
                 });
                 pendingAnalyze.barcode = barcode;
-                setTimeout(() => router.push('/result?barcode=' + encodeURIComponent(barcode)), 300);
+                pendingAnalyze.imageBase64 = capturedImage;
+                setTimeout(() => router.push(RESULT_ROUTE + '?barcode=' + encodeURIComponent(barcode)), 300);
               }
               if (err && !(err instanceof NotFoundException)) {
                 if (err.message?.includes('Video stream has ended')) return;
@@ -199,7 +204,7 @@ export default function ScanPage() {
       const cropped = captureContentArea(videoRef.current, 0.8);
       if (cropped) {
         sessionStorage.setItem('scanImage', cropped);
-        router.push('/result');
+        router.push(RESULT_ROUTE);
       }
     } catch {
       setIsScanning(false);
@@ -241,13 +246,13 @@ export default function ScanPage() {
           try {
             const result = await codeReaderRef.current!.decodeFromImageElement(img);
             const barcode = result.getText();
-            setTimeout(() => router.push('/result?barcode=' + encodeURIComponent(barcode)), 1500);
+            setTimeout(() => router.push(RESULT_ROUTE + '?barcode=' + encodeURIComponent(barcode)), 1500);
           } catch {
             // 앨범 이미지는 풀 해상도 → Vercel 4.5MB 제한 초과 방지를 위해 압축 후 저장
             compressForAnalysis(dataUrl)
               .then(compressed => sessionStorage.setItem('scanImage', compressed))
               .catch(() => sessionStorage.setItem('scanImage', dataUrl));
-            setTimeout(() => router.push('/result'), 2000);
+            setTimeout(() => router.push(RESULT_ROUTE), 2000);
           }
         };
         img.src = dataUrl;

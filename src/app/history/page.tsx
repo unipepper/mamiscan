@@ -93,10 +93,13 @@ export default function HistoryPage() {
     });
   }, []);
 
+  // 비교 테스트: '/result' | '/result-notion' | '/result-cal'
+  const RESULT_ROUTE = '/result';
+
   const navigateToResult = (resultData: any) => {
     if (resultData) {
       sessionStorage.setItem('resultData', JSON.stringify(resultData));
-      router.push('/result');
+      router.push(RESULT_ROUTE);
     }
   };
 
@@ -162,17 +165,15 @@ export default function HistoryPage() {
                       >
                         <CardContent className="p-4 flex items-center justify-between">
                           <div className="flex items-center space-x-4">
-                            <div className={`w-2 h-10 rounded-full ${
-                              item.status === 'success' ? 'bg-success-fg' :
+                            <div className={`w-2 h-10 rounded-full ${item.status === 'success' ? 'bg-success-fg' :
                               item.status === 'caution' ? 'bg-caution-fg' : 'bg-danger-fg'
-                            }`} />
+                              }`} />
                             <p className="font-semibold text-text-primary text-sm">{item.name}</p>
                           </div>
                           <div className="flex flex-col items-end space-y-1">
-                            <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${
-                              item.status === 'success' ? 'bg-success-fg' :
+                            <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${item.status === 'success' ? 'bg-success-fg' :
                               item.status === 'caution' ? 'bg-caution-fg' : 'bg-danger-fg'
-                            }`}>
+                              }`}>
                               {item.status === 'success' ? '안전' : item.status === 'caution' ? '주의' : '위험'}
                             </div>
                             <span className="text-[10px] text-text-secondary">{item.time}</span>

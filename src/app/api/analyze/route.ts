@@ -726,22 +726,29 @@ ${hasWeekInfo
     normalizeStatus(result);
     const detectedBarcode = result.detectedBarcode?.trim();
 
-    // 이미지 분석 후 캐시 일치 확인 — Gemini는 호출마다 다른 결과를 줄 수 있으므로
-    // 이미 저장된 결과가 있으면 그것을 우선 반환해 일관성 유지
+    // 이미지 분석 후 캐시 일치 확인 — Gemini는 호출마다 다른 productName을 반환할 수 있으므로
+    // (race condition: 동시 요청이 각자 분석을 완료한 경우 포함)
+    // 저장 전에 한 번 더 조회해 먼저 저장된 결과가 있으면 그것을 반환해 일관성 유지.
+    // Phase 1에서 추출한 extractedName 키도 함께 확인해 "아이스 커피 vs 스타벅스 아이스 아메리카노"
+    // 같은 이름 불일치로 캐시 미스가 나는 경우까지 커버한다.
     if (!result.status.startsWith('error_') && result.productName) {
       const cacheKeysToCheck: string[] = [];
       if (detectedBarcode) cacheKeysToCheck.push(`barcode:${detectedBarcode}`);
       cacheKeysToCheck.push(`product:${normalizeProductName(result.productName)}`);
+      if (extractedName && normalizeProductName(extractedName) !== normalizeProductName(result.productName)) {
+        cacheKeysToCheck.push(`product:${normalizeProductName(extractedName)}`);
+      }
 
       const { data: existingCache } = await supabase
         .from('catalog')
         .select('result_json, product_name, hit_count, cache_key')
         .in('cache_key', cacheKeysToCheck)
+        .not('result_json', 'is', null)
         .order('hit_count', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (existingCache && existingCache.result_json !== null) {
+      if (existingCache) {
         supabase.from('catalog').update({ hit_count: (existingCache.hit_count ?? 0) + 1 })
           .eq('cache_key', existingCache.cache_key)
           .then(({ error }) => {
@@ -780,7 +787,8 @@ ${hasWeekInfo
       delete saveResult.detectedBarcode;
 
       if (detectedBarcode) {
-        // 바코드 OCR 성공: 먼저 저장 후 이미지 보강은 fire-and-forget (응답 속도 우선)
+        // 바코드 OCR 성공: result_json=null인 벌크 항목 위에 분석 결과를 채워야 하므로 항상 덮어씀
+        // (ignoreDuplicates 사용 불가 — 벌크 적재 항목이 이미 존재해도 result_json을 채워야 함)
         delete saveResult.imageUrl;
 
         const { error: upsertError1 } = await supabase.from('catalog').upsert({
@@ -810,6 +818,7 @@ ${hasWeekInfo
           .catch((e: unknown) => console.error('[analyze] lookupBarcode post-save failed:', e));
       } else {
         // 바코드 미인식: 제품명 기반 키
+        // ignoreDuplicates: true — 동시 요청 race condition 시 나중 도착 결과가 덮어쓰지 않도록
         const { error: upsertError2 } = await supabase.from('catalog').upsert({
           cache_key: `product:${normalizeProductName(result.productName)}`,
           product_name: result.productName,
@@ -818,7 +827,7 @@ ${hasWeekInfo
           status: result.status,
           barcode: null,
           hit_count: 0,
-        }, { onConflict: 'cache_key' });
+        }, { onConflict: 'cache_key', ignoreDuplicates: true });
         if (upsertError2) console.error('[products upsert product-name]', upsertError2);
       }
     }
