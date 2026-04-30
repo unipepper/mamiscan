@@ -36,8 +36,16 @@ function PaymentSuccessContent() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ paymentKey, orderId, amount }),
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (res.status === 409) {
+          // 이미 처리 완료된 결제 (페이지 새로고침 등) — 성공으로 처리
+          setStatus('success');
+          return null;
+        }
+        return res.json();
+      })
       .then((data) => {
+        if (data === null) return;
         if (data.success) {
           setStatus('success');
           if (data.isPending) {
