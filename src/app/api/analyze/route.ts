@@ -296,14 +296,40 @@ async function getDBSafeProducts(
   return data?.map(d => d.product_name) ?? [];
 }
 
-/** 제품명 정규화 — 괄호 제거 + 연속 공백 정리 + 소문자 trim */
+/** 제품명 정규화 — 괄호·용량·수량·특수문자 제거 후 소문자 trim */
 function normalizeProductName(name: string): string {
   return name
     .toLowerCase()
     .trim()
-    .replace(/\s*\(.*?\)\s*/g, ' ')
+    .replace(/\s*[(\[{][^)\]]*[)\]}]\s*/g, ' ')             // 괄호류 전체 제거
+    .replace(/\d+\s*(ml|l|g|kg|개입|개|입|병|캔|팩|ea)\b/gi, '') // 용량·수량 제거
+    .replace(/[^\w\s가-힣ぁ-ヶ一-龥]/g, ' ')                 // 특수문자 제거 (한·영·일·한자 유지)
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/** 제품명으로 catalog 캐시 조회 — 정확 매칭 우선, 없으면 pg_trgm 유사도 검색 */
+async function lookupCatalogByName(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  name: string
+): Promise<{ cache_key: string; result_json: any; hit_count: number } | null> {
+  const normalized = normalizeProductName(name);
+
+  // 1. 정규화된 제품명 키로 정확 매칭
+  const { data: exact } = await supabase
+    .from('catalog')
+    .select('cache_key, result_json, hit_count')
+    .eq('cache_key', `product:${normalized}`)
+    .maybeSingle();
+  if (exact?.result_json) return exact;
+
+  // 2. pg_trgm 유사도 검색 (정확 매칭 실패 시)
+  const { data: fuzzy } = await supabase
+    .rpc('search_catalog_by_name', { query_name: name, similarity_threshold: 0.4 });
+  const hit = fuzzy?.[0];
+  if (hit?.result_json) return hit;
+
+  return null;
 }
 
 /** Gemini가 반환한 alternatives 중 DB에 없는 항목 제거, 현재 제품 자기 자신 제외 */
@@ -589,11 +615,28 @@ export async function POST(req: Request) {
       ? (prefetchData as string[])
       : await getDBSafeProducts(supabase);
 
-    // ── Phase 1: 제품명 추출 → HACCP 이름 검색 → 원재료 확보 시 텍스트 분석으로 전환 ──
+    // ── Phase 1: 제품명 추출 → catalog 선조회 + HACCP 이름 검색 병렬 실행 ──
     const _tPhase1 = Date.now();
     const extractedName = await extractProductNameFromImage(base64Data, mimeType);
-    const haccpByName = extractedName ? await lookupHaccpByName(extractedName) : null;
-    console.log(`[analyze] IMAGE phase1 name="${extractedName}" haccp=${!!haccpByName} elapsed=${Date.now()-_tPhase1}ms`);
+
+    // catalog 선조회와 HACCP 조회를 병렬로 실행
+    const [catalogHit, haccpByName] = await Promise.all([
+      extractedName ? lookupCatalogByName(supabase, extractedName) : Promise.resolve(null),
+      extractedName ? lookupHaccpByName(extractedName) : Promise.resolve(null),
+    ]);
+    console.log(`[analyze] IMAGE phase1 name="${extractedName}" catalogHit=${!!catalogHit} haccp=${!!haccpByName} elapsed=${Date.now()-_tPhase1}ms`);
+
+    // catalog 히트 — Gemini 호출 없이 즉시 반환
+    if (catalogHit?.result_json) {
+      supabase.from('catalog')
+        .update({ hit_count: (catalogHit.hit_count ?? 0) + 1 })
+        .eq('cache_key', catalogHit.cache_key)
+        .then(({ error }) => {
+          if (error) console.error('[analyze] hit_count update failed (catalog-name):', error);
+        });
+      console.log(`[analyze] IMAGE_CATALOG_HIT key=${catalogHit.cache_key} total=${Date.now()-_t0}ms`);
+      return NextResponse.json({ success: true, result: catalogHit.result_json, fromCache: true });
+    }
 
     if (haccpByName?.rawIngredients) {
       const product = {

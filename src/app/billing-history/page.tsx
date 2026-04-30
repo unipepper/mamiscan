@@ -17,7 +17,6 @@ interface Entitlement {
 interface Transaction {
   id: string;
   type: 'purchase' | 'trial';
-  amount: number;
   price_krw: number;
   description: string;
   created_at: string;

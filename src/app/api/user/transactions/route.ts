@@ -85,7 +85,6 @@ export async function GET() {
     .map(e => ({
       id: `trial-ent-${e.id}`,
       type: 'trial',
-      amount: 0,
       price_krw: 0,
       description: '가입 보상 스캔권 3회',
       created_at: e.created_at,
@@ -112,7 +111,6 @@ export async function GET() {
       return {
       id: `admin-ent-${e.id}`,
       type: 'trial' as const,
-      amount: 0,
       price_krw: 0,
       description: `스캔권 ${grantCount}회 (관리자 지급)`,
       created_at: e.created_at,
