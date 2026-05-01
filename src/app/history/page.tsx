@@ -113,7 +113,7 @@ export default function HistoryPage() {
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas pb-20">
       <header className="sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
-        <span className="font-bold text-lg text-text-primary">스캔 히스토리</span>
+        <span className="text-lg font-semibold text-text-primary">스캔 히스토리</span>
       </header>
 
       <main className="px-4 py-6 flex flex-col flex-1 space-y-4">
@@ -155,7 +155,7 @@ export default function HistoryPage() {
             ) : (
               filtered.map((group) => (
                 <section key={group.id} className="space-y-3 mb-6">
-                  <h3 className="text-sm font-bold text-text-secondary px-1">{group.date}</h3>
+                  <h3 className="text-sm text-text-secondary px-1">{group.date}</h3>
                   <div className="grid gap-3">
                     {group.items.map((item: any, idx: number) => (
                       <Card
@@ -168,10 +168,10 @@ export default function HistoryPage() {
                             <div className={`w-2 h-10 rounded-full ${item.status === 'success' ? 'bg-success-fg' :
                               item.status === 'caution' ? 'bg-caution-fg' : 'bg-danger-fg'
                               }`} />
-                            <p className="font-semibold text-text-primary text-sm">{item.name}</p>
+                            <p className="font-medium text-text-primary text-sm">{item.name}</p>
                           </div>
                           <div className="flex flex-col items-end space-y-1">
-                            <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${item.status === 'success' ? 'bg-success-fg' :
+                            <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white ${item.status === 'success' ? 'bg-success-fg' :
                               item.status === 'caution' ? 'bg-caution-fg' : 'bg-danger-fg'
                               }`}>
                               {item.status === 'success' ? '안전' : item.status === 'caution' ? '주의' : '위험'}
@@ -195,9 +195,9 @@ export default function HistoryPage() {
             <div className="bg-primary/10 p-3 rounded-full mb-3 inline-flex">
               <Lock className="w-6 h-6 text-primary" />
             </div>
-            <h3 className="font-bold text-text-primary mb-2">로그인하고 기록을 저장하세요</h3>
+            <h3 className="text-text-primary mb-2">로그인하고 기록을 저장하세요</h3>
             <p className="text-sm text-text-secondary mb-5">로그인하면 스캔 기록이 안전하게 저장돼요.</p>
-            <Button onClick={() => router.push('/login')} className="w-full font-bold">로그인하기</Button>
+            <Button onClick={() => router.push('/login')} className="w-full">로그인하기</Button>
           </div>
         )}
 
@@ -207,9 +207,9 @@ export default function HistoryPage() {
             <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-full">
               <Lock className="w-6 h-6 text-primary" />
             </div>
-            <h3 className="text-base font-bold text-text-primary">히스토리 저장은 스캔권 전용이에요</h3>
+            <h3 className="text-base text-text-primary">히스토리 저장은 스캔권 전용이에요</h3>
             <p className="text-sm text-text-secondary">스캔권을 구매하시면 무제한 스캔 히스토리를 확인할 수 있어요.</p>
-            <Button className="w-full font-bold" onClick={() => router.push('/pricing')}>스캔권 알아보기</Button>
+            <Button className="w-full" onClick={() => router.push('/pricing')}>스캔권 알아보기</Button>
           </div>
         )}
       </main>

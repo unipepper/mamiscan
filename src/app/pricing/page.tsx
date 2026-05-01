@@ -79,13 +79,13 @@ export default function PricingPage() {
         <section className="space-y-4">
           {/* 1개월 무제한 */}
           <Card className="bg-accent border-2 border-primary shadow-md relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg">
+            <div className="absolute top-0 right-0 bg-primary text-white text-[10px] font-medium px-3 py-1 rounded-bl-lg">
               가장 추천
             </div>
             <CardContent className="p-6">
               <div className="flex items-center space-x-2 mb-2">
                 <Star className="w-5 h-5 text-primary fill-primary" />
-                <h2 className="text-lg font-bold text-text-primary">무제한 스캔권</h2>
+                <h2 className="text-lg font-semibold text-text-primary">무제한 스캔권</h2>
               </div>
               <p className="text-xs text-text-secondary mb-4">여러 제품을 비교해서 확인한다면 1개월 무제한이 가장 편해요.</p>
               <div className="mb-4">
@@ -110,7 +110,7 @@ export default function PricingPage() {
                 </li>
               </ul>
               <Button
-                className="w-full text-base font-bold h-12"
+                className="w-full text-base h-12"
                 onClick={() => router.push('/payment/checkout?plan=monthly')}
               >
                 1개월 무제한 시작하기
@@ -120,13 +120,13 @@ export default function PricingPage() {
 
           {/* 5회 추가권 */}
           <Card className="bg-bg-surface border border-border-subtle shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-neutral-bg text-text-secondary text-[10px] font-bold px-3 py-1 rounded-bl-lg">
+            <div className="absolute top-0 right-0 bg-neutral-bg text-text-secondary text-[10px] font-medium px-3 py-1 rounded-bl-lg">
               부담 없이 시작
             </div>
             <CardContent className="p-6">
               <div className="flex items-center space-x-2 mb-2">
                 <Clock className="w-5 h-5 text-text-secondary" />
-                <h2 className="text-lg font-bold text-text-primary">5회 추가권</h2>
+                <h2 className="text-lg font-semibold text-text-primary">5회 추가권</h2>
               </div>
               <p className="text-xs text-text-secondary mb-4">조금만 더 써보고 싶다면 5회 추가권을 선택할 수 있어요.</p>
               <div className="mb-4">
@@ -144,7 +144,7 @@ export default function PricingPage() {
               </ul>
               <Button
                 variant="outline"
-                className="w-full text-base font-bold h-12"
+                className="w-full text-base h-12"
                 onClick={() => router.push('/payment/checkout?plan=scan5')}
               >
                 5회 추가권 구매하기

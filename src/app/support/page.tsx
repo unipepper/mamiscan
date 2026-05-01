@@ -121,7 +121,7 @@ export default function SupportPage() {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <span className="font-bold text-lg text-text-primary">{HEADER_TITLE[view]}</span>
+        <span className="font-semibold text-lg text-text-primary">{HEADER_TITLE[view]}</span>
       </header>
 
       {view === 'main' && (
@@ -212,7 +212,7 @@ function MainView({
         <section className="space-y-3">
           <div className="flex items-center gap-2 px-1">
             <HelpCircle className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-bold text-text-primary">자주 묻는 질문</h2>
+            <h2 className="text-sm font-semibold text-text-primary">자주 묻는 질문</h2>
           </div>
 
           <div className="space-y-2">
@@ -248,7 +248,7 @@ function MainView({
         <section className="space-y-3">
           <div className="flex items-center gap-2 px-1">
             <MessageCircle className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-bold text-text-primary">내 문의 내역</h2>
+            <h2 className="text-sm font-semibold text-text-primary">내 문의 내역</h2>
           </div>
 
           {ticketsLoading ? (
@@ -262,11 +262,11 @@ function MainView({
                   <LogIn className="w-6 h-6 text-text-tertiary" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-text-primary">로그인이 필요해요</p>
+                  <p className="text-sm font-medium text-text-primary">로그인이 필요해요</p>
                   <p className="text-xs text-text-secondary mt-0.5">로그인하면 문의 내역과 답변을 확인할 수 있어요.</p>
                 </div>
                 <Button
-                  className="w-full font-bold h-10 rounded-xl text-sm"
+                  className="w-full h-10 text-sm"
                   onClick={() => router.push('/login')}
                 >
                   로그인하기
@@ -304,11 +304,11 @@ function MainView({
                           <span className="text-xs font-medium text-text-tertiary bg-neutral-bg px-2 py-0.5 rounded-full">
                             {CATEGORY_LABEL[ticket.category] ?? ticket.category}
                           </span>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${status.color}`}>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.color}`}>
                             {status.label}
                           </span>
                           {hasReply && (
-                            <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                            <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                               답변 도착
                             </span>
                           )}
@@ -333,7 +333,7 @@ function MainView({
       <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+12px)] left-1/2 -translate-x-1/2 w-full max-w-[428px] px-4 pointer-events-none z-40">
         <button
           onClick={onOpenForm}
-          className="pointer-events-auto ml-auto flex items-center gap-2 bg-primary text-white text-sm font-bold px-5 py-3 rounded-full shadow-lg hover:bg-primary/90 active:scale-95 transition-all"
+          className="pointer-events-auto ml-auto flex items-center gap-2 bg-primary text-white text-sm font-medium px-5 py-3 rounded-full shadow-lg hover:bg-primary/90 active:scale-95 transition-all"
         >
           <Plus className="w-4 h-4" />
           문의하기
@@ -431,14 +431,14 @@ function InquiryForm({ onSubmitSuccess }: { onSubmitSuccess: () => void }) {
           <MessageSquare className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h2 className="font-bold text-text-primary">무엇이든 물어보세요</h2>
+          <h2 className="font-semibold text-text-primary">무엇이든 물어보세요</h2>
           <p className="text-xs text-text-secondary mt-0.5">문의 내용을 남겨주시면 검토 후 답변드려요.</p>
         </div>
       </div>
 
       {/* 카테고리 */}
       <section className="space-y-2">
-        <label className="text-sm font-semibold text-text-primary px-1">
+        <label className="text-sm font-medium text-text-primary px-1">
           문의 유형 <span className="text-danger-fg">*</span>
         </label>
         <div className="grid grid-cols-3 gap-2">
@@ -460,7 +460,7 @@ function InquiryForm({ onSubmitSuccess }: { onSubmitSuccess: () => void }) {
 
       {/* 제목 (선택) */}
       <section className="space-y-2">
-        <label className="text-sm font-semibold text-text-primary px-1">제목 (선택)</label>
+        <label className="text-sm font-medium text-text-primary px-1">제목 (선택)</label>
         <input
           type="text"
           value={title}
@@ -473,7 +473,7 @@ function InquiryForm({ onSubmitSuccess }: { onSubmitSuccess: () => void }) {
 
       {/* 내용 */}
       <section className="space-y-2">
-        <label className="text-sm font-semibold text-text-primary px-1">
+        <label className="text-sm font-medium text-text-primary px-1">
           문의 내용 <span className="text-danger-fg">*</span>
         </label>
         <Card className="bg-bg-surface border-border-subtle shadow-none">
@@ -542,7 +542,7 @@ function InquiryForm({ onSubmitSuccess }: { onSubmitSuccess: () => void }) {
       <Button
         onClick={handleSubmit}
         disabled={!canSubmit}
-        className="w-full font-bold h-12 rounded-2xl"
+        className="w-full h-12"
       >
         {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : '문의 접수하기'}
       </Button>
@@ -563,12 +563,12 @@ function TicketDetail({ ticket }: { ticket: Ticket }) {
           <span className="text-xs font-medium text-text-tertiary bg-neutral-bg px-2 py-0.5 rounded-full">
             {CATEGORY_LABEL[ticket.category] ?? ticket.category}
           </span>
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${status.color}`}>
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.color}`}>
             {status.label}
           </span>
         </div>
         {ticket.title && (
-          <h2 className="text-base font-bold text-text-primary leading-snug">{ticket.title}</h2>
+          <h2 className="text-base font-semibold text-text-primary leading-snug">{ticket.title}</h2>
         )}
         <p className="text-xs text-text-tertiary">{formatDate(ticket.created_at)}</p>
       </div>
@@ -577,14 +577,14 @@ function TicketDetail({ ticket }: { ticket: Ticket }) {
 
       {/* 문의 내용 */}
       <section className="space-y-2">
-        <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">문의 내용</p>
+        <p className="text-xs font-medium text-text-tertiary uppercase tracking-wide">문의 내용</p>
         <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">{ticket.body}</p>
       </section>
 
       {/* 첨부 이미지 */}
       {ticket.attachments && ticket.attachments.length > 0 && (
         <section className="space-y-2">
-          <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">첨부 이미지</p>
+          <p className="text-xs font-medium text-text-tertiary uppercase tracking-wide">첨부 이미지</p>
           <div className="flex gap-2 flex-wrap">
             {ticket.attachments.map((url, idx) => (
               <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
@@ -602,11 +602,11 @@ function TicketDetail({ ticket }: { ticket: Ticket }) {
       {/* 관리자 답변 */}
       {ticket.admin_note ? (
         <section className="space-y-2">
-          <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">관리자 답변</p>
+          <p className="text-xs font-medium text-text-tertiary uppercase tracking-wide">관리자 답변</p>
           <div className="border-l-2 border-primary bg-primary/5 rounded-r-xl px-4 py-3">
             <div className="flex items-center gap-1.5 mb-2">
               <CheckCircle className="w-3.5 h-3.5 text-primary" />
-              <span className="text-xs font-semibold text-primary">마미스캔 고객센터</span>
+              <span className="text-xs font-medium text-primary">마미스캔 고객센터</span>
             </div>
             <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
               {ticket.admin_note}

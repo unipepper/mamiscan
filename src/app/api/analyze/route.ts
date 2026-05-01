@@ -483,12 +483,17 @@ export async function POST(req: Request) {
     ]);
     const userId = user?.id ?? null;
 
-    // pregnancy_weeks: 클라이언트 전달값 우선, 없으면 서버에서 직접 조회
+    // pregnancyWeeks: 클라이언트 전달값 우선, 없으면 서버에서 pregnancy_start_date로 계산
     let pregnancyWeeks: number | null = clientWeeks ?? null;
     if (pregnancyWeeks === null && userId) {
       const { data: prof } = await supabase
-        .from('users').select('pregnancy_weeks').eq('id', userId).single();
-      pregnancyWeeks = prof?.pregnancy_weeks ?? null;
+        .from('users').select('pregnancy_start_date').eq('id', userId).single();
+      if (prof?.pregnancy_start_date) {
+        const start = new Date(prof.pregnancy_start_date);
+        const diffDays = Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24));
+        const week = Math.floor(diffDays / 7) + 1;
+        pregnancyWeeks = week >= 1 && week <= 42 ? week : null;
+      }
     }
     const hasWeekInfo = pregnancyWeeks !== undefined && pregnancyWeeks !== null;
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Scan, ShieldCheck, Search, ChevronRight, CheckCircle2, Star, Calendar } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { calcPregnancyWeek } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { BottomNav } from '@/components/BottomNav';
@@ -13,7 +14,7 @@ interface UserProfile {
   id: string;
   email: string;
   name: string | null;
-  pregnancy_weeks: number | null;
+  pregnancy_start_date: string | null;
 }
 
 export default function HomePage() {
@@ -33,7 +34,7 @@ export default function HomePage() {
 
       const now = new Date().toISOString();
       const [{ data: prof }, { data: scanRights }, { data: activeSub }, { data: pendingSub }] = await Promise.all([
-        supabase.from('users').select('id, email, name, pregnancy_weeks').eq('id', user.id).single(),
+        supabase.from('users').select('id, email, name, pregnancy_start_date').eq('id', user.id).single(),
         supabase.from('user_entitlements').select('scan_count').eq('user_id', user.id).in('type', ['scan5', 'trial', 'admin']).eq('status', 'active').gt('expires_at', now).gt('scan_count', 0),
         supabase.from('user_entitlements').select('expires_at').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'active').gt('expires_at', now).maybeSingle(),
         supabase.from('user_entitlements').select('id').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'pending').maybeSingle(),
@@ -61,12 +62,12 @@ export default function HomePage() {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-border-subtle bg-bg-surface/80 backdrop-blur-md">
         <div className="flex h-14 items-center justify-between px-4">
-          <span className="font-bold text-lg text-text-primary tracking-tight">마미스캔</span>
+          <span className="font-semibold text-lg text-text-primary tracking-tight">마미스캔</span>
         </div>
       </header>
 
       {/* Top Utility Area */}
-      <div className="px-4 pt-4 space-y-2">
+      <div className="px-4 pt-4 space-y-3">
         {!isLoggedIn ? (
           <div
             className="bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-center justify-between cursor-pointer"
@@ -76,20 +77,20 @@ export default function HomePage() {
               <ShieldCheck className="w-5 h-5 text-primary" />
               <span className="text-sm font-medium text-text-primary">로그인하고 무료로 시작하기</span>
             </div>
-            <span className="text-xs font-bold text-primary bg-white px-2 py-1 rounded-full shadow-sm">시작하기</span>
+            <span className="text-xs font-medium text-primary bg-white px-2 py-1 rounded-full shadow-sm">시작하기</span>
           </div>
         ) : (
           <div className="flex gap-2">
             {/* 임신 주차 */}
             <button
               onClick={() => router.push('/settings')}
-              className="flex-1 flex items-center gap-2 bg-bg-surface border border-border-subtle rounded-xl px-3 py-2.5 hover:bg-neutral-bg transition-colors"
+              className="flex-1 flex items-center gap-2 bg-bg-surface border border-border-subtle rounded-xl px-3 py-3 hover:bg-neutral-bg transition-colors"
             >
               <Calendar className="w-4 h-4 text-primary shrink-0" />
               <div className="text-left min-w-0">
-                <p className="text-[10px] text-text-secondary leading-none mb-0.5">임신 주차</p>
-                <p className="text-sm font-bold text-text-primary leading-none truncate">
-                  {profile?.pregnancy_weeks ? `${profile.pregnancy_weeks}주차` : '설정하기'}
+                <p className="text-[10px] text-text-secondary leading-none mb-1">임신 주차</p>
+                <p className="text-sm font-semibold text-text-primary leading-none truncate">
+                  {calcPregnancyWeek(profile?.pregnancy_start_date) ? `${calcPregnancyWeek(profile?.pregnancy_start_date)}주차` : '설정하기'}
                 </p>
               </div>
             </button>
@@ -97,7 +98,7 @@ export default function HomePage() {
             {/* 남은 스캔 / 무제한 */}
             <button
               onClick={() => router.push(isActive ? '/billing-history' : '/pricing')}
-              className="flex-1 flex items-center justify-between gap-2 bg-bg-surface border border-border-subtle rounded-xl px-3 py-2.5 hover:bg-neutral-bg transition-colors"
+              className="flex-1 flex items-center justify-between gap-2 bg-bg-surface border border-border-subtle rounded-xl px-3 py-3 hover:bg-neutral-bg transition-colors"
             >
               <div className="flex items-center gap-2 min-w-0">
                 {isActive ? (
@@ -106,14 +107,14 @@ export default function HomePage() {
                   <Scan className="w-4 h-4 text-secondary shrink-0" />
                 )}
                 <div className="text-left min-w-0">
-                  <p className="text-[10px] text-text-secondary leading-none mb-0.5">남은 스캔</p>
-                  <p className={`text-sm font-bold leading-none truncate ${isActive ? 'text-primary' : 'text-secondary'}`}>
+                  <p className="text-[10px] text-text-secondary leading-none mb-1">남은 스캔</p>
+                  <p className={`text-sm font-semibold leading-none truncate ${isActive ? 'text-primary' : 'text-secondary'}`}>
                     {isActive ? '무제한' : `${remainingScans}회`}
                   </p>
                 </div>
               </div>
               {!isActive && (
-                <span className="text-[10px] font-bold text-secondary bg-secondary/10 px-1.5 py-0.5 rounded-full shrink-0">충전</span>
+                <span className="text-[10px] font-medium text-secondary bg-secondary/10 px-1.5 py-0.5 rounded-full shrink-0">충전</span>
               )}
             </button>
           </div>
@@ -133,16 +134,16 @@ export default function HomePage() {
       <section className="px-4 pt-4 pb-6">
         <div className="bg-accent rounded-2xl p-6 shadow-sm relative overflow-hidden">
           <div className="relative z-10 flex flex-col items-start">
-            <span className="text-sm font-semibold text-primary mb-1">
+            <span className="text-sm font-medium text-primary mb-2">
               {isLoggedIn && profile?.name ? `${profile.name}님,` : '제품을 스캔하고'}
             </span>
-            <h1 className="text-[26px] leading-[35px] font-bold text-text-primary mb-2">
+            <h1 className="text-[26px] leading-[35px] font-bold text-text-primary mb-3">
               지금 먹어도 되는지<br />바로 확인해보세요
             </h1>
             <p className="text-sm text-text-secondary mb-5 max-w-[240px]">
               임산부 기준 성분 분석부터<br />안전한 대체 제품 추천까지 5초면 충분해요.
             </p>
-            <Button className="w-full h-12 text-base font-semibold shadow-md" onClick={() => router.push('/scan')}>
+            <Button className="w-full h-12 text-base shadow-md" onClick={() => router.push('/scan')}>
               <Scan className="mr-2 h-5 w-5" />
               5초 안에 확인하기
             </Button>
@@ -155,7 +156,7 @@ export default function HomePage() {
 
       {/* Features */}
       <section className="px-4 py-4 space-y-4">
-        <h2 className="text-[22px] leading-[30px] font-bold text-text-primary px-1">
+        <h2 className="text-[22px] leading-[30px] font-semibold text-text-primary px-1">
           마미스캔이 도와드릴게요
         </h2>
         <div className="grid gap-4">
@@ -170,7 +171,7 @@ export default function HomePage() {
                   <Icon className={`w-6 h-6 text-${color}`} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-text-primary mb-1">{title}</h3>
+                  <h3 className="text-lg font-semibold text-text-primary mb-1">{title}</h3>
                   <p className="text-sm text-text-secondary leading-relaxed">{desc}</p>
                 </div>
               </CardContent>
@@ -182,7 +183,7 @@ export default function HomePage() {
       {/* Trust */}
       <section className="px-4 py-6 mt-2 bg-white border-y border-border-subtle">
         <div className="text-center space-y-3">
-          <h2 className="text-[18px] font-bold text-text-primary">믿을 수 있는 데이터 기준</h2>
+          <h2 className="text-[18px] font-semibold text-text-primary">믿을 수 있는 데이터 기준</h2>
           <p className="text-sm text-text-secondary px-4">
             식약처(MFDS), 미국 FDA, CDC 등<br />공신력 있는 기관의 임산부 가이드라인을 바탕으로 분석합니다.
           </p>

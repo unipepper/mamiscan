@@ -117,17 +117,17 @@ export default function NoticesPage() {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <span className="font-bold text-lg text-text-primary">공지사항</span>
+          <span className="font-semibold text-lg text-text-primary">공지사항</span>
         </header>
 
         <main className="px-4 py-6 space-y-4">
           {/* 헤더 */}
           <div className="space-y-2">
-            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${meta.bg} ${meta.color}`}>
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${meta.bg} ${meta.color}`}>
               <Icon className="w-3 h-3" />
               {meta.label}
             </div>
-            <h1 className="text-xl font-bold text-text-primary leading-snug">{selected.title}</h1>
+            <h1 className="text-xl font-semibold text-text-primary leading-snug">{selected.title}</h1>
             <p className="text-xs text-text-tertiary">{formatDate(selected.published_at)}</p>
           </div>
 
@@ -164,7 +164,7 @@ export default function NoticesPage() {
                 <Button
                   onClick={handleAck}
                   disabled={acking}
-                  className="w-full font-bold h-12 rounded-2xl"
+                  className="w-full h-12"
                 >
                   {acking ? '처리 중...' : '확인했어요'}
                 </Button>
@@ -188,9 +188,9 @@ export default function NoticesPage() {
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <span className="font-bold text-lg text-text-primary">공지사항</span>
+        <span className="font-semibold text-lg text-text-primary">공지사항</span>
         {unreadCount > 0 && (
-          <span className="ml-2 bg-danger-fg text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+          <span className="ml-2 bg-danger-fg text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full">
             {unreadCount}
           </span>
         )}
@@ -224,7 +224,7 @@ export default function NoticesPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <p className={`text-sm font-semibold truncate ${isRead ? 'text-text-secondary' : 'text-text-primary'}`}>
+                      <p className={`text-sm font-medium truncate ${isRead ? 'text-text-secondary' : 'text-text-primary'}`}>
                         {notice.title}
                       </p>
                       {!isRead && (

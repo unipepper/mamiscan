@@ -11,18 +11,16 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const name: string | undefined = body.name?.trim() || undefined;
-  const pregnancyWeeks: number | undefined = body.pregnancy_weeks
-    ? Number(body.pregnancy_weeks)
-    : undefined;
+  const pregnancyStartDate: string | undefined = body.pregnancy_start_date || undefined;
 
   // 입력값이 없으면 DB 호출 없이 성공 반환
-  if (!name && !pregnancyWeeks) {
+  if (!name && !pregnancyStartDate) {
     return NextResponse.json({ ok: true });
   }
 
-  const updates: Record<string, string | number> = {};
+  const updates: Record<string, string> = {};
   if (name) updates.name = name;
-  if (pregnancyWeeks) updates.pregnancy_weeks = pregnancyWeeks;
+  if (pregnancyStartDate) updates.pregnancy_start_date = pregnancyStartDate;
 
   const { error: updateError } = await supabase
     .from('users')

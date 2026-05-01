@@ -350,7 +350,7 @@ export default function ScanPage() {
                       : '무료 체험 3회를 모두 사용했어요'}
                   </span>
                 </div>
-                <span className="text-xs font-bold text-black bg-primary px-2 py-1 rounded-full shadow-sm">로그인</span>
+                <span className="text-xs font-medium text-black bg-primary px-2 py-1 rounded-full shadow-sm">로그인</span>
               </div>
             ) : isActive ? (
               <div className="bg-primary/80 backdrop-blur-md border border-primary/20 rounded-xl p-3 flex items-center space-x-2">
@@ -363,7 +363,7 @@ export default function ScanPage() {
                   <ScanLine className="w-4 h-4 text-secondary" />
                   <span className="text-sm font-medium text-white">남은 횟수: <strong className="text-secondary">{remainingScans}회</strong></span>
                 </div>
-                <span className="text-xs font-bold text-black bg-secondary px-2 py-1 rounded-full shadow-sm">충전하기</span>
+                <span className="text-xs font-medium text-black bg-secondary px-2 py-1 rounded-full shadow-sm">충전하기</span>
               </div>
             )}
           </div>
@@ -377,7 +377,7 @@ export default function ScanPage() {
             </div>
           )}
 
-          <p className="text-center text-base text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] font-medium mb-10">
+          <p className="text-center text-base text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] font-normal mb-10">
             바코드를 스캔하거나<br />식료품을 촬영해 주세요
           </p>
 
@@ -415,13 +415,13 @@ export default function ScanPage() {
             <button onClick={() => setShowPermissionGuide(false)} className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" />
             </button>
-            <h3 className="text-lg font-bold mb-4 flex items-center">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
               <Camera className="w-5 h-5 mr-2 text-primary" />
               카메라 권한 허용 가이드
             </h3>
             <div className="space-y-5 text-sm text-gray-600 overflow-y-auto max-h-[60vh]">
               <div>
-                <h4 className="font-semibold text-gray-900 mb-2">📱 아이폰 (Safari)</h4>
+                <h4 className="font-medium text-gray-900 mb-2">📱 아이폰 (Safari)</h4>
                 <ol className="list-decimal pl-4 space-y-1">
                   <li>주소창 왼쪽의 <strong>'aA'</strong> 아이콘 터치</li>
                   <li><strong>'웹사이트 설정'</strong> 터치</li>
@@ -429,7 +429,7 @@ export default function ScanPage() {
                 </ol>
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900 mb-2">📱 안드로이드 (Chrome)</h4>
+                <h4 className="font-medium text-gray-900 mb-2">📱 안드로이드 (Chrome)</h4>
                 <ol className="list-decimal pl-4 space-y-1">
                   <li>주소창 왼쪽의 <strong>자물쇠 모양</strong> 아이콘 터치</li>
                   <li><strong>'권한'</strong> 메뉴 선택</li>
@@ -454,13 +454,13 @@ export default function ScanPage() {
             <button onClick={() => setShowAlbumPermissionGuide(false)} className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" />
             </button>
-            <h3 className="text-lg font-bold mb-4 flex items-center">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
               <ImageIcon className="w-5 h-5 mr-2 text-primary" />
               앨범 접근 권한 허용 가이드
             </h3>
             <div className="space-y-5 text-sm text-gray-600 overflow-y-auto max-h-[60vh]">
               <div>
-                <h4 className="font-semibold text-gray-900 mb-2">📱 아이폰 (Safari)</h4>
+                <h4 className="font-medium text-gray-900 mb-2">📱 아이폰 (Safari)</h4>
                 <ol className="list-decimal pl-4 space-y-1">
                   <li><strong>설정 앱</strong> 열기</li>
                   <li><strong>'개인 정보 보호 및 보안'</strong> → <strong>'사진'</strong> 터치</li>
@@ -468,7 +468,7 @@ export default function ScanPage() {
                 </ol>
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900 mb-2">📱 안드로이드 (Chrome)</h4>
+                <h4 className="font-medium text-gray-900 mb-2">📱 안드로이드 (Chrome)</h4>
                 <ol className="list-decimal pl-4 space-y-1">
                   <li>주소창 왼쪽의 <strong>자물쇠 모양</strong> 아이콘 터치</li>
                   <li><strong>'권한'</strong> 메뉴 선택</li>

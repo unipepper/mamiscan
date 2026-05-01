@@ -313,11 +313,11 @@ function ResultContent() {
     return (
       <div className="flex flex-col flex-1 bg-bg-canvas items-center justify-center min-h-screen px-6">
         <div className="bg-danger-bg p-4 rounded-full mb-6"><AlertTriangle className="w-12 h-12 text-danger-fg" /></div>
-        <h2 className="text-xl font-bold text-text-primary mb-2 text-center">분석에 실패했어요</h2>
+        <h2 className="text-xl text-text-primary mb-2 text-center">분석에 실패했어요</h2>
         <p className="text-text-secondary font-medium mb-8 text-center">{error}</p>
         <div className="flex flex-col w-full max-w-xs space-y-3">
-          <Button onClick={() => router.back()} className="w-full font-bold py-6 rounded-xl">다시 촬영하기</Button>
-          <Button variant="outline" onClick={() => router.push('/home')} className="w-full font-bold py-6 rounded-xl">홈으로 돌아가기</Button>
+          <Button onClick={() => router.back()} className="w-full py-6">다시 촬영하기</Button>
+          <Button variant="outline" onClick={() => router.push('/home')} className="w-full py-6">홈으로 돌아가기</Button>
         </div>
       </div>
     );
@@ -384,12 +384,12 @@ function ResultContent() {
     return (
       <div className="flex flex-col flex-1 bg-bg-canvas items-center justify-center min-h-screen px-6">
         <div className="bg-neutral-bg p-4 rounded-full mb-6"><Info className="w-12 h-12 text-text-secondary" /></div>
-        <h2 className="text-xl font-bold text-text-primary mb-2 text-center">{cfg.head}</h2>
+        <h2 className="text-xl text-text-primary mb-2 text-center">{cfg.head}</h2>
         <p className="text-text-secondary font-medium mb-8 text-center leading-relaxed">{cfg.body}</p>
         <div className="flex flex-col w-full max-w-xs space-y-3">
-          <Button onClick={cfg.primaryAction} className="w-full font-bold py-6 rounded-xl">{cfg.primaryLabel}</Button>
+          <Button onClick={cfg.primaryAction} className="w-full py-6">{cfg.primaryLabel}</Button>
           {cfg.secondaryLabel && (
-            <Button variant="outline" onClick={cfg.secondaryAction} className="w-full font-bold py-6 rounded-xl">{cfg.secondaryLabel}</Button>
+            <Button variant="outline" onClick={cfg.secondaryAction} className="w-full py-6">{cfg.secondaryLabel}</Button>
           )}
         </div>
       </div>
@@ -403,17 +403,18 @@ function ResultContent() {
           <button onClick={() => router.back()} className="p-2 -ml-2 text-text-primary"><ArrowLeft className="w-6 h-6" /></button>
           <span className="font-medium ml-2 text-text-primary">분석 결과</span>
         </div>
-        <button onClick={() => setShowReportModal(true)} className="px-2 py-1 text-sm text-text-secondary hover:text-text-primary transition-colors">
+        <button onClick={() => setShowReportModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-danger-fg bg-danger-bg border border-danger-fg/20 rounded-full hover:bg-danger-fg hover:text-white transition-colors">
+          <Flag className="w-3.5 h-3.5" />
           오류 제보
         </button>
       </header>
 
-      <main className="px-4 py-5 space-y-5">
+      <main className="px-4 py-6 space-y-6">
         {isError && (
             <div className="bg-neutral-bg rounded-xl p-4 flex items-start space-x-3 border border-border-subtle">
               <Info className="w-5 h-5 text-text-secondary shrink-0 mt-0.5" />
               <div>
-                <h3 className="text-sm font-bold text-text-primary mb-1">
+                <h3 className="text-sm text-text-primary mb-1">
                   {result.status === 'error_food_estimate' ? '성분 표기가 없어 AI 추정 기반이에요' :
                     result.status === 'error_future_category' ? '아직 이 카테고리는 준비 중이에요' :
                     result.status === 'error_unsupported_category' ? '이 종류는 마미스캔이 판정하기 어려워요' :
@@ -436,22 +437,22 @@ function ResultContent() {
             result.status === 'success' ? 'bg-success-bg' :
               result.status === 'danger' ? 'bg-danger-bg' : 'bg-caution-bg'
             }`}>
-            <CardContent className="p-5 flex flex-col">
+            <CardContent className="p-6 flex flex-col">
               {/* 배지 + 헤드라인 + 제품명 */}
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center flex-wrap gap-2">
-                  <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${
+                  <div className={`inline-flex items-center rounded-full px-3 py-1 text-[13px] font-medium text-white ${
                     isError ? 'bg-text-secondary' :
                     result.status === 'success' ? 'bg-success-fg' :
                     result.status === 'danger' ? 'bg-danger-fg' : 'bg-caution-fg'
                   }`}>
-                    {isError ? <Info className="w-3.5 h-3.5 mr-1" /> :
-                      result.status === 'success' ? <CheckCircle className="w-3.5 h-3.5 mr-1" /> :
-                      <AlertTriangle className="w-3.5 h-3.5 mr-1" />}
+                    {isError ? <Info className="w-3.5 h-3.5 mr-1.5" /> :
+                      result.status === 'success' ? <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> :
+                      <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />}
                     {isError ? '참고 정보' : result.status === 'success' ? '안전' : result.status === 'danger' ? '위험' : '주의 필요'}
                   </div>
                   {hasWeekInfo && (
-                    <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${isError ? 'bg-neutral-bg text-text-secondary' : 'bg-white/60 text-primary'}`}>
+                    <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${isError ? 'bg-neutral-bg text-text-secondary' : 'bg-white/60 text-primary'}`}>
                       임신 {pregnancyWeeks}주차 맞춤
                     </div>
                   )}
@@ -468,7 +469,7 @@ function ResultContent() {
                 result.status === 'success' ? 'text-success-fg' :
                 result.status === 'danger' ? 'text-danger-fg' : 'text-caution-fg'
               }`}>{splitHeadline(result.headline)}</h1>
-              <p className={`text-sm font-medium ${displayImageSrc ? 'mb-3' : 'mb-4'} ${
+              <p className={`text-sm font-medium mt-2 ${displayImageSrc ? 'mb-4' : 'mb-4'} ${
                 isError ? 'text-text-secondary' :
                 result.status === 'success' ? 'text-success-fg/70' :
                 result.status === 'danger' ? 'text-danger-fg/70' : 'text-caution-fg/70'
@@ -476,7 +477,7 @@ function ResultContent() {
 
               {/* 촬영 이미지 (제품명 아래, 설명 위) */}
               {displayImageSrc && (
-                <div className="-mx-5 mb-4 overflow-hidden">
+                <div className="-mx-5 overflow-hidden">
                   <img
                     src={displayImageSrc}
                     alt="촬영 이미지"
@@ -486,7 +487,7 @@ function ResultContent() {
                 </div>
               )}
 
-              <div className="space-y-2.5">
+              <div className={`space-y-2.5 ${displayImageSrc ? 'mt-5' : ''}`}>
                 {result.description.split('\n').filter(Boolean).map((line: string, i: number) => (
                   <p key={i} className="text-sm text-text-primary leading-[1.75] break-keep">{line}</p>
                 ))}
@@ -496,26 +497,28 @@ function ResultContent() {
                 <div className="mt-4 pt-4 border-t border-black/10 space-y-1.5">
                   <div className="flex items-center space-x-1.5">
                     <span className="text-sm">✨</span>
-                    <p className="text-xs font-bold text-primary">임신 {pregnancyWeeks}주차 맞춤 조언</p>
+                    <p className="text-xs text-primary">임신 {pregnancyWeeks}주차 맞춤 조언</p>
                   </div>
                   <p className="text-sm text-text-primary leading-[1.75] break-keep">{result.weekAnalysis}</p>
                 </div>
               )}
 
               {!hasWeekInfo && authUser && (
+                <div className="mt-4 pt-4 border-t border-black/10">
                 <button
                   onClick={() => setShowWeekModal(true)}
-                  className="mt-4 w-full flex items-center justify-between px-4 py-3.5 bg-white/75 hover:bg-white/95 border border-white/80 rounded-2xl transition-all shadow-sm group"
+                  className="w-full flex items-center justify-between px-4 py-3.5 bg-white/75 hover:bg-white/95 border border-white/80 rounded-2xl transition-all shadow-sm group"
                 >
                   <div className="flex items-center space-x-3">
                     <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0 text-lg">✨</div>
                     <div className="text-left">
-                      <p className="text-sm font-bold text-text-primary">주차별 맞춤 분석 받기</p>
+                      <p className="text-sm font-medium text-text-primary">주차별 맞춤 분석 받기</p>
                       <p className="text-[11px] text-text-secondary mt-0.5">임신 주차를 입력하면 딱 맞는 조언을 드려요</p>
                     </div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-primary shrink-0" />
                 </button>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -526,9 +529,9 @@ function ResultContent() {
               <div className="absolute inset-0 z-20 flex flex-col items-center pt-12 pb-8 bg-gradient-to-b from-transparent via-bg-canvas/60 to-bg-canvas backdrop-blur-[2px]">
                 <div className="bg-white/95 p-6 rounded-2xl shadow-xl border border-gray-100 flex flex-col items-center max-w-[280px] text-center sticky top-32">
                   <div className="bg-primary/10 p-3 rounded-full mb-3"><Lock className="w-6 h-6 text-primary" /></div>
-                  <h3 className="font-bold text-text-primary mb-2">회원 전용 기능</h3>
+                  <h3 className="text-text-primary mb-2">회원 전용 기능</h3>
                   <p className="text-sm text-text-secondary mb-4 leading-relaxed">상세 성분 분석부터 주차별 맞춤 가이드까지 모두 확인해보세요.</p>
-                  <Button onClick={() => router.push('/login')} className="w-full font-bold rounded-xl py-5 shadow-sm">로그인 / 회원가입 하기</Button>
+                  <Button onClick={() => router.push('/login')} className="w-full py-5 shadow-sm">로그인 / 회원가입 하기</Button>
                 </div>
               </div>
             )}
@@ -536,26 +539,24 @@ function ResultContent() {
             <div className={!authUser ? 'opacity-30 pointer-events-none select-none overflow-hidden max-h-[400px]' : ''}>
               {/* Ingredients */}
               {!isError && (
-                <section className="space-y-3">
+                <section className="space-y-4">
                   <div className="flex items-center justify-between px-1">
-                    <h2 className="text-[18px] font-bold text-text-primary">어떤 성분/특징 때문인가요?</h2>
+                    <h2 className="text-[20px] font-semibold text-text-primary">어떤 성분/특징 때문인가요?</h2>
                     {hasWeekInfo && <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded-md font-medium">{pregnancyWeeks}주차 기준</span>}
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {!authUser ? (
                       <>
                         {['주의 성분 A', '위험 성분 B'].map((name, i) => (
                           <Card key={name} className="bg-bg-surface border-border-subtle shadow-sm">
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="font-bold text-text-primary">{name}</span>
-                                <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${i === 0 ? 'bg-caution-fg' : 'bg-danger-fg'}`}>
+                            <CardContent className="p-5">
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-base font-medium text-text-primary">{name}</span>
+                                <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white ${i === 0 ? 'bg-caution-fg' : 'bg-danger-fg'}`}>
                                   {i === 0 ? '주의' : '위험'}
                                 </div>
                               </div>
-                              <div className="bg-neutral-bg rounded-lg p-3 mt-3">
-                                <p className="text-sm text-text-secondary leading-relaxed">임산부에게 영향을 줄 수 있는 성분으로 섭취량 조절이 필요합니다.</p>
-                              </div>
+                              <p className="text-sm text-text-secondary leading-relaxed">임산부에게 영향을 줄 수 있는 성분으로 섭취량 조절이 필요합니다.</p>
                             </CardContent>
                           </Card>
                         ))}
@@ -563,16 +564,14 @@ function ResultContent() {
                     ) : result.ingredients?.filter((i: any) => i.status !== 'success').length > 0 ? (
                       result.ingredients.filter((i: any) => i.status !== 'success').map((ingredient: any, idx: number) => (
                         <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm">
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-bold text-text-primary">{ingredient.name}</span>
-                              <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white ${ingredient.status === 'caution' ? 'bg-caution-fg' : 'bg-danger-fg'}`}>
+                          <CardContent className="p-5">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-base font-medium text-text-primary">{ingredient.name}</span>
+                              <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white ${ingredient.status === 'caution' ? 'bg-caution-fg' : 'bg-danger-fg'}`}>
                                 {ingredient.status === 'caution' ? '주의' : '위험'}
                               </div>
                             </div>
-                            <div className="bg-neutral-bg rounded-lg p-3 mt-3">
-                              <p className="text-sm text-text-secondary leading-relaxed break-keep">{ingredient.reason}</p>
-                            </div>
+                            <p className="text-sm text-text-secondary leading-relaxed break-keep">{ingredient.reason}</p>
                           </CardContent>
                         </Card>
                       ))
@@ -589,9 +588,9 @@ function ResultContent() {
               )}
 
               {/* Alternatives */}
-              <section className="space-y-3 mt-6">
+              <section className="space-y-4 mt-8">
                 <div className="flex items-center justify-between px-1">
-                  <h2 className="text-[18px] font-bold text-text-primary">안전한 대체 제품</h2>
+                  <h2 className="text-[18px] font-semibold text-text-primary">안전한 대체 제품</h2>
                   <span className="text-xs text-text-secondary bg-neutral-bg px-2 py-1 rounded-md">광고 아님</span>
                 </div>
                 <p className="text-sm text-text-secondary px-1">주의할 특징이 없는 비슷한 제품을 찾아봤어요.</p>
@@ -606,7 +605,7 @@ function ResultContent() {
                             </div>
                             <div>
                               <p className="text-xs text-text-secondary mb-0.5">{alt.brand}</p>
-                              <p className="font-semibold text-text-primary text-sm">{alt.name}</p>
+                              <p className="font-medium text-text-primary text-sm">{alt.name}</p>
                             </div>
                           </div>
                           <ChevronRight className="w-5 h-5 text-text-secondary" />
@@ -624,9 +623,9 @@ function ResultContent() {
                   {!authUser && (
                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center">
                       <div className="bg-primary/10 p-3 rounded-full mb-3"><Lock className="w-6 h-6 text-primary" /></div>
-                      <h3 className="font-bold text-text-primary mb-2">회원 전용 기능</h3>
+                      <h3 className="text-text-primary mb-2">회원 전용 기능</h3>
                       <p className="text-sm text-text-secondary mb-4">로그인하면 안전한 대체 제품을 확인할 수 있어요.</p>
-                      <Button onClick={() => router.push('/login')} className="font-bold shadow-md">로그인 / 회원가입</Button>
+                      <Button onClick={() => router.push('/login')} className="shadow-md">로그인 / 회원가입</Button>
                     </div>
                   )}
                 </div>
@@ -660,7 +659,7 @@ function ResultContent() {
             <button onClick={() => setShowReportModal(false)} className="absolute top-4 right-4 p-1 text-text-secondary hover:text-text-primary">
               <X className="w-5 h-5" />
             </button>
-            <h3 className="text-lg font-bold text-text-primary mb-2 flex items-center">
+            <h3 className="text-lg text-text-primary mb-2 flex items-center">
               <Flag className="w-5 h-5 mr-2 text-primary" />정보 오류 제보
             </h3>
             <p className="text-sm text-text-secondary mb-4 leading-relaxed">AI가 분석한 결과가 실제 제품과 다르다면 알려주세요.</p>
@@ -690,7 +689,7 @@ function ResultContent() {
               placeholder="예: 이 제품은 떡볶이 스낵이 아니라 감자칩입니다."
               className="w-full h-24 px-3 py-2 bg-bg-surface border border-border-subtle rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none mb-4"
             />
-            <Button onClick={handleReportSubmit} disabled={isSubmittingReport} className="w-full font-bold py-2.5 rounded-xl">
+            <Button onClick={handleReportSubmit} disabled={isSubmittingReport} className="w-full py-2.5">
               {isSubmittingReport ? <Loader2 className="w-5 h-5 animate-spin" /> : '제보하기'}
             </Button>
           </div>
@@ -703,7 +702,7 @@ function ResultContent() {
           <div className="bg-bg-canvas w-full rounded-t-3xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 bg-border-subtle rounded-full" /></div>
             <div className="px-6 pt-3 pb-2 text-center">
-              <h3 className="text-lg font-bold text-text-primary">몇 주차이세요?</h3>
+              <h3 className="text-lg text-text-primary">몇 주차이세요?</h3>
               <p className="text-xs text-text-secondary mt-1">주차에 맞는 맞춤 분석을 드릴게요</p>
             </div>
             <div className="relative mx-auto w-48 h-[168px] overflow-hidden">
@@ -733,7 +732,7 @@ function ResultContent() {
               </div>
             </div>
             <div className="px-6 pb-8 pt-4">
-              <Button onClick={handleWeekSubmit} disabled={isSubmittingWeeks} className="w-full font-bold h-12 rounded-2xl text-base">
+              <Button onClick={handleWeekSubmit} disabled={isSubmittingWeeks} className="w-full h-12 text-base">
                 {isSubmittingWeeks ? <Loader2 className="w-5 h-5 animate-spin" /> : '저장하기'}
               </Button>
             </div>

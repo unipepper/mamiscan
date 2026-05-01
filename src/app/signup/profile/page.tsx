@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-
-const WEEK_OPTIONS = Array.from({ length: 42 }, (_, i) => i + 1);
+import { calcPregnancyWeek } from '@/lib/utils';
 
 export default function SignupProfilePage() {
   const router = useRouter();
@@ -12,7 +11,7 @@ export default function SignupProfilePage() {
 
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
-  const [pregnancyWeeks, setPregnancyWeeks] = useState('');
+  const [pregnancyStartDate, setPregnancyStartDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +31,7 @@ export default function SignupProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim() || undefined,
-          pregnancy_weeks: pregnancyWeeks ? Number(pregnancyWeeks) : undefined,
+          pregnancy_start_date: pregnancyStartDate || undefined,
         }),
       });
 
@@ -101,23 +100,25 @@ export default function SignupProfilePage() {
             />
           </div>
 
-          {/* 임신주차 */}
+          {/* 마지막 생리 시작일 */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-400 uppercase tracking-wide">
-              임신주차 <span className="normal-case font-normal">(선택)</span>
+              마지막 생리 시작일 <span className="normal-case font-normal">(선택)</span>
             </label>
-            <select
-              value={pregnancyWeeks}
-              onChange={(e) => setPregnancyWeeks(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-gray-400 transition appearance-none bg-white"
-            >
-              <option value="">주차를 선택해주세요</option>
-              {WEEK_OPTIONS.map((w) => (
-                <option key={w} value={w}>{w}주차</option>
-              ))}
-            </select>
+            <input
+              type="date"
+              value={pregnancyStartDate}
+              onChange={(e) => setPregnancyStartDate(e.target.value)}
+              max={new Date().toISOString().split('T')[0]}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-gray-400 transition"
+            />
+            {pregnancyStartDate && calcPregnancyWeek(pregnancyStartDate) && (
+              <p className="text-xs text-gray-600 pl-1 font-medium">
+                현재 임신 {calcPregnancyWeek(pregnancyStartDate)}주차로 계산돼요
+              </p>
+            )}
             <p className="text-xs text-gray-400 pl-1">
-              · 성분 안전 판단에 사용돼요. 설정에서 언제든 변경할 수 있어요.
+              · 주차별 맞춤 성분 분석에 사용돼요. 설정에서 언제든 변경할 수 있어요.
             </p>
           </div>
         </div>

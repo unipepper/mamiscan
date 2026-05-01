@@ -212,17 +212,17 @@ export default function BillingHistoryPage() {
               if (!hasSummary) return null;
               return (
                 <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2">
-                  <p className="text-xs font-bold text-primary">현재 이용 중인 스캔권</p>
+                  <p className="text-xs text-primary">현재 이용 중인 스캔권</p>
                   {activeMonthly && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-text-primary">무제한 스캔권</span>
-                      <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">사용 중</span>
+                      <span className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full">사용 중</span>
                     </div>
                   )}
                   {activeScanCount > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-text-primary">보유 중인 스캔권</span>
-                      <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{activeScanCount}회 사용 가능</span>
+                      <span className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full">{activeScanCount}회 사용 가능</span>
                     </div>
                   )}
                   {activeMonthly && pendingScanCount > 0 && (
@@ -256,7 +256,7 @@ export default function BillingHistoryPage() {
                         <Receipt className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <p className={`font-bold text-sm ${tx.status === 'refunded' ? 'text-text-disabled line-through' : 'text-text-primary'}`}>
+                        <p className={`font-semibold text-sm ${tx.status === 'refunded' ? 'text-text-disabled line-through' : 'text-text-primary'}`}>
                           {tx.description}
                         </p>
                         <p className="text-xs text-text-secondary mt-1">
@@ -264,7 +264,7 @@ export default function BillingHistoryPage() {
                         </p>
                       </div>
                     </div>
-                    <div className={`font-bold ${getAmountColor(tx.status)}`}>{getAmountDisplay(tx)}</div>
+                    <div className={`font-semibold ${getAmountColor(tx.status)}`}>{getAmountDisplay(tx)}</div>
                   </div>
 
                   {/* 횟수권 사용 현황 — 닷 시각화 */}
@@ -275,10 +275,10 @@ export default function BillingHistoryPage() {
                         {(() => {
                           const isExpired = new Date(ent.expires_at) < new Date();
                           const isDepleted = ent.scan_count === 0;
-                          if (isDepleted) return <span className="text-xs font-bold px-2 py-0.5 rounded-full text-text-disabled bg-neutral-bg">소진</span>;
-                          if (isExpired) return <span className="text-xs font-bold px-2 py-0.5 rounded-full text-danger-fg bg-danger-bg">만료</span>;
-                          if (ent.status === 'pending') return <span className="text-xs font-bold px-2 py-0.5 rounded-full text-caution bg-caution/10">대기 중</span>;
-                          return <span className="text-xs font-bold px-2 py-0.5 rounded-full text-primary bg-primary/10">이용 중</span>;
+                          if (isDepleted) return <span className="text-xs px-2 py-0.5 rounded-full text-text-disabled bg-neutral-bg">소진</span>;
+                          if (isExpired) return <span className="text-xs px-2 py-0.5 rounded-full text-danger-fg bg-danger-bg">만료</span>;
+                          if (ent.status === 'pending') return <span className="text-xs px-2 py-0.5 rounded-full text-caution bg-caution/10">대기 중</span>;
+                          return <span className="text-xs px-2 py-0.5 rounded-full text-primary bg-primary/10">이용 중</span>;
                         })()}
                       </div>
                       <div className="flex gap-2 mb-2">
@@ -318,7 +318,7 @@ export default function BillingHistoryPage() {
                       <div className="mt-3 pt-3 border-t border-border-subtle space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-text-secondary">스캔권 상태</span>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-text-secondary">이용 기간</span>
@@ -366,11 +366,11 @@ export default function BillingHistoryPage() {
                   {tx.type !== 'trial' && tx.price_krw > 0 && (
                     <div className="mt-3 pt-3 border-t border-border-subtle flex justify-end items-center">
                       {tx.status === 'refunded' ? (
-                        <span className="text-xs font-bold text-danger-fg bg-danger-bg px-2 py-1 rounded-md">환불 완료</span>
+                        <span className="text-xs text-danger-fg bg-danger-bg px-2 py-1 rounded-md">환불 완료</span>
                       ) : tx.status === 'refund_pending' ? (
-                        <span className="text-xs font-bold text-caution-fg bg-caution-bg px-2 py-1 rounded-md">환불 검토 중</span>
+                        <span className="text-xs text-caution-fg bg-caution-bg px-2 py-1 rounded-md">환불 검토 중</span>
                       ) : tx.status === 'refund_rejected' ? (
-                        <span className="text-xs font-bold text-text-secondary bg-neutral-bg px-2 py-1 rounded-md">환불 거절</span>
+                        <span className="text-xs text-text-secondary bg-neutral-bg px-2 py-1 rounded-md">환불 거절</span>
                       ) : usedCount > 0 || (isMonthlyTx && ent?.status !== 'pending') ? (
                         <div className="flex items-center gap-1.5 text-xs text-text-secondary bg-neutral-bg px-3 py-1.5 rounded-lg">
                           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -398,7 +398,7 @@ export default function BillingHistoryPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-xl">
             <div className="flex items-center justify-between p-4 border-b border-border-subtle">
-              <h3 className="font-bold text-lg text-text-primary">환불 신청</h3>
+              <h3 className="text-lg font-semibold text-text-primary">환불 신청</h3>
               <button onClick={() => setIsRefundModalOpen(false)} className="p-1 text-text-secondary hover:text-text-primary">
                 <X className="w-5 h-5" />
               </button>
@@ -407,19 +407,19 @@ export default function BillingHistoryPage() {
               <div className="bg-bg-canvas rounded-xl p-4 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-xs text-text-secondary">상품명</span>
-                  <span className="text-sm font-bold text-text-primary">{selectedTx.description}</span>
+                  <span className="text-sm text-text-primary">{selectedTx.description}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-text-secondary">결제 금액</span>
                   <span className="text-sm font-medium">{(selectedTx.price_krw || 0).toLocaleString()}원</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-border-subtle">
-                  <span className="text-xs font-bold text-text-primary">환불 예정 금액</span>
-                  <span className="text-sm font-bold text-primary">{(selectedTx.price_krw || 0).toLocaleString()}원</span>
+                  <span className="text-xs text-text-primary">환불 예정 금액</span>
+                  <span className="text-sm text-primary">{(selectedTx.price_krw || 0).toLocaleString()}원</span>
                 </div>
               </div>
               <div className="space-y-3">
-                <p className="text-sm font-bold text-text-primary">환불 사유를 선택해주세요</p>
+                <p className="text-sm text-text-primary">환불 사유를 선택해주세요</p>
                 {([
                   { value: 'mind_change',  label: '단순 변심',            subs: null },
                   { value: 'not_useful',   label: '기능 불일치',      subs: [
@@ -479,8 +479,8 @@ export default function BillingHistoryPage() {
               )}
             </div>
             <div className="p-4 border-t border-border-subtle flex space-x-3 bg-bg-canvas">
-              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setIsRefundModalOpen(false)} disabled={isRefunding}>닫기</Button>
-              <Button className="flex-1 rounded-xl font-bold" onClick={handleRefundSubmit} disabled={isRefunding || refundMessage?.type === 'success'}>
+              <Button variant="outline" className="flex-1" onClick={() => setIsRefundModalOpen(false)} disabled={isRefunding}>닫기</Button>
+              <Button className="flex-1" onClick={handleRefundSubmit} disabled={isRefunding || refundMessage?.type === 'success'}>
                 {isRefunding ? '처리 중...' : '환불 요청하기'}
               </Button>
             </div>
