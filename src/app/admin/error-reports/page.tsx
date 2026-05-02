@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, CheckCircle, Clock, XCircle, RefreshCw, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 type ReportItem = {
   id: number;
@@ -112,15 +113,15 @@ export default function ErrorReportsPage() {
             className="w-full border rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
           {error && <p className="text-red-500 text-xs mb-3">{error}</p>}
-          <button
+          <Button
             onClick={() => {
               sessionStorage.setItem('admin_secret', secretInput);
               setSecret(secretInput);
             }}
-            className="w-full bg-blue-600 text-white rounded-lg py-2 text-sm font-medium"
+            className="w-full"
           >
             확인
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -135,13 +136,10 @@ export default function ErrorReportsPage() {
             <h1 className="text-xl font-bold text-gray-900">오류 제보 관리</h1>
             <p className="text-sm text-gray-500 mt-0.5">총 {total}건</p>
           </div>
-          <button
-            onClick={() => fetchReports(secret, page, statusFilter, correctionFilter)}
-            className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900"
-          >
+          <Button variant="ghost" size="sm" onClick={() => fetchReports(secret, page, statusFilter, correctionFilter)} className="gap-1.5 text-text-secondary">
             <RefreshCw className="w-4 h-4" />
             새로고침
-          </button>
+          </Button>
         </div>
 
         {/* 필터 */}
@@ -191,9 +189,10 @@ export default function ErrorReportsPage() {
 
                 return (
                   <li key={r.id}>
-                    <button
+                    <Button
+                      variant="ghost"
                       onClick={() => router.push(`/admin/error-reports/${r.id}`)}
-                      className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+                      className="w-full justify-start gap-4 px-5 py-4 h-auto text-left rounded-none"
                     >
                       {/* 상태 아이콘 */}
                       <span className="shrink-0">
@@ -240,7 +239,7 @@ export default function ErrorReportsPage() {
                         </span>
                         <ChevronRight className="w-4 h-4 text-gray-300" />
                       </div>
-                    </button>
+                    </Button>
                   </li>
                 );
               })}
@@ -251,23 +250,15 @@ export default function ErrorReportsPage() {
         {/* 페이지네이션 */}
         {totalPages > 1 && (
           <div className="flex justify-center gap-2 mt-6">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-3 py-1.5 text-sm border rounded-lg disabled:opacity-40"
-            >
+            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
               이전
-            </button>
-            <span className="px-3 py-1.5 text-sm text-gray-600">
+            </Button>
+            <span className="px-3 py-1.5 text-sm text-text-secondary">
               {page} / {totalPages}
             </span>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="px-3 py-1.5 text-sm border rounded-lg disabled:opacity-40"
-            >
+            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
               다음
-            </button>
+            </Button>
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@
 
 import { Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 
 const MESSAGES: Record<string, { title: string; desc: string }> = {
   PAY_PROCESS_CANCELED: {
@@ -29,23 +30,17 @@ function PaymentFailContent() {
     <div className="min-h-screen flex items-center justify-center px-6">
       <div className="max-w-sm w-full text-center space-y-4">
         <div className="text-4xl">{code === 'PAY_PROCESS_CANCELED' ? '🙅' : '😥'}</div>
-        <h2 className="text-lg font-bold text-gray-900">{title}</h2>
-        <p className="text-sm text-gray-500">{desc}</p>
+        <h2 className="text-lg font-bold text-text-primary">{title}</h2>
+        <p className="text-sm text-text-secondary">{desc}</p>
         <div className="flex flex-col gap-2 pt-2">
           {code !== 'PAY_PROCESS_CANCELED' && code !== 'PAY_PROCESS_ABORTED' ? (
-            <button
-              onClick={() => router.push('/home')}
-              className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-medium"
-            >
+            <Button variant="secondary" onClick={() => router.push('/home')} className="w-full">
               홈으로
-            </button>
+            </Button>
           ) : (
-            <button
-              onClick={() => router.back()}
-              className="w-full py-3 bg-pink-500 text-white rounded-xl font-medium"
-            >
+            <Button onClick={() => router.back()} className="w-full">
               다시 시도하기
-            </button>
+            </Button>
           )}
         </div>
       </div>

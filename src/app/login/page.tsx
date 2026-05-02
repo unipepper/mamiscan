@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { Button } from '@/components/ui/button';
 
 export default function LoginPage() {
   const supabase = createClient();
@@ -51,13 +52,14 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-3">
-          <button
+          <Button
+            variant="outline"
             onClick={loginWithGoogle}
             disabled={!!loading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 transition"
+            className="w-full gap-3 rounded-xl"
           >
             {loading === 'google' ? (
-              <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-border-subtle border-t-transparent rounded-full animate-spin" />
             ) : (
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -67,8 +69,9 @@ export default function LoginPage() {
               </svg>
             )}
             Google로 계속하기
-          </button>
+          </Button>
 
+          {/* Kakao: provider 고유 색상(#FEE500)으로 Button 컴포넌트 적용 불가 */}
           <button
             onClick={loginWithKakao}
             disabled={!!loading}
@@ -85,16 +88,17 @@ export default function LoginPage() {
           </button>
 
           {loginError && (
-            <p className="text-center text-sm text-red-500">{loginError}</p>
+            <p className="text-center text-sm text-danger-fg">{loginError}</p>
           )}
         </div>
 
-        <button
+        <Button
+          variant="ghost"
           onClick={() => router.push('/home')}
-          className="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition py-1"
+          className="w-full text-text-tertiary hover:text-text-secondary"
         >
           로그인 없이 둘러보기
-        </button>
+        </Button>
       </div>
     </div>
   );

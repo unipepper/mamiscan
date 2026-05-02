@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { PLANS, type PlanType } from '@/lib/toss/plans';
+import { Button } from '@/components/ui/button';
 
 declare global {
   interface Window {
@@ -103,17 +104,23 @@ function CheckoutContent() {
   if (!plan) return null;
 
   return (
-
     <div className="min-h-screen bg-white">
       <div className="max-w-md mx-auto px-4 py-8">
-        <button onClick={() => router.back()} className="text-sm text-gray-500 mb-6">← 뒤로</button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.back()}
+          className="mb-6 text-text-secondary"
+        >
+          ← 뒤로
+        </Button>
 
-        <h1 className="text-xl font-bold text-gray-900 mb-1">{plan.orderName}</h1>
-        <p className="text-2xl font-bold text-pink-500 mb-6">{plan.amount.toLocaleString()}원</p>
+        <h1 className="text-xl font-bold text-text-primary mb-1">{plan.orderName}</h1>
+        <p className="text-2xl font-bold text-primary mb-6">{plan.amount.toLocaleString()}원</p>
 
         {loading && (
           <div className="flex justify-center py-12">
-            <div className="w-6 h-6 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 
@@ -121,13 +128,14 @@ function CheckoutContent() {
         <div id="agreement" className="mt-4" />
 
         {!loading && (
-          <button
+          <Button
             onClick={handlePay}
             disabled={paying}
-            className="mt-6 w-full py-4 bg-pink-500 text-white font-semibold rounded-xl hover:bg-pink-600 disabled:opacity-60 transition"
+            className="mt-6 w-full"
+            size="lg"
           >
             {paying ? '처리 중...' : `${plan.amount.toLocaleString()}원 결제하기`}
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -138,7 +146,7 @@ export default function CheckoutPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     }>
       <CheckoutContent />

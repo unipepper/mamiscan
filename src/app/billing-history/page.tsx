@@ -166,9 +166,9 @@ export default function BillingHistoryPage() {
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas min-h-screen">
       <header className="sticky top-0 z-40 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
-        <button onClick={() => router.back()} className="p-2 -ml-2 text-text-primary">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2">
           <ArrowLeft className="w-6 h-6" />
-        </button>
+        </Button>
         <span className="font-medium ml-2 text-text-primary">스캔권 구매/사용 내역</span>
       </header>
 
@@ -180,9 +180,9 @@ export default function BillingHistoryPage() {
         ) : fetchError ? (
           <div className="text-center py-20">
             <p className="text-text-secondary font-medium">내역을 불러오지 못했어요.</p>
-            <button onClick={() => { setFetchError(false); setIsLoading(true); fetchTransactions(); }} className="mt-3 text-sm text-primary underline underline-offset-2">
+            <Button variant="link" onClick={() => { setFetchError(false); setIsLoading(true); fetchTransactions(); }} className="mt-3 text-primary">
               다시 시도
-            </button>
+            </Button>
           </div>
         ) : transactions.length === 0 ? (
           <div className="text-center py-20">
@@ -337,13 +337,14 @@ export default function BillingHistoryPage() {
                   {/* 스캔 사용 내역 */}
                   {(isScanTx || isMonthlyTx) && ent && tx.status !== 'refunded' && scanHistoriesForTx.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-border-subtle">
-                      <button
+                      <Button
+                        variant="ghost"
                         onClick={() => toggleExpanded(tx.id)}
-                        className="flex items-center justify-between w-full text-xs text-text-secondary mb-2"
+                        className="w-full justify-between h-auto text-xs text-text-secondary mb-2 px-0"
                       >
                         <span className="font-medium">스캔 사용 내역</span>
                         <span>{isExpanded ? '▲ 접기' : '▼ 펼치기'}</span>
-                      </button>
+                      </Button>
                       {isExpanded && (
                         <div className="space-y-1.5">
                           {scanHistoriesForTx.map((h) => (
@@ -377,12 +378,13 @@ export default function BillingHistoryPage() {
                           <span>1회 이상 사용한 스캔권은 환불이 불가해요</span>
                         </div>
                       ) : (
-                        <button
+                        <Button
+                          variant="link"
+                          size="sm"
                           onClick={() => { setSelectedTx(tx); setRefundReason('mind_change'); setRefundDetail(''); setRefundMessage(null); setIsRefundModalOpen(true); }}
-                          className="text-xs font-medium text-text-secondary hover:text-text-primary underline underline-offset-2"
                         >
                           환불 요청
-                        </button>
+                        </Button>
                       )}
                     </div>
                   )}
@@ -399,9 +401,9 @@ export default function BillingHistoryPage() {
           <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-xl">
             <div className="flex items-center justify-between p-4 border-b border-border-subtle">
               <h3 className="text-lg font-semibold text-text-primary">환불 신청</h3>
-              <button onClick={() => setIsRefundModalOpen(false)} className="p-1 text-text-secondary hover:text-text-primary">
+              <Button variant="ghost" size="icon" onClick={() => setIsRefundModalOpen(false)} className="h-8 w-8">
                 <X className="w-5 h-5" />
-              </button>
+              </Button>
             </div>
             <div className="p-5 space-y-5">
               <div className="bg-bg-canvas rounded-xl p-4 space-y-2">

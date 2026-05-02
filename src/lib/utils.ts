@@ -16,3 +16,11 @@ export function calcPregnancyWeek(startDate: string | null | undefined): number 
   if (week < 1 || week > 42) return null;
   return week;
 }
+
+/** 임신 주차(1–42)를 역산하여 pregnancy_start_date(YYYY-MM-DD)를 반환 */
+export function weeksToStartDate(weeks: number): string {
+  const today = new Date();
+  const diffDays = (weeks - 1) * 7;
+  const start = new Date(today.getTime() - diffDays * 24 * 60 * 60 * 1000);
+  return start.toISOString().split('T')[0];
+}

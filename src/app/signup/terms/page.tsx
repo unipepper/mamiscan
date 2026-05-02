@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { Button } from '@/components/ui/button';
 
 const TERMS_ITEMS = [
   {
@@ -69,12 +70,12 @@ export default function SignupTermsPage() {
         <ul className="space-y-4">
           {TERMS_ITEMS.map((item) => (
             <li key={item.label} className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">
-                <span className="text-gray-400 mr-1.5">[필수]</span>
+              <span className="text-sm text-text-primary">
+                <span className="text-text-tertiary mr-1.5">[필수]</span>
                 {item.label}
                 {item.tooltip && (
                   <span
-                    className="ml-1.5 text-xs text-gray-400 cursor-default"
+                    className="ml-1.5 text-xs text-text-tertiary cursor-default"
                     title={item.tooltip}
                   >
                     ⓘ
@@ -82,13 +83,15 @@ export default function SignupTermsPage() {
                 )}
               </span>
               {item.href && (
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => window.open(item.href!, '_blank')}
-                  className="flex items-center gap-0.5 text-xs text-gray-400 hover:text-gray-600 transition shrink-0"
+                  className="gap-0.5 shrink-0 text-text-tertiary hover:text-text-secondary"
                 >
                   보기
                   <ChevronRight className="w-3.5 h-3.5" />
-                </button>
+                </Button>
               )}
             </li>
           ))}
@@ -97,12 +100,12 @@ export default function SignupTermsPage() {
         {/* CTA */}
         <div className="space-y-3">
           {error && (
-            <p className="text-center text-sm text-red-500">{error}</p>
+            <p className="text-center text-sm text-danger-fg">{error}</p>
           )}
-          <button
+          <Button
             onClick={handleAgree}
             disabled={loading}
-            className="w-full py-4 bg-gray-900 text-white text-base font-semibold rounded-2xl hover:bg-gray-800 disabled:opacity-60 transition"
+            className="w-full"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -112,14 +115,15 @@ export default function SignupTermsPage() {
             ) : (
               '전체 동의하기'
             )}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
             onClick={handleLogout}
             disabled={loading}
-            className="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition py-1"
+            className="w-full text-text-tertiary hover:text-text-secondary"
           >
             가입 취소
-          </button>
+          </Button>
         </div>
 
       </div>

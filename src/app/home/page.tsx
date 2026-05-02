@@ -67,16 +67,21 @@ export default function HomePage() {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-border-subtle bg-bg-surface/80 backdrop-blur-md">
         <div className="flex h-14 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center -ml-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="마미스캔" style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, objectFit: 'contain' }} />
-            <span className="font-bold text-lg text-text-primary tracking-tight">마미스캔</span>
+            <img src="/logo.png" alt="마미스캔" style={{ width: 64, height: 64, borderRadius: 14, flexShrink: 0, objectFit: 'contain' }} />
+            <span className="font-bold text-lg text-text-primary tracking-tight -ml-3">마미스캔</span>
           </div>
         </div>
       </header>
 
       {/* Top Utility Area */}
-      <div className="px-4 pt-4 pb-0 space-y-3">
+      <div className="px-4 pt-5 pb-0 space-y-1.5">
+        {isLoggedIn && profile?.name && (
+          <p className="text-lg font-semibold text-text-primary px-1 pb-0.5">
+            {profile.name}님, 안녕하세요 👋
+          </p>
+        )}
         {!isLoggedIn ? (
           <div
             className="bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-center justify-between cursor-pointer"
@@ -93,12 +98,12 @@ export default function HomePage() {
             {/* 임신 주차 */}
             <button
               onClick={() => router.push('/settings')}
-              className="flex-1 flex items-center gap-2 bg-bg-surface border border-border-subtle rounded-xl px-3 py-3 hover:bg-neutral-bg transition-colors"
+              className="flex-1 flex items-center gap-3 bg-bg-surface border border-border-subtle rounded-xl px-3 py-3 hover:bg-neutral-bg transition-colors"
             >
               <Calendar className="w-4 h-4 text-primary shrink-0" />
               <div className="text-left min-w-0">
-                <p className="text-[10px] text-text-secondary leading-none mb-1">임신 주차</p>
-                <p className="text-sm font-semibold text-text-primary leading-none truncate">
+                <p className="text-xs text-text-secondary leading-none mb-1.5">임신 주차</p>
+                <p className="text-base font-bold text-text-primary leading-none truncate">
                   {calcPregnancyWeek(profile?.pregnancy_start_date) ? `${calcPregnancyWeek(profile?.pregnancy_start_date)}주차` : '설정하기'}
                 </p>
               </div>
@@ -107,23 +112,23 @@ export default function HomePage() {
             {/* 남은 스캔 / 무제한 */}
             <button
               onClick={() => router.push(isActive ? '/billing-history' : '/pricing')}
-              className="flex-1 flex items-center justify-between gap-2 bg-bg-surface border border-border-subtle rounded-xl px-3 py-3 hover:bg-neutral-bg transition-colors"
+              className="flex-1 flex items-center justify-between gap-3 bg-bg-surface border border-border-subtle rounded-xl px-3 py-3 hover:bg-neutral-bg transition-colors"
             >
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
                 {isActive ? (
                   <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
                 ) : (
-                  <Scan className="w-4 h-4 text-secondary shrink-0" />
+                  <Scan className="w-4 h-4 text-secondary-strong shrink-0" />
                 )}
                 <div className="text-left min-w-0">
-                  <p className="text-[10px] text-text-secondary leading-none mb-1">남은 스캔</p>
-                  <p className={`text-sm font-semibold leading-none truncate ${isActive ? 'text-primary' : 'text-secondary'}`}>
+                  <p className="text-xs text-text-secondary leading-none mb-1.5">남은 스캔</p>
+                  <p className={`text-base font-bold leading-none truncate ${isActive ? 'text-primary' : 'text-secondary-strong'}`}>
                     {isActive ? '무제한' : `${remainingScans}회`}
                   </p>
                 </div>
               </div>
               {!isActive && (
-                <span className="text-[10px] font-medium text-secondary bg-secondary/10 px-1.5 py-0.5 rounded-full shrink-0">충전</span>
+                <span className="text-xs font-semibold text-secondary-strong bg-secondary/30 px-2.5 py-1.5 rounded-full shrink-0">충전</span>
               )}
             </button>
           </div>
@@ -140,16 +145,16 @@ export default function HomePage() {
       </div>
 
       {/* Hero */}
-      <section className="px-4 pt-6 pb-0">
+      <section className="px-4 pt-4 pb-0">
         <div className="bg-accent rounded-[28px] px-6 pt-6 pb-5 relative overflow-hidden">
           <div className="relative z-10">
             <span className="text-sm font-medium text-primary">
-              {isLoggedIn && profile?.name ? `${profile.name}님,` : '엄마도 맛있게, 아가도 건강하게'}
+              엄마도 맛있게, 아가도 건강하게
             </span>
-            <h1 className="text-[26px] leading-[35px] font-bold text-text-primary mt-1 mb-2">
+            <h1 className="text-[26px] leading-[35px] font-bold text-text-primary mt-1 mb-4">
               지금 먹어도 되는지<br />바로 확인해보세요
             </h1>
-            <p className="text-sm text-text-secondary mb-5">
+            <p className="text-sm text-text-secondary mb-6">
               임산부 기준 성분 분석부터<br />안전한 대체 제품 추천까지 5초면 충분해요.
             </p>
             <Button
@@ -157,7 +162,7 @@ export default function HomePage() {
               onClick={() => router.push('/scan')}
               className="w-full gap-2"
             >
-              <Scan className="w-5 h-5" />
+              <Scan className="w-4 h-4" />
               5초 안에 확인하기
             </Button>
 
@@ -200,12 +205,14 @@ export default function HomePage() {
         <section className="px-4 pt-8 pb-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-text-primary">최근 스캔</h2>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => router.push('/history')}
-              className="flex items-center gap-0.5 text-xs font-medium text-text-secondary"
+              className="gap-0.5 text-text-secondary"
             >
               전체 보기 <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            </Button>
           </div>
           <div className="bg-bg-surface border border-border-subtle rounded-[24px] shadow-sm overflow-hidden">
             {recentScans.map((item: any, idx: number) => {
@@ -242,7 +249,7 @@ export default function HomePage() {
       )}
 
       {/* Features */}
-      <section className="px-4 pt-6 pb-6 space-y-4">
+      <section className="px-4 pt-10 pb-6 space-y-4">
         <h2 className="text-lg font-semibold text-text-primary px-1">
           이렇게 도와드려요
         </h2>
@@ -253,13 +260,13 @@ export default function HomePage() {
             { icon: Search, color: 'caution', title: '안전한 대체 제품', desc: '주의 성분이 있다면, 안심하고 먹을 수 있는 비슷한 제품을 추천해드려요.' },
           ].map(({ icon: Icon, color, title, desc }) => (
             <Card key={title} className="bg-bg-surface border-border-subtle shadow-sm">
-              <CardContent className="p-5 flex items-start space-x-4">
+              <CardContent className="p-4 flex items-start space-x-4">
                 <div className={`bg-${color}/10 p-3 rounded-full shrink-0`}>
                   <Icon className={`w-6 h-6 text-${color}`} />
                 </div>
                 <div>
                   <h3 className="text-base font-semibold text-text-primary mb-1">{title}</h3>
-                  <p className="text-sm text-text-secondary">{desc}</p>
+                  <p className="text-[13px] text-text-secondary">{desc}</p>
                 </div>
               </CardContent>
             </Card>

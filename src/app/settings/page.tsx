@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Calendar, ChevronRight, LogOut, Loader2, MessageSquare, Pencil, X, Bell, Trash2, AlertTriangle, FileText } from 'lucide-react';
-import { calcPregnancyWeek } from '@/lib/utils';
+import { calcPregnancyWeek, weeksToStartDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { NotificationDot } from '@/components/ui/notification-dot';
@@ -39,6 +39,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [unreadNoticeCount, setUnreadNoticeCount] = useState(0);
   const [showWeekDial, setShowWeekDial] = useState(false);
+  const [weekDialMode, setWeekDialMode] = useState<'weeks' | 'lmp'>('weeks');
+  const [weekNumInput, setWeekNumInput] = useState('');
   const [dateInput, setDateInput] = useState('');
   const [weekSaveStatus, setWeekSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [showNicknameSheet, setShowNicknameSheet] = useState(false);
@@ -64,7 +66,11 @@ export default function SettingsPage() {
         setActiveSubStartedAt(activeSub?.started_at ?? null);
         setActiveSubExpiresAt(activeSub?.expires_at ?? null);
         setHasPendingMonthly(!!pendingSub);
-        if (prof?.pregnancy_start_date) setDateInput(prof.pregnancy_start_date);
+        if (prof?.pregnancy_start_date) {
+          setDateInput(prof.pregnancy_start_date);
+          const w = calcPregnancyWeek(prof.pregnancy_start_date);
+          if (w) setWeekNumInput(String(w));
+        }
         if (prof?.name) setNicknameInput(prof.name);
 
         // 미읽음 공지 수 조회
@@ -81,16 +87,20 @@ export default function SettingsPage() {
   }, []);
 
   const handleDialSave = async () => {
-    if (!authUser || !dateInput) return;
+    if (!authUser) return;
+    const startDate = weekDialMode === 'weeks'
+      ? (() => { const w = parseInt(weekNumInput, 10); return w >= 1 && w <= 42 ? weeksToStartDate(w) : null; })()
+      : (dateInput || null);
+    if (!startDate) return;
     setWeekSaveStatus('saving');
     try {
       const supabase = createClient();
       const { error } = await supabase
         .from('users')
-        .update({ pregnancy_start_date: dateInput })
+        .update({ pregnancy_start_date: startDate })
         .eq('id', authUser.id);
       if (error) throw error;
-      setProfile((prev: any) => ({ ...prev, pregnancy_start_date: dateInput }));
+      setProfile((prev: any) => ({ ...prev, pregnancy_start_date: startDate }));
       setWeekSaveStatus('saved');
       setTimeout(() => { setWeekSaveStatus('idle'); setShowWeekDial(false); }, 1500);
     } catch {
@@ -198,9 +208,9 @@ export default function SettingsPage() {
         <section className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <h3 className="text-[18px] font-semibold text-text-primary">스캔권 정보</h3>
-            <button onClick={() => router.push('/billing-history')} className="text-sm font-medium text-text-secondary hover:text-primary transition-colors flex items-center">
-              전체 내역 보기 <ChevronRight className="w-4 h-4 ml-0.5" />
-            </button>
+            <Button variant="ghost" size="sm" onClick={() => router.push('/billing-history')} className="gap-0.5 text-text-secondary hover:text-primary">
+              전체 내역 보기 <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
           <Card className="bg-bg-surface border-border-subtle shadow-sm">
             <CardContent className="p-5">
@@ -241,9 +251,10 @@ export default function SettingsPage() {
           <h3 className="text-[18px] font-semibold text-text-primary px-1">임신 정보</h3>
           <Card className="bg-bg-surface border-border-subtle shadow-sm overflow-hidden">
             <CardContent className="p-0">
-              <button
+              <Button
+                variant="ghost"
                 onClick={() => setShowWeekDial(true)}
-                className="w-full p-5 flex items-center justify-between hover:bg-neutral-bg transition-colors"
+                className="w-full p-5 justify-between h-auto"
               >
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
@@ -263,7 +274,7 @@ export default function SettingsPage() {
                   {weekSaveStatus === 'saved' && <span className="text-xs text-primary font-medium">저장됨 ✓</span>}
                   <ChevronRight className="w-5 h-5 text-text-secondary" />
                 </div>
-              </button>
+              </Button>
               <div className={`mx-5 mb-5 rounded-xl px-4 py-3 flex items-center space-x-2 ${calcPregnancyWeek(profile?.pregnancy_start_date) ? 'bg-primary/5' : 'bg-neutral-bg'}`}>
                 {calcPregnancyWeek(profile?.pregnancy_start_date) ? (
                   <>
@@ -284,7 +295,7 @@ export default function SettingsPage() {
         <section>
           <Card className="bg-bg-surface border-border-subtle shadow-sm overflow-hidden">
             <CardContent className="p-0">
-              <button className="w-full p-4 border-b border-border-subtle flex items-center justify-between hover:bg-neutral-bg transition-colors" onClick={() => router.push('/notices')}>
+              <Button variant="ghost" className="w-full p-4 border-b border-border-subtle justify-between h-auto rounded-none" onClick={() => router.push('/notices')}>
                 <div className="flex items-center space-x-3">
                   <Bell className="w-4 h-4 text-text-secondary" />
                   <span className="relative text-sm font-medium text-text-primary">
@@ -293,21 +304,21 @@ export default function SettingsPage() {
                   </span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-text-secondary" />
-              </button>
-              <button className="w-full p-4 border-b border-border-subtle flex items-center justify-between hover:bg-neutral-bg transition-colors" onClick={() => router.push('/support')}>
+              </Button>
+              <Button variant="ghost" className="w-full p-4 border-b border-border-subtle justify-between h-auto rounded-none" onClick={() => router.push('/support')}>
                 <div className="flex items-center space-x-3">
                   <MessageSquare className="w-4 h-4 text-text-secondary" />
                   <span className="text-sm font-medium text-text-primary">고객센터 / 문의하기</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-text-secondary" />
-              </button>
-              <button className="w-full p-4 flex items-center justify-between hover:bg-neutral-bg transition-colors" onClick={() => router.push('/policies')}>
+              </Button>
+              <Button variant="ghost" className="w-full p-4 justify-between h-auto rounded-none" onClick={() => router.push('/policies')}>
                 <div className="flex items-center space-x-3">
                   <FileText className="w-4 h-4 text-text-secondary" />
                   <span className="text-sm font-medium text-text-primary">약관 및 방침</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-text-secondary" />
-              </button>
+              </Button>
             </CardContent>
           </Card>
         </section>
@@ -316,22 +327,24 @@ export default function SettingsPage() {
         <section>
           <Card className="bg-bg-surface border-border-subtle shadow-sm overflow-hidden">
             <CardContent className="p-0">
-              <button className="w-full p-4 flex items-center space-x-3 hover:bg-neutral-bg transition-colors text-danger-fg" onClick={handleLogout}>
+              <Button variant="ghost" className="w-full p-4 justify-start gap-3 h-auto text-danger-fg rounded-none" onClick={handleLogout}>
                 <LogOut className="w-4 h-4" />
                 <span className="text-sm font-medium">로그아웃</span>
-              </button>
+              </Button>
             </CardContent>
           </Card>
         </section>
 
         {/* 회원 탈퇴 */}
         <section className="pb-4 flex items-center justify-center">
-          <button
+          <Button
+            variant="link"
+            size="sm"
             onClick={() => setShowDeleteSheet(true)}
-            className="text-xs text-text-tertiary underline underline-offset-2 hover:text-danger-fg transition-colors py-2"
+            className="text-text-tertiary hover:text-danger-fg"
           >
             회원 탈퇴
-          </button>
+          </Button>
         </section>
       </main>
 
@@ -367,55 +380,115 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2 pb-10">
-                <button
+                <Button
+                  variant="danger"
                   onClick={handleDeleteAccount}
                   disabled={deleteStatus === 'deleting'}
-                  className="w-full h-12 rounded-2xl bg-danger-fg text-white text-sm hover:bg-danger-fg/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full gap-2"
                 >
                   {deleteStatus === 'deleting'
                     ? <><Loader2 className="w-4 h-4 animate-spin" /> 탈퇴 처리 중...</>
                     : <><Trash2 className="w-4 h-4" /> 탈퇴하기</>
                   }
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={() => setShowDeleteSheet(false)}
                   disabled={deleteStatus === 'deleting'}
-                  className="w-full h-12 rounded-2xl bg-bg-surface border border-border-subtle text-text-primary text-sm hover:bg-neutral-bg transition-colors disabled:opacity-50"
+                  className="w-full"
                 >
                   취소
-                </button>
+                </Button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Pregnancy Start Date Bottom Sheet */}
+      {/* Pregnancy Week Bottom Sheet */}
       {showWeekDial && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowWeekDial(false)}>
           <div className="bg-bg-canvas w-full rounded-t-3xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 bg-border-subtle rounded-full" /></div>
             <div className="px-6 pt-3 pb-2">
-              <h3 className="text-lg font-bold text-text-primary">마지막 생리 시작일</h3>
-              <p className="text-xs text-text-secondary mt-1">입력하신 날짜를 기준으로 임신 주차가 자동 계산돼요</p>
+              <h3 className="text-lg font-bold text-text-primary">임신 주차 설정</h3>
             </div>
-            <div className="px-6 pb-2 pt-3">
-              <input
-                type="date"
-                value={dateInput}
-                onChange={(e) => setDateInput(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
-                className="w-full h-14 px-4 rounded-2xl border-2 border-primary/30 bg-bg-surface text-text-primary text-base focus:outline-none focus:border-primary transition-colors"
-              />
-              {dateInput && calcPregnancyWeek(dateInput) && (
-                <p className="text-sm text-primary font-medium mt-2 px-1">
-                  현재 임신 {calcPregnancyWeek(dateInput)}주차로 계산돼요
-                </p>
+            <div className="px-6 pb-2 pt-1 space-y-3">
+              {/* 탭 토글 */}
+              <div className="flex bg-neutral-bg rounded-xl p-1 gap-1">
+                <button
+                  type="button"
+                  onClick={() => setWeekDialMode('weeks')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                    weekDialMode === 'weeks'
+                      ? 'bg-bg-surface text-text-primary shadow-sm'
+                      : 'text-text-tertiary hover:text-text-secondary'
+                  }`}
+                >
+                  현재 주차로 입력
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWeekDialMode('lmp')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                    weekDialMode === 'lmp'
+                      ? 'bg-bg-surface text-text-primary shadow-sm'
+                      : 'text-text-tertiary hover:text-text-secondary'
+                  }`}
+                >
+                  마지막 생리일로 입력
+                </button>
+              </div>
+
+              {weekDialMode === 'weeks' ? (
+                <div>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={1}
+                      max={42}
+                      value={weekNumInput}
+                      onChange={(e) => setWeekNumInput(e.target.value)}
+                      placeholder="예) 12"
+                      className="w-full h-14 px-4 rounded-2xl border-2 border-primary/30 bg-bg-surface text-text-primary text-base placeholder:text-text-disabled focus:outline-none focus:border-primary transition-colors"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-text-tertiary">주차</span>
+                  </div>
+                  {weekNumInput && !(parseInt(weekNumInput, 10) >= 1 && parseInt(weekNumInput, 10) <= 42) && (
+                    <p className="text-xs text-danger-fg pl-1 mt-1">1–42 사이 숫자를 입력해주세요</p>
+                  )}
+                  {parseInt(weekNumInput, 10) >= 1 && parseInt(weekNumInput, 10) <= 42 && (
+                    <p className="text-sm text-primary font-medium mt-2 px-1">임신 {parseInt(weekNumInput, 10)}주차로 저장돼요</p>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <input
+                    type="date"
+                    value={dateInput}
+                    onChange={(e) => setDateInput(e.target.value)}
+                    max={new Date().toISOString().split('T')[0]}
+                    className="w-full h-14 px-4 rounded-2xl border-2 border-primary/30 bg-bg-surface text-text-primary text-base focus:outline-none focus:border-primary transition-colors"
+                  />
+                  {dateInput && calcPregnancyWeek(dateInput) && (
+                    <p className="text-sm text-primary font-medium mt-2 px-1">
+                      현재 임신 {calcPregnancyWeek(dateInput)}주차로 계산돼요
+                    </p>
+                  )}
+                </div>
               )}
             </div>
             <div className="px-6 pb-10 pt-3">
-              <Button onClick={handleDialSave} disabled={weekSaveStatus === 'saving' || !dateInput} className="w-full h-12 text-base">
-                {weekSaveStatus === 'saving' ? <Loader2 className="w-5 h-5 animate-spin" /> : '저장하기'}
+              <Button
+                onClick={handleDialSave}
+                disabled={weekSaveStatus === 'saving' || (
+                  weekDialMode === 'weeks'
+                    ? !(parseInt(weekNumInput, 10) >= 1 && parseInt(weekNumInput, 10) <= 42)
+                    : !dateInput
+                )}
+                className="w-full h-12 text-base"
+              >
+                {weekSaveStatus === 'saving' ? <Loader2 className="w-5 h-5 animate-spin" /> : weekSaveStatus === 'saved' ? '저장됨 ✓' : '저장하기'}
               </Button>
             </div>
           </div>
@@ -432,9 +505,9 @@ export default function SettingsPage() {
                 <h3 className="text-lg font-bold text-text-primary">닉네임 설정</h3>
                 <p className="text-xs text-text-secondary mt-0.5">앱에서 표시될 이름을 입력해주세요</p>
               </div>
-              <button onClick={() => setShowNicknameSheet(false)} className="p-1 text-text-secondary hover:text-text-primary transition-colors">
+              <Button variant="ghost" size="icon" onClick={() => setShowNicknameSheet(false)}>
                 <X className="w-5 h-5" />
-              </button>
+              </Button>
             </div>
             <div className="px-6 pb-2">
               <div className="relative">
@@ -449,12 +522,14 @@ export default function SettingsPage() {
                   className="w-full h-14 px-4 rounded-2xl border-2 border-primary/30 bg-bg-surface text-text-primary text-base font-medium placeholder:text-text-secondary/50 focus:outline-none focus:border-primary transition-colors"
                 />
                 {nicknameInput.length > 0 && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => setNicknameInput('')}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary transition-colors"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-text-secondary hover:text-text-primary"
                   >
                     <X className="w-4 h-4" />
-                  </button>
+                  </Button>
                 )}
               </div>
               <p className="text-xs text-text-secondary mt-2 px-1">태명+맘으로 입력해보세요 (예: 하늘이맘)</p>

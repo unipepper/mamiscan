@@ -43,6 +43,7 @@
 | `bg-primary` / `text-primary` | `#F28C82` | Primary CTA, key emphasis, icons |
 | `bg-primary-strong` | `#E06F64` | Active/hover state for primary |
 | `bg-secondary` / `text-secondary` | `#9DB7A5` | Secondary category, soft support |
+| `bg-secondary-strong` / `text-secondary-strong` | `#6E9E88` | Secondary 강조 텍스트, 진한 세이지 |
 | `bg-accent` | `#FAEEE9` | Hero background, tinted surface |
 | `bg-bg-canvas` | `#FCFBFA` | App background (outermost) |
 | `bg-bg-surface` | `#FFFEFD` | Card, sheet, input surface |

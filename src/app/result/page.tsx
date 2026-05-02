@@ -437,13 +437,13 @@ function ResultContent() {
     <div className="flex flex-col flex-1 bg-bg-canvas pb-20">
       <header className="sticky top-0 z-50 flex items-center justify-between h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
         <div className="flex items-center">
-          <button onClick={() => router.back()} className="p-2 -ml-2 text-text-primary"><ArrowLeft className="w-6 h-6" /></button>
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2"><ArrowLeft className="w-6 h-6" /></Button>
           <span className="font-semibold ml-2 text-text-primary">분석 결과</span>
         </div>
-        <button onClick={() => setShowReportModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-danger-fg bg-danger-bg border border-danger-fg/20 rounded-full hover:bg-danger-fg hover:text-white transition-colors">
+        <Button variant="danger" size="sm" onClick={() => setShowReportModal(true)} className="gap-1.5 rounded-full bg-danger-bg text-danger-fg border border-danger-fg/20 hover:bg-danger-fg hover:text-white shadow-none">
           <Flag className="w-3.5 h-3.5" />
           오류 제보
-        </button>
+        </Button>
       </header>
 
       <main className="px-4 py-6 space-y-6">
@@ -690,9 +690,9 @@ function ResultContent() {
       {showReportModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-bg-canvas w-full max-w-sm rounded-[32px] p-6 shadow-2xl relative">
-            <button onClick={() => setShowReportModal(false)} className="absolute top-4 right-4 p-1 text-text-secondary hover:text-text-primary">
+            <Button variant="ghost" size="icon" onClick={() => setShowReportModal(false)} className="absolute top-4 right-4 h-8 w-8">
               <X className="w-5 h-5" />
-            </button>
+            </Button>
             <h3 className="text-lg font-semibold text-text-primary mb-2 flex items-center">
               <Flag className="w-5 h-5 mr-2 text-primary" />정보 오류 제보
             </h3>

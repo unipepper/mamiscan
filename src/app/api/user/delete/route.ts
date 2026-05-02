@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServerClient } from '@supabase/ssr';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   // 1. 인증 확인
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -34,5 +34,15 @@ export async function POST() {
     return NextResponse.json({ error: 'delete_failed' }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  const response = NextResponse.json({ success: true });
+
+  // 세션 쿠키 만료 처리
+  const cookieNames = request.cookies.getAll().map((c) => c.name);
+  for (const name of cookieNames) {
+    if (name.startsWith('sb-')) {
+      response.cookies.set(name, '', { maxAge: 0, path: '/' });
+    }
+  }
+
+  return response;
 }
