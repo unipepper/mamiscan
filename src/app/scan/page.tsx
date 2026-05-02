@@ -339,35 +339,6 @@ export default function ScanPage() {
 
         {/* Bottom */}
         <div ref={bottomControlsRef} className="absolute bottom-0 left-0 right-0 flex flex-col justify-end pointer-events-auto" style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))' }}>
-          <div className="px-4 mb-6">
-            {isProfileLoading ? null : !authUser ? (
-              <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center justify-between cursor-pointer" onClick={() => router.push('/login')}>
-                <div className="flex items-center space-x-2">
-                  <ScanLine className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium text-white">
-                    {guestRemaining > 0
-                      ? <>무료 체험 남은 횟수: <strong className="text-primary">{guestRemaining}회</strong></>
-                      : '무료 체험 3회를 모두 사용했어요'}
-                  </span>
-                </div>
-                <span className="text-xs font-medium text-black bg-primary px-2 py-1 rounded-full shadow-sm">로그인</span>
-              </div>
-            ) : isActive ? (
-              <div className="bg-primary/80 backdrop-blur-md border border-primary/20 rounded-xl p-3 flex items-center space-x-2">
-                <ShieldCheck className="w-4 h-4 text-white" />
-                <span className="text-sm font-medium text-white">무제한 스캔 이용 중</span>
-              </div>
-            ) : (
-              <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center justify-between cursor-pointer" onClick={() => router.push('/pricing')}>
-                <div className="flex items-center space-x-2">
-                  <ScanLine className="w-4 h-4 text-secondary" />
-                  <span className="text-sm font-medium text-white">남은 횟수: <strong className="text-secondary">{remainingScans}회</strong></span>
-                </div>
-                <span className="text-xs font-medium text-black bg-secondary px-2 py-1 rounded-full shadow-sm">충전하기</span>
-              </div>
-            )}
-          </div>
-
           {toastMessage && (
             <div className="absolute bottom-36 left-0 right-0 flex justify-center px-4 z-50">
               <div className="bg-gray-800/90 text-white px-4 py-3 rounded-xl shadow-lg backdrop-blur-md text-sm font-medium flex items-center space-x-2">
@@ -377,9 +348,39 @@ export default function ScanPage() {
             </div>
           )}
 
-          <p className="text-center text-base text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] font-normal mb-10">
+          <p className="text-center text-base text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] font-normal mb-5">
             바코드를 스캔하거나<br />식료품을 촬영해 주세요
           </p>
+          {!isProfileLoading && (
+            <div className="px-4 mb-8">
+              {!authUser ? (
+                <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center justify-between cursor-pointer" onClick={() => router.push('/login')}>
+                  <div className="flex items-center space-x-2">
+                    <ScanLine className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium text-white">
+                      {guestRemaining > 0
+                        ? <>무료 체험 남은 횟수: <strong className="text-primary">{guestRemaining}회</strong></>
+                        : '무료 체험 3회를 모두 사용했어요'}
+                    </span>
+                  </div>
+                  <span className="text-xs font-medium text-black bg-primary px-2 py-1 rounded-full shadow-sm">로그인</span>
+                </div>
+              ) : isActive ? (
+                <div className="bg-primary/80 backdrop-blur-md border border-primary/20 rounded-xl p-3 flex items-center space-x-2">
+                  <ShieldCheck className="w-4 h-4 text-white" />
+                  <span className="text-sm font-medium text-white">무제한 스캔 이용 중</span>
+                </div>
+              ) : (
+                <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center justify-between cursor-pointer" onClick={() => router.push('/pricing')}>
+                  <div className="flex items-center space-x-2">
+                    <ScanLine className="w-4 h-4 text-secondary" />
+                    <span className="text-sm font-medium text-white">남은 횟수: <strong className="text-secondary">{remainingScans}회</strong></span>
+                  </div>
+                  <span className="text-xs font-semibold text-black bg-secondary px-2.5 py-1.5 rounded-full shrink-0">충전하기</span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="relative flex items-center justify-center w-full px-8">
             <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
