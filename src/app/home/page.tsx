@@ -8,7 +8,6 @@ import { Scan, ShieldCheck, Search, CheckCircle2, Calendar, ChevronRight } from 
 import { createClient } from '@/lib/supabase/client';
 import { calcPregnancyWeek } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { BottomNav } from '@/components/BottomNav';
 
 interface UserProfile {
@@ -76,7 +75,7 @@ export default function HomePage() {
       </header>
 
       {/* Top Utility Area */}
-      <div className="px-4 pt-5 pb-0 space-y-1.5">
+      <div className="px-4 pt-6 pb-0 space-y-2">
         {isLoggedIn && profile?.name && (
           <p className="text-lg font-semibold text-text-primary px-1 pb-0.5">
             {profile.name}님, 안녕하세요 👋
@@ -145,7 +144,7 @@ export default function HomePage() {
       </div>
 
       {/* Hero */}
-      <section className="px-4 pt-4 pb-0">
+      <section className="px-4 pt-4 pb-4">
         <div className="bg-accent rounded-[28px] px-6 pt-6 pb-5 relative overflow-hidden">
           <div className="relative z-10">
             <span className="text-sm font-medium text-primary">
@@ -200,9 +199,10 @@ export default function HomePage() {
         </div>
       </section>
 
+
       {/* Recent Scans */}
       {isLoggedIn && recentScans.length > 0 && (
-        <section className="px-4 pt-8 pb-0">
+        <section className="px-4 pt-6 pb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-text-primary">최근 스캔</h2>
             <Button
@@ -248,34 +248,34 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Features */}
-      <section className="px-4 pt-10 pb-6 space-y-4">
-        <h2 className="text-lg font-semibold text-text-primary px-1">
-          이렇게 도와드려요
-        </h2>
-        <div className="grid gap-4">
-          {[
-            { icon: Scan, color: 'primary', title: '바코드 스캔', desc: '마트에서 고민될 때, 제품 바코드나 식료품을 찍으면 바로 분석해드려요.' },
-            { icon: ShieldCheck, color: 'secondary', title: '주차별 맞춤 판단', desc: '현재 임신 주차에 맞춰 주의해야 할 성분을 꼼꼼하게 체크해드려요.' },
-            { icon: Search, color: 'caution', title: '안전한 대체 제품', desc: '주의 성분이 있다면, 안심하고 먹을 수 있는 비슷한 제품을 추천해드려요.' },
-          ].map(({ icon: Icon, color, title, desc }) => (
-            <Card key={title} className="bg-bg-surface border-border-subtle shadow-sm">
-              <CardContent className="p-4 flex items-start space-x-4">
-                <div className={`bg-${color}/10 p-3 rounded-full shrink-0`}>
-                  <Icon className={`w-6 h-6 text-${color}`} />
+      {/* Features — 비로그인 또는 히스토리 없을 때 노출 */}
+      {(!isLoggedIn || recentScans.length === 0) && (
+        <section className="px-4 pt-4 pb-6 space-y-2">
+          <p className="text-lg font-semibold text-text-primary px-1">
+            이런 상황에서 써보세요
+          </p>
+          <div className="bg-bg-surface border border-border-subtle rounded-[24px] shadow-sm overflow-hidden">
+            {[
+              { icon: Scan, iconBg: 'bg-[#FAEEE9]', iconColor: 'text-primary', title: '먹어도 되는 건지 헷갈릴 때', desc: '제품 바코드나 식료품을 찍으면 5초 안에 분석해드려요.' },
+              { icon: ShieldCheck, iconBg: 'bg-[#E8F0EC]', iconColor: 'text-secondary', title: '뱃속 아가가 커갈수록', desc: '주차에 맞게 주의 성분이 달라지니까, 지금 기준으로 다시 확인해드려요.' },
+              { icon: Search, iconBg: 'bg-caution-bg', iconColor: 'text-caution-fg', title: '먹고 싶은데 찜찜할 때', desc: '비슷하지만 더 안심할 수 있는 제품을 바로 찾아드려요.' },
+            ].map(({ icon: Icon, iconBg, iconColor, title, desc }, idx, arr) => (
+              <div key={title} className={`flex items-start gap-4 px-4 py-4 ${idx < arr.length - 1 ? 'border-b border-border-subtle' : ''}`}>
+                <div className={`${iconBg} p-2.5 rounded-full shrink-0`}>
+                  <Icon className={`w-5 h-5 ${iconColor}`} />
                 </div>
-                <div>
-                  <h3 className="text-base font-semibold text-text-primary mb-1">{title}</h3>
-                  <p className="text-[13px] text-text-secondary">{desc}</p>
+                <div className="py-0.5">
+                  <h3 className="text-base font-semibold text-text-primary mb-0.5">{title}</h3>
+                  <p className="type-body-brief text-text-secondary">{desc}</p>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Trust */}
-      <section className="px-4 py-6 bg-bg-surface border-y border-border-subtle">
+      <section className="px-4 py-6 bg-neutral-bg">
         <div className="text-center space-y-3">
           <h2 className="text-lg font-semibold text-text-primary">믿을 수 있는 데이터 기준</h2>
           <p className="text-sm text-text-secondary px-4">
@@ -288,7 +288,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
 
       <footer className="py-4 text-center flex items-center justify-center gap-3">
         <Link href="/terms" className="text-xs text-text-tertiary hover:text-text-secondary transition-colors underline underline-offset-2">

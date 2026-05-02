@@ -50,7 +50,7 @@ body {
   .type-body-brief {
     font-size: var(--font-size-14);
     line-height: var(--line-height-21);
-    font-weight: var(--font-weight-medium);
+    font-weight: 400;
   }
   .type-label-md {
     font-size: var(--font-size-13);

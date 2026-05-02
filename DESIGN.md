@@ -95,7 +95,7 @@ Load via: `@font-face` with Pretendard Variable or CDN (`cdn.jsdelivr.net/gh/ori
 | `title.md` | 18px | 26px | 600 | `type-title-md` |
 | `title.card` | 16px | 24px | 600 | `type-title-card` |
 | `body.contents` | 16px | 26px | 500 | `type-body-contents` |
-| `body.brief` | 14px | 21px | 500 | `type-body-brief` |
+| `body.brief` | 14px | 21px | 400 | `type-body-brief` |
 | `label.md` | 13px | 18px | 600 | `type-label-md` |
 | `caption` | 12px | 17px | 500 | `type-caption` |
 
@@ -129,8 +129,14 @@ Only use values from this scale. No arbitrary px values.
 ### Key Spacing Rules
 - 카드 내부 기본 padding: `p-4` or `p-5`
 - 카드 간 간격: `gap-4` ~ `gap-6`
-- 섹션 간 간격: `py-6` ~ `py-8`
-- 홈 hero → state info gap: `pt-4`
+- 섹션 간 간격: `py-6`
+- 홈 인삿말 → info chip: `space-y-2`
+- 홈 info chip → hero: `pt-4`
+- 홈 hero 내부: `px-6 pt-6 pb-5`
+- 홈 hero 라벨 → 헤드라인: `mt-1`
+- 홈 hero 헤드라인 → 설명문: `mb-4`
+- 홈 hero 설명문 → CTA: `mb-6`
+- 홈 hero CTA → 검색: `mt-3`
 - 라벨 → 헤드라인: `mb-1`
 - 헤드라인 → 설명문: `mb-2`
 - 설명문 → CTA: `mb-5`
@@ -228,11 +234,11 @@ Only use values from this scale. No arbitrary px values.
 
 ### Info Chip (상태 정보 — 임신 주차, 남은 스캔)
 ```tsx
-<button className="flex-1 flex items-center gap-2 bg-bg-surface border border-border-subtle rounded-xl px-3 py-2.5 hover:bg-neutral-bg transition-colors">
+<button className="flex-1 flex items-center gap-3 bg-bg-surface border border-border-subtle rounded-xl px-3 py-3 hover:bg-neutral-bg transition-colors">
   <Icon className="w-4 h-4 text-primary shrink-0" />
-  <div className="text-left">
-    <p className="text-[10px] text-text-secondary leading-none mb-0.5">라벨</p>
-    <p className="text-sm font-bold text-text-primary leading-none">값</p>
+  <div className="text-left min-w-0">
+    <p className="text-xs text-text-secondary leading-none mb-1.5">라벨</p>
+    <p className="text-base font-bold text-text-primary leading-none truncate">값</p>
   </div>
 </button>
 ```
@@ -290,6 +296,30 @@ Only use values from this scale. No arbitrary px values.
 | History | — | `surface.default` list | — |
 | Settings | — | `surface.default` | primary save CTA |
 
+### Home Page Layout (확정 구조)
+
+```
+Header (sticky)
+Top Utility Area (pt-6, space-y-2)
+  - 로그인: 인삿말(text-lg font-semibold) + Info Chips (gap-2)
+  - 비로그인: 로그인 유도 배너
+Hero Section (pt-4 pb-4)
+  - bg-accent rounded-[28px], px-6 pt-6 pb-5
+  - 라벨 → 헤드라인(mt-1 mb-4) → 설명(mb-6) → CTA → 검색(mt-3)
+Recent Scans (로그인 + 히스토리 있을 때, pt-6 pb-6)
+  - bg-bg-surface border rounded-[24px], divider rows
+Feature Section (비로그인 또는 히스토리 없을 때, pt-4 pb-6 space-y-2)
+  - 섹션 타이틀: text-lg font-semibold (인삿말과 동일 레벨)
+  - 단일 카드 bg-bg-surface border rounded-[24px] + divider rows
+  - 아이콘 bg: 명시적 hex값 사용 (동적 Tailwind 클래스 금지)
+  - 카드 타이틀: `text-base font-semibold`, 설명 본문: `type-body-brief text-text-secondary`
+Trust Section (py-6 bg-neutral-bg)
+  - 섹션 구분: bg-neutral-bg로 배경색 차별화, 별도 divider 없음
+  - text-center, MFDS/FDA/CDC 로고 grayscale opacity-50
+Footer
+BottomNav (fixed)
+```
+
 ---
 
 ## 12. UX Writing Rules
@@ -327,6 +357,8 @@ Tone: 당근식 — 가깝고 따뜻하게, 쉽고 편하게, 생활 밀착형
 - 홈 상단에 긴 브랜드 슬로건 배너 → 상태 정보 + 기능 유도 구조 우선
 - Primary CTA를 같은 화면에 2개 이상 사용
 - `text-red-500` 같은 기본 Tailwind 시멘틱 색상 → `text-danger-fg` 등 토큰 사용
+- 동적 Tailwind 클래스 interpolation (e.g. `` `bg-${color}/10` ``) → Tailwind JIT purge로 렌더링 안 됨. 명시적 클래스 문자열 사용
+- 섹션 구분에 `h-px` 또는 `h-2/h-3 bg-neutral-bg` 띠 → 배경색 토큰(`bg-neutral-bg`)으로 섹션 자체를 구분
 
 ---
 
