@@ -58,7 +58,7 @@ export default function HomePageCal() {
   }
 
   return (
-    <div className="flex flex-col flex-1 bg-bg-canvas pb-20">
+    <div className="flex flex-col flex-1 bg-bg-canvas pb-nav">
 
       {/* ── Header: 기존 구조 유지, letter-spacing 추가 ── */}
       <header className="safe-top sticky top-0 z-50 w-full border-b border-border-subtle bg-bg-surface/80 backdrop-blur-md">

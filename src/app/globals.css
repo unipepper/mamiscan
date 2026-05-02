@@ -7,9 +7,16 @@ body {
   overflow: hidden;
 }
 
-/* PWA safe area — sticky 헤더가 iOS status bar를 침범하지 않도록 */
+/* PWA safe area */
 .safe-top {
   padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+/* BottomNav(64px) + 홈 인디케이터 */
+.pb-nav {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
 }
 
 html {

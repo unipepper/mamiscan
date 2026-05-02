@@ -58,7 +58,7 @@ export default function HomePageNotion() {
   }
 
   return (
-    <div className="flex flex-col flex-1 bg-[#FCFBFA] pb-20">
+    <div className="flex flex-col flex-1 bg-[#FCFBFA] pb-nav">
 
       {/* ── Header: backdrop blur + whisper border ── */}
       <header className="safe-top sticky top-0 z-50 w-full border-b border-[rgba(0,0,0,0.08)] bg-white/80 backdrop-blur-md">

@@ -649,7 +649,7 @@ function ResultContent() {
       </main>
 
       {/* ── Bottom Action Panel ── */}
-      <div className="fixed bottom-0 w-full max-w-md left-1/2 -translate-x-1/2 p-4 bg-bg-surface border-t border-border-subtle z-50">
+      <div className="safe-bottom fixed bottom-0 w-full max-w-md left-1/2 -translate-x-1/2 px-4 pt-4 bg-bg-surface border-t border-border-subtle z-50">
         <div className="flex space-x-3">
           <button
             onClick={() => router.push('/home')}
