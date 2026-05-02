@@ -15,7 +15,7 @@ export default function PoliciesPage() {
 
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas pb-12">
-      <header className="sticky top-0 z-50 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
+      <header className="safe-top sticky top-0 z-50 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
         <div className="flex items-center h-14 px-4">
           <button
             onClick={() => router.back()}

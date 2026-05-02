@@ -61,7 +61,7 @@ export default function HomePageNotion() {
     <div className="flex flex-col flex-1 bg-[#FCFBFA] pb-20">
 
       {/* ── Header: backdrop blur + whisper border ── */}
-      <header className="sticky top-0 z-50 w-full border-b border-[rgba(0,0,0,0.08)] bg-white/80 backdrop-blur-md">
+      <header className="safe-top sticky top-0 z-50 w-full border-b border-[rgba(0,0,0,0.08)] bg-white/80 backdrop-blur-md">
         <div className="flex h-14 items-center justify-between px-4">
           <span className="font-bold text-lg text-[rgba(0,0,0,0.95)] tracking-[-0.03em]">마미스캔</span>
         </div>

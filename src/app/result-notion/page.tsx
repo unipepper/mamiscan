@@ -397,7 +397,7 @@ function ResultContent() {
   return (
     <div className="flex flex-col flex-1 bg-[#FCFBFA] pb-24">
       {/* ── Header: whisper border + warm bg ── */}
-      <header className="sticky top-0 z-50 flex items-center justify-between h-14 px-4 bg-white/80 backdrop-blur-md border-b border-[rgba(0,0,0,0.06)]">
+      <header className="safe-top sticky top-0 z-50 flex items-center justify-between h-14 px-4 bg-white/80 backdrop-blur-md border-b border-[rgba(0,0,0,0.06)]">
         <div className="flex items-center">
           <button onClick={() => router.back()} className="p-2 -ml-2 text-[rgba(0,0,0,0.7)]"><ArrowLeft className="w-6 h-6" /></button>
           <span className="font-semibold ml-2 text-[rgba(0,0,0,0.95)] tracking-[-0.01em]">분석 결과</span>

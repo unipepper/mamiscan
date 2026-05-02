@@ -61,7 +61,7 @@ export default function HomePageCal() {
     <div className="flex flex-col flex-1 bg-bg-canvas pb-20">
 
       {/* ── Header: 기존 구조 유지, letter-spacing 추가 ── */}
-      <header className="sticky top-0 z-50 w-full border-b border-border-subtle bg-bg-surface/80 backdrop-blur-md">
+      <header className="safe-top sticky top-0 z-50 w-full border-b border-border-subtle bg-bg-surface/80 backdrop-blur-md">
         <div className="flex h-14 items-center justify-between px-4">
           <span className="font-bold text-lg text-text-primary">마미스캔</span>
         </div>

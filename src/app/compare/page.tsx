@@ -25,7 +25,7 @@ function NotionView({ section }: { section: 'result' | 'home' }) {
   if (section === 'home') {
     return (
       <div className="flex flex-col flex-1 bg-[#FCFBFA] pb-8">
-        <header className="sticky top-0 z-50 w-full border-b border-[rgba(0,0,0,0.08)] bg-white/80 backdrop-blur-md">
+        <header className="safe-top sticky top-0 z-50 w-full border-b border-[rgba(0,0,0,0.08)] bg-white/80 backdrop-blur-md">
           <div className="flex h-14 items-center px-4">
             <span className="font-bold text-lg text-[rgba(0,0,0,0.95)]">마미스캔</span>
           </div>
@@ -67,7 +67,7 @@ function NotionView({ section }: { section: 'result' | 'home' }) {
 
   return (
     <div className="flex flex-col flex-1 bg-[#FCFBFA] pb-24">
-      <header className="sticky top-0 z-50 flex items-center justify-between h-14 px-4 bg-white/80 backdrop-blur-md border-b border-[rgba(0,0,0,0.06)]">
+      <header className="safe-top sticky top-0 z-50 flex items-center justify-between h-14 px-4 bg-white/80 backdrop-blur-md border-b border-[rgba(0,0,0,0.06)]">
         <span className="font-semibold text-[rgba(0,0,0,0.95)]">분석 결과</span>
         <span className="px-2 py-1 text-sm text-[#615d59]">오류 제보</span>
       </header>
@@ -151,7 +151,7 @@ function CalView({ section }: { section: 'result' | 'home' }) {
   if (section === 'home') {
     return (
       <div className="flex flex-col flex-1 bg-bg-canvas pb-8">
-        <header className="sticky top-0 z-50 w-full border-b border-border-subtle bg-bg-surface/80 backdrop-blur-md">
+        <header className="safe-top sticky top-0 z-50 w-full border-b border-border-subtle bg-bg-surface/80 backdrop-blur-md">
           <div className="flex h-14 items-center px-4">
             <span className="font-bold text-lg text-text-primary">마미스캔</span>
           </div>
@@ -193,7 +193,7 @@ function CalView({ section }: { section: 'result' | 'home' }) {
 
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas pb-24">
-      <header className="sticky top-0 z-50 flex items-center justify-between h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
+      <header className="safe-top sticky top-0 z-50 flex items-center justify-between h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
         <span className="font-bold text-text-primary">분석 결과</span>
         <span className="px-2 py-1 text-sm text-text-secondary">오류 제보</span>
       </header>

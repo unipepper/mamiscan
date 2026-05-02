@@ -7,6 +7,11 @@ body {
   overflow: hidden;
 }
 
+/* PWA safe area — sticky 헤더가 iOS status bar를 침범하지 않도록 */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;

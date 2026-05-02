@@ -65,7 +65,7 @@ export default function HomePage() {
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas pb-20">
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b border-border-subtle bg-bg-surface/80 backdrop-blur-md">
+      <header className="safe-top sticky top-0 z-50 w-full border-b border-border-subtle bg-bg-surface/80 backdrop-blur-md">
         <div className="flex h-14 items-center justify-between px-4">
           <div className="flex items-center -ml-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}

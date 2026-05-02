@@ -114,7 +114,7 @@ export default function SupportPage() {
 
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas pb-20">
-      <header className="sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
+      <header className="safe-top sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
         <button
           onClick={handleBack}
           className="p-1 -ml-1 mr-3 text-text-secondary hover:text-text-primary transition-colors"

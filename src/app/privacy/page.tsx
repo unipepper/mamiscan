@@ -11,7 +11,7 @@ export default function PrivacyPage() {
 
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas pb-12">
-      <header className="sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
+      <header className="safe-top sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-1 mr-3 h-8 w-8">
           <ArrowLeft className="w-5 h-5" />
         </Button>
