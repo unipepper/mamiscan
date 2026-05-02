@@ -91,7 +91,7 @@ export default function PricingPage() {
               <div className="mb-4">
                 <span className="text-3xl font-bold text-text-primary">5,800원</span>
                 <span className="text-sm text-text-secondary ml-1">/ 30일</span>
-                <p className="text-sm text-primary font-medium mt-1">정상가 6,900원 (베타 특별가)</p>
+                <p className="text-sm text-text-secondary mt-1 line-through">정상가 6,900원 (베타 특별가)</p>
               </div>
               <ul className="space-y-3 mb-6">
                 {[

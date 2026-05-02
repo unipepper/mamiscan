@@ -147,7 +147,7 @@ export default function HomePage() {
       </div>
 
       {/* Hero */}
-      <section className="px-4 pt-4 pb-4">
+      <section className="px-4 pt-4 pb-2">
         <div className="bg-accent rounded-[28px] px-6 pt-6 pb-5 relative overflow-hidden">
           <div className="relative z-10">
             <span className="text-sm font-medium text-primary">
@@ -205,8 +205,8 @@ export default function HomePage() {
 
       {/* Recent Scans */}
       {isLoggedIn && recentScans.length > 0 && (
-        <section className="px-4 pt-6 pb-6">
-          <div className="flex items-center justify-between mb-4">
+        <section className="px-4 pt-4 pb-8">
+          <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold text-text-primary">최근 스캔</h2>
             <Button
               variant="ghost"
@@ -282,12 +282,12 @@ export default function HomePage() {
 
       {/* Trust */}
       <section className="px-4 py-6 bg-neutral-bg">
-        <div className="text-center space-y-3">
+        <div className="text-center space-y-2">
           <h2 className="text-lg font-semibold text-text-primary">믿을 수 있는 데이터 기준</h2>
           <p className="text-sm text-text-secondary px-4">
             식약처(MFDS), 미국 FDA, CDC 등<br />공신력 있는 기관의 임산부 가이드라인을 바탕으로 분석합니다.
           </p>
-          <div className="flex justify-center items-center space-x-6 pt-3 opacity-50 grayscale">
+          <div className="flex justify-center items-center space-x-6 pt-2 opacity-50 grayscale">
             <div className="font-bold text-xl">MFDS</div>
             <div className="font-bold text-xl">FDA</div>
             <div className="font-bold text-xl">CDC</div>
@@ -295,14 +295,19 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="py-4 text-center flex items-center justify-center gap-3">
-        <Link href="/terms" className="text-xs text-text-tertiary hover:text-text-secondary transition-colors underline underline-offset-2">
-          이용약관
-        </Link>
-        <span className="text-xs text-text-tertiary">·</span>
-        <Link href="/privacy" className="text-xs text-text-tertiary hover:text-text-secondary transition-colors underline underline-offset-2">
-          개인정보처리방침
-        </Link>
+      <footer className="pt-10 pb-4 text-center space-y-3">
+        <div className="flex items-center justify-center gap-3">
+          <Link href="/terms" className="text-xs text-text-tertiary hover:text-text-secondary transition-colors underline underline-offset-2">
+            이용약관
+          </Link>
+          <span className="text-xs text-text-tertiary">·</span>
+          <Link href="/privacy" className="text-xs text-text-tertiary hover:text-text-secondary transition-colors underline underline-offset-2">
+            개인정보처리방침
+          </Link>
+        </div>
+        <div className="text-[11px] text-text-disabled leading-relaxed px-4">
+          <p>상호: 유니페퍼 · 대표자: 허윤희 · 사업자등록번호: 621-28-02323</p>
+        </div>
       </footer>
 
       <BottomNav />

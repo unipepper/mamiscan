@@ -2,11 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, Search, Lock } from 'lucide-react';
+import { Clock, Search, Lock, BookOpen, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { BottomNav } from '@/components/BottomNav';
+
+const DUMMY_HISTORY = [
+  { name: '아모레퍼시픽 순하리 수분크림', status: 'success', time: '오전 11:23' },
+  { name: '뉴트리원 엽산 플러스', status: 'caution', time: '오전 10:05' },
+  { name: '닥터자르트 시카페어 크림', status: 'success', time: '어제 오후 3:41' },
+];
 
 function getRelativeDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -205,13 +211,74 @@ export default function HistoryPage() {
 
         {/* Logged in but no subscription */}
         {!isLoading && authUser && !isActive && (
-          <div className="mt-4 p-6 bg-accent/50 border border-primary/20 rounded-xl text-center space-y-4">
-            <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-full">
-              <Lock className="w-6 h-6 text-primary" />
+          <div className="space-y-4">
+            {/* 미리보기 더미 카드 */}
+            <div className="space-y-3 pointer-events-none select-none" aria-hidden="true">
+              {DUMMY_HISTORY.map((item, idx) => (
+                <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-2 h-10 rounded-full ${item.status === 'success' ? 'bg-success-fg' : 'bg-caution-fg'}`} />
+                      <p className="font-medium text-text-primary text-sm">{item.name}</p>
+                    </div>
+                    <div className="flex flex-col items-end space-y-1">
+                      <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white ${item.status === 'success' ? 'bg-success-fg' : 'bg-caution-fg'}`}>
+                        {item.status === 'success' ? '안전' : '주의'}
+                      </div>
+                      <span className="text-[10px] text-text-secondary">{item.time}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-            <h3 className="text-base text-text-primary">히스토리 저장은 스캔권 전용이에요</h3>
-            <p className="text-sm text-text-secondary">스캔권을 구매하시면 무제한 스캔 히스토리를 확인할 수 있어요.</p>
-            <Button className="w-full" onClick={() => router.push('/pricing')}>스캔권 알아보기</Button>
+
+            {/* 가치 전달 카드 */}
+            <div className="bg-accent border border-primary/20 rounded-2xl p-5 space-y-4">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-primary uppercase tracking-wide">히스토리 저장</p>
+                <h3 className="text-lg font-semibold text-text-primary leading-snug">
+                  스캔한 제품, 언제든<br />다시 확인하세요
+                </h3>
+              </div>
+
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3">
+                  <div className="bg-primary/10 p-1.5 rounded-lg shrink-0 mt-0.5">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-text-primary">언제든 결과 다시 보기</p>
+                    <p className="text-xs text-text-secondary mt-0.5">마트에서 확인했던 성분 분석을 집에서도 꺼내볼 수 있어요.</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="bg-primary/10 p-1.5 rounded-lg shrink-0 mt-0.5">
+                    <ShieldCheck className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-text-primary">주의 성분 이력 한눈에</p>
+                    <p className="text-xs text-text-secondary mt-0.5">주의 또는 위험으로 나온 제품을 리스트로 관리하세요.</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="bg-primary/10 p-1.5 rounded-lg shrink-0 mt-0.5">
+                    <Search className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-text-primary">제품명으로 빠르게 검색</p>
+                    <p className="text-xs text-text-secondary mt-0.5">비슷한 제품들을 비교하거나 과거 결과를 찾을 수 있어요.</p>
+                  </div>
+                </li>
+              </ul>
+
+              <Button
+                className="w-full flex items-center justify-center gap-1.5"
+                onClick={() => router.push('/pricing')}
+              >
+                스캔권 알아보기
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         )}
       </main>

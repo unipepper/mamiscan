@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, AlertTriangle, CheckCircle, Info, ChevronRight, ShoppingBag, Lock, Loader2, Flag, X } from 'lucide-react';
+import { ChevronLeft, AlertTriangle, CheckCircle, Info, ChevronRight, ShoppingBag, Lock, Loader2, Flag, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
@@ -329,7 +329,7 @@ function ResultContent() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col flex-1 bg-bg-canvas items-center justify-center min-h-screen px-6">
+      <div className="flex flex-col bg-bg-canvas items-center justify-center h-screen px-6">
         <div className="flex items-center gap-1.5 mb-8">
           {[0, 1, 2].map(i => (
             <span
@@ -474,7 +474,7 @@ function ResultContent() {
             result.status === 'success' ? 'bg-success-bg' :
               result.status === 'danger' ? 'bg-danger-bg' : 'bg-caution-bg'
             }`}>
-            <CardContent className="px-6 pt-6 pb-8 flex flex-col">
+            <CardContent className={`px-6 pt-4 flex flex-col ${!hasWeekInfo && authUser ? 'pb-4' : 'pb-8'}`}>
               {/* 배지 + 헤드라인 + 제품명 */}
               {/* 1. 상태 배지 */}
               <div className="flex items-center flex-wrap gap-2 mb-3">
@@ -516,7 +516,7 @@ function ResultContent() {
                 </div>
               )}
 
-              <div className={`space-y-3 ${displayImageSrc ? 'mt-8' : 'mt-5'}`}>
+              <div className={`space-y-3 ${displayImageSrc ? 'mt-6' : 'mt-4'}`}>
                 {result.description.split('\n').filter(Boolean).map((line: string, i: number) => (
                   <p key={i} className="text-base leading-relaxed break-keep text-text-primary">{highlightNumbers(line)}</p>
                 ))}
@@ -534,13 +534,15 @@ function ResultContent() {
               )}
 
               {!hasWeekInfo && authUser && (
-                <div className="mt-5 pt-5 border-t border-current/10">
+                <div className="mt-4 pt-4 border-t border-current/10">
                 <button
                   onClick={() => setShowWeekModal(true)}
                   className="w-full flex items-center justify-between px-4 py-3.5 bg-white/75 hover:bg-white/95 border border-white/80 rounded-2xl transition-all shadow-sm group"
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0 text-lg">✨</div>
+                    <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                    </div>
                     <div className="text-left">
                       <p className="text-sm font-semibold text-text-primary">주차별 맞춤 분석 받기</p>
                       <p className="text-xs text-text-secondary mt-1">임신 주차를 입력하면 딱 맞는 조언을 드려요</p>
@@ -569,8 +571,8 @@ function ResultContent() {
             <div className={!authUser ? 'opacity-30 pointer-events-none select-none overflow-hidden max-h-[400px]' : ''}>
               {/* Ingredients */}
               {!isError && (
-                <section className="space-y-4">
-                  <div className="flex items-center justify-between px-1">
+                <section>
+                  <div className="flex items-center justify-between px-1 mb-2">
                     <h2 className="text-lg font-semibold text-text-primary">어떤 성분/특징 때문인가요?</h2>
                     {hasWeekInfo && <span className="text-[13px] leading-[18px] font-semibold text-primary bg-primary/10 px-2 py-1 rounded-lg">{pregnancyWeeks}주차 기준</span>}
                   </div>
@@ -618,12 +620,12 @@ function ResultContent() {
               )}
 
               {/* Alternatives */}
-              <section className="mt-6">
+              <section>
                 <div className="flex items-center justify-between mb-1">
                   <h2 className="text-lg font-semibold text-text-primary">안전한 대체 제품</h2>
                   <span className="text-xs text-text-secondary bg-neutral-bg px-2 py-1 rounded-lg">광고 아님</span>
                 </div>
-                <p className="text-sm leading-normal text-text-secondary mb-4">주의할 특징이 없는 비슷한 제품을 찾아봤어요.</p>
+                <p className="text-sm leading-normal text-text-secondary mb-2">주의할 특징이 없는 비슷한 제품을 찾아봤어요.</p>
                 <div className="relative">
                   <div className={!authUser ? 'opacity-30 blur-[3px] pointer-events-none select-none grid gap-3' : 'grid gap-3'}>
                     {result.alternatives?.length > 0 ? result.alternatives.map((alt: any, idx: number) => (

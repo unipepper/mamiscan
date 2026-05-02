@@ -215,6 +215,7 @@ export default function ScanPage() {
 
   const handleAlbumButtonClick = () => {
     if (isScanningRef.current) return;
+    if (!hasScans) { handleNoScans(); return; }
     const handleFocus = () => {
       setTimeout(() => {
         if (!isScanningRef.current) {
