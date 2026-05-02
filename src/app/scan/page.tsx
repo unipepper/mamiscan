@@ -352,7 +352,7 @@ export default function ScanPage() {
             바코드를 스캔하거나<br />식료품을 촬영해 주세요
           </p>
           {!isProfileLoading && (
-            <div className="px-4 mb-8">
+            <div className="px-4 mb-7">
               {!authUser ? (
                 <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center justify-between cursor-pointer" onClick={() => router.push('/login')}>
                   <div className="flex items-center space-x-2">
