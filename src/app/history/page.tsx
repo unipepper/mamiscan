@@ -120,8 +120,13 @@ export default function HistoryPage() {
 
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas pb-nav">
-      <header className="safe-top sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
-        <span className="text-lg font-semibold text-text-primary">스캔 히스토리</span>
+      <header className="safe-top sticky top-0 z-50 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
+        <div className="flex items-center h-14">
+          <span className="text-lg font-semibold text-text-primary">스캔 히스토리</span>
+        </div>
+        {!isLoading && isActive && groupedHistory.length > 0 && (
+          <p className="text-xs text-text-tertiary pb-2.5">기록은 스캔 후 90일이 지나면 자동으로 사라져요.</p>
+        )}
       </header>
 
       <main className="px-4 py-6 flex flex-col flex-1 space-y-4">
@@ -137,12 +142,6 @@ export default function HistoryPage() {
           />
         </div>
 
-        {/* 보관 정책 안내 */}
-        {!isLoading && isActive && groupedHistory.length > 0 && (
-          <p className="text-xs text-text-tertiary text-center">
-            기록은 스캔 후 90일이 지나면 자동으로 사라져요.<br />중요한 결과는 스크린샷으로 저장해두세요.
-          </p>
-        )}
 
         {isLoading && (
           <div className="flex justify-center py-10">
@@ -163,8 +162,8 @@ export default function HistoryPage() {
             ) : (
               filtered.map((group) => (
                 <section key={group.id} className="space-y-3 mb-6">
-                  <h3 className="text-sm text-text-secondary px-1">{group.date}</h3>
-                  <div className="grid gap-3">
+                  <h3 className="text-sm text-text-secondary pl-2">{group.date}</h3>
+                  <div className="grid gap-2">
                     {group.items.map((item: any, idx: number) => (
                       <Card
                         key={idx}

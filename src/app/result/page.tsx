@@ -12,9 +12,10 @@ import { Suspense } from 'react';
 import LoadingTips from '@/components/LoadingTips';
 
 function highlightNumbers(text: string): React.ReactNode {
-  const parts = text.split(/(\d+(?:\.\d+)?\s*(?:mg|g|kg|ml|l|kcal|μg|%|회))/gi);
+  const pattern = /(\d+(?:\.\d+)?\s*(?:mg|g|kg|ml|l|kcal|μg|%))/gi;
+  const parts = text.split(pattern);
   return parts.map((part, i) =>
-    /^\d/.test(part) ? <strong key={i} className="font-semibold">{part}</strong> : part
+    i % 2 === 1 ? <strong key={i} className="font-semibold">{part}</strong> : part
   );
 }
 
@@ -524,11 +525,7 @@ function ResultContent() {
 
               {hasWeekInfo && result.weekAnalysis && (
                 <div className="mt-8 pt-6 border-t border-current/10 space-y-3">
-                  <p className={`text-sm font-semibold ${
-                    isError ? 'text-text-secondary' :
-                    result.status === 'success' ? 'text-success-fg' :
-                    result.status === 'danger' ? 'text-danger-fg' : 'text-caution-fg'
-                  }`}>✦ 임신 {pregnancyWeeks}주차 맞춤 조언</p>
+                  <p className="text-sm font-semibold text-primary">✦ 임신 {pregnancyWeeks}주차 맞춤 조언</p>
                   <p className="text-base leading-relaxed break-keep text-text-primary">{result.weekAnalysis}</p>
                 </div>
               )}
@@ -620,7 +617,7 @@ function ResultContent() {
               )}
 
               {/* Alternatives */}
-              <section>
+              <section className="mt-8">
                 <div className="flex items-center justify-between mb-1">
                   <h2 className="text-lg font-semibold text-text-primary">안전한 대체 제품</h2>
                   <span className="text-xs text-text-secondary bg-neutral-bg px-2 py-1 rounded-lg">광고 아님</span>

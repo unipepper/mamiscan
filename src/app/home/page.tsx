@@ -8,6 +8,7 @@ import { Scan, ShieldCheck, Search, CheckCircle2, Calendar, ChevronRight } from 
 import { createClient } from '@/lib/supabase/client';
 import { calcPregnancyWeek } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { SectionLinkButton } from '@/components/ui/section-link-button';
 import { BottomNav } from '@/components/BottomNav';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
 
@@ -207,15 +208,8 @@ export default function HomePage() {
       {isLoggedIn && recentScans.length > 0 && (
         <section className="px-4 pt-4 pb-8">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold text-text-primary">최근 스캔</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/history')}
-              className="gap-0.5 text-text-secondary"
-            >
-              전체 보기 <ChevronRight className="w-3.5 h-3.5" />
-            </Button>
+            <h2 className="text-lg font-semibold text-text-primary pl-2">최근 스캔</h2>
+            <SectionLinkButton label="전체 보기" onClick={() => router.push('/history')} />
           </div>
           <div className="bg-bg-surface border border-border-subtle rounded-[24px] shadow-sm overflow-hidden">
             {recentScans.map((item: any, idx: number) => {
@@ -240,8 +234,8 @@ export default function HomePage() {
                   className={`w-full flex items-center px-4 py-3.5 gap-3 hover:bg-neutral-bg transition-colors text-left ${idx < recentScans.length - 1 ? 'border-b border-border-subtle' : ''}`}
                 >
                   <div className={`w-1.5 h-8 rounded-full shrink-0 ${statusColor}`} />
-                  <p className="flex-1 text-sm font-medium text-text-primary truncate">{item.product_name}</p>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${statusBgColor} ${statusTextColor}`}>
+                  <p className="flex-1 text-base font-medium text-text-primary truncate">{item.product_name}</p>
+                  <span className={`text-sm font-semibold px-2.5 py-1 rounded-full shrink-0 ${statusBgColor} ${statusTextColor}`}>
                     {statusLabel}
                   </span>
                 </button>

@@ -144,24 +144,31 @@ export default function ScanPage() {
                 }
                 isScanningRef.current = true;
                 setIsScanning(true);
-                videoRef.current?.pause();
-                // 바코드 감지와 동시에 콘텐츠 영역 크롭 캡처 (DB 미스 시 Gemini 폴백용)
-                let capturedImage: string | null = null;
-                try {
-                  if (videoRef.current && videoRef.current.videoWidth > 0) {
-                    capturedImage = captureContentArea(videoRef.current, 0.6);
-                    if (capturedImage) sessionStorage.setItem('scanImage', capturedImage);
-                  }
-                } catch {}
-                // 감지 즉시 분석 API 프리페치 — imageBase64도 함께 전달해 C005 미스 시 이미지 폴백 가능하도록
-                pendingAnalyze.promise = fetch('/api/analyze', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ barcode, imageBase64: capturedImage }),
-                });
-                pendingAnalyze.barcode = barcode;
-                pendingAnalyze.imageBase64 = capturedImage;
-                setTimeout(() => router.push(RESULT_ROUTE + '?barcode=' + encodeURIComponent(barcode)), 300);
+                const video = videoRef.current;
+                const captureAndNavigate = () => {
+                  let capturedImage: string | null = null;
+                  try {
+                    if (video && video.videoWidth > 0) {
+                      capturedImage = captureContentArea(video, 0.6);
+                      if (capturedImage) sessionStorage.setItem('scanImage', capturedImage);
+                    }
+                  } catch {}
+                  pendingAnalyze.promise = fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ barcode, imageBase64: capturedImage }),
+                  });
+                  pendingAnalyze.barcode = barcode;
+                  pendingAnalyze.imageBase64 = capturedImage;
+                  setTimeout(() => router.push(RESULT_ROUTE + '?barcode=' + encodeURIComponent(barcode)), 300);
+                };
+                if (video) {
+                  // pause 이벤트 후 캡처 — 완전히 정지된 프레임을 사용
+                  video.addEventListener('pause', captureAndNavigate, { once: true });
+                  video.pause();
+                } else {
+                  captureAndNavigate();
+                }
               }
               if (err && !(err instanceof NotFoundException)) {
                 if (err.message?.includes('Video stream has ended')) return;
@@ -198,19 +205,23 @@ export default function ScanPage() {
     if (!hasScans) { handleNoScans(); return; }
     isScanningRef.current = true;
     setIsScanning(true);
-    videoRef.current.pause();
+    const video = videoRef.current;
     console.log('[scan] camera button pressed → image-only path (no barcode detected by ZXing)');
-    try {
-      const cropped = captureContentArea(videoRef.current, 0.8);
-      if (cropped) {
-        sessionStorage.setItem('scanImage', cropped);
-        router.push(RESULT_ROUTE);
+    const doCapture = () => {
+      try {
+        const cropped = captureContentArea(video, 0.8);
+        if (cropped) {
+          sessionStorage.setItem('scanImage', cropped);
+          router.push(RESULT_ROUTE);
+        }
+      } catch {
+        setIsScanning(false);
+        isScanningRef.current = false;
+        video.play();
       }
-    } catch {
-      setIsScanning(false);
-      isScanningRef.current = false;
-      videoRef.current?.play();
-    }
+    };
+    video.addEventListener('pause', doCapture, { once: true });
+    video.pause();
   };
 
   const handleAlbumButtonClick = () => {
@@ -278,17 +289,12 @@ export default function ScanPage() {
     const videoH = video.videoHeight;
     if (!videoW || !videoH) return null;
 
+    // object-cover 기준으로 유저 눈에 보이는 영역 전체를 캡처
     const scale = Math.max(displayW / videoW, displayH / videoH);
-    const offsetX = (videoW * scale - displayW) / 2;
-    const offsetY = (videoH * scale - displayH) / 2;
-
-    const topCss    = headerRef.current?.getBoundingClientRect().bottom ?? 64;
-    const bottomCss = bottomControlsRef.current?.getBoundingClientRect().top ?? (displayH - 260);
-
-    const srcX = offsetX / scale;
-    const srcY = (topCss + offsetY) / scale;
+    const srcX = (videoW - displayW / scale) / 2;
+    const srcY = (videoH - displayH / scale) / 2;
     const srcW = displayW / scale;
-    const srcH = (bottomCss - topCss) / scale;
+    const srcH = displayH / scale;
 
     const canvas = document.createElement('canvas');
     canvas.width  = Math.round(srcW);

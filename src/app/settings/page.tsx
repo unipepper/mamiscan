@@ -7,9 +7,60 @@ import { calcPregnancyWeek, weeksToStartDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { NotificationDot } from '@/components/ui/notification-dot';
+import { SectionLinkButton } from '@/components/ui/section-link-button';
 import { createClient } from '@/lib/supabase/client';
 import { getRemainingDays } from '@/lib/subscription';
 import { BottomNav } from '@/components/BottomNav';
+
+const PREGNANCY_INFO: Record<number, string> = {
+  1: '착상이 이루어지고 있어요. 엄마 몸이 임신을 준비하는 중이에요.',
+  2: '배아가 자궁벽에 자리를 잡고 있어요.',
+  3: '신경관이 형성되기 시작해요. 엽산이 특히 중요한 시기예요.',
+  4: '심장과 뇌의 기초가 만들어지고 있어요.',
+  5: '아기의 심장이 뛰기 시작해요. 크기는 참깨 한 알 정도예요.',
+  6: '팔다리의 싹이 생기기 시작해요. 얼굴 윤곽도 조금씩 잡혀가요.',
+  7: '손가락과 발가락이 나뉘기 시작해요. 크기는 블루베리 정도예요.',
+  8: '모든 주요 장기가 형성되는 중이에요. 크기는 강낭콩 정도예요.',
+  9: '손가락이 완전히 분리되었어요. 아기가 작은 움직임을 해요.',
+  10: '손톱이 자라기 시작해요. 크기는 딸기 정도로 자랐어요.',
+  11: '아기가 하품을 하기 시작해요. 뼈가 단단해지고 있어요.',
+  12: '손가락 지문이 생기기 시작해요. 크기는 라임 정도예요.',
+  13: '성별이 구분되기 시작해요. 얼굴 표정을 만들 수 있어요.',
+  14: '아기가 빛에 반응할 수 있어요. 크기는 복숭아 정도예요.',
+  15: '청각이 발달해요. 엄마 목소리를 들을 수 있기 시작해요.',
+  16: '눈이 빛을 감지할 수 있어요. 크기는 아보카도 정도예요.',
+  17: '지방이 쌓이기 시작해요. 아기가 삼키는 연습을 해요.',
+  18: '태동을 처음 느낄 수 있는 시기예요. 크기는 고구마 정도예요.',
+  19: '피부를 보호하는 태지가 생겨요. 감각기관이 발달해요.',
+  20: '임신 절반을 지났어요! 아기 키가 약 25cm 정도 됐어요.',
+  21: '아기가 소리에 반응해요. 손가락을 빠는 연습을 해요.',
+  22: '눈썹과 속눈썹이 생겨요. 크기는 파파야 정도예요.',
+  23: '폐가 발달하고 있어요. 아기가 꿈을 꿀 수도 있어요.',
+  24: '생존 가능성이 높아지는 시기예요. 뇌가 빠르게 발달해요.',
+  25: '손의 파악 반사가 생겨요. 크기는 순무 정도예요.',
+  26: '눈을 뜨고 감을 수 있어요. 폐 발달이 활발해요.',
+  27: '뇌 발달이 매우 빠른 시기예요. 크기는 콜리플라워 정도예요.',
+  28: '3분기가 시작됐어요. 아기가 방향을 바꿔 머리가 아래로 향해요.',
+  29: '뼈가 완전히 단단해지고 있어요. 근육도 발달해요.',
+  30: '아기의 뇌가 뚜렷한 주름을 갖기 시작해요. 크기는 양배추 정도예요.',
+  31: '면역 시스템이 발달해요. 아기가 킥을 더 강하게 해요.',
+  32: '손발톱이 완성됐어요. 크기는 스쿼시 정도예요.',
+  33: '뼈가 점점 단단해져요. 폐가 거의 완성되고 있어요.',
+  34: '중추신경계가 완성돼요. 크기는 멜론 정도예요.',
+  35: '신장이 완전히 발달했어요. 간이 노폐물을 처리해요.',
+  36: '아기의 뺨에 지방이 통통하게 쌓여요. 곧 만날 준비 중이에요.',
+  37: '만삭에 가까워졌어요. 아기가 언제든 나올 수 있어요.',
+  38: '아기의 모든 기관이 완성됐어요. 크기는 수박 정도예요.',
+  39: '아기가 태어날 준비가 거의 다 됐어요. 곧 만나요!',
+  40: '출산 예정일이에요! 아기를 곧 만나게 될 거예요.',
+  41: '예정일이 지났어요. 의사와 상의하며 경과를 지켜봐요.',
+  42: '출산이 매우 임박했어요. 병원과 긴밀히 연락하세요.',
+};
+
+function getPregnancyInfo(week: number | null): string | null {
+  if (!week) return null;
+  return PREGNANCY_INFO[Math.min(Math.max(week, 1), 42)] ?? null;
+}
 
 function formatShortDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '';
@@ -208,9 +259,7 @@ export default function SettingsPage() {
         <section>
           <div className="flex items-center justify-between px-1 mb-2">
             <h3 className="text-[18px] font-semibold text-text-primary">스캔권 정보</h3>
-            <Button variant="ghost" size="sm" onClick={() => router.push('/billing-history')} className="gap-0.5 text-sm text-text-secondary hover:text-primary py-0 h-auto">
-              전체 내역 보기 <ChevronRight className="w-4 h-4" />
-            </Button>
+            <SectionLinkButton label="전체 내역 보기" onClick={() => router.push('/billing-history')} />
           </div>
           <Card className="bg-bg-surface border-border-subtle shadow-sm">
             <CardContent className="p-4">
@@ -275,16 +324,25 @@ export default function SettingsPage() {
                   <ChevronRight className="w-5 h-5 text-text-secondary" />
                 </div>
               </Button>
-              <div className={`mx-4 mb-4 rounded-xl px-4 py-3 flex items-center space-x-2 ${calcPregnancyWeek(profile?.pregnancy_start_date) ? 'bg-primary/5' : 'bg-neutral-bg'}`}>
-                {calcPregnancyWeek(profile?.pregnancy_start_date) ? (
-                  <>
-                    <span className="text-sm shrink-0">✨</span>
-                    <p className="text-xs text-primary font-medium leading-relaxed">{calcPregnancyWeek(profile?.pregnancy_start_date)}주차 맞춤 분석이 스캔 결과에 반영돼요</p>
-                  </>
-                ) : (
-                  <p className="text-xs text-text-secondary leading-relaxed">마지막 생리일을 입력하면 스캔 결과에 주차별 맞춤 분석을 드려요</p>
-                )}
-              </div>
+              {(() => {
+                const week = calcPregnancyWeek(profile?.pregnancy_start_date);
+                const info = getPregnancyInfo(week);
+                return (
+                  <div className="mx-4 mb-4 space-y-2">
+                    <div className="bg-primary/5 rounded-xl px-4 py-3 flex items-center space-x-2">
+                      <span className="text-sm shrink-0">✨</span>
+                      <p className="text-xs text-primary font-medium leading-relaxed">
+                        {week ? `${week}주차 맞춤 분석이 스캔 결과에 반영돼요` : '마지막 생리일을 입력하면 스캔 결과에 주차별 맞춤 분석을 드려요'}
+                      </p>
+                    </div>
+                    {info && (
+                      <div className="bg-neutral-bg rounded-xl px-4 py-3">
+                        <p className="text-xs text-text-secondary leading-relaxed">🐣 {info}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </section>
