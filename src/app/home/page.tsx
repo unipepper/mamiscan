@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import { calcPregnancyWeek } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { BottomNav } from '@/components/BottomNav';
+import { PwaInstallBanner } from '@/components/PwaInstallBanner';
 
 interface UserProfile {
   id: string;
@@ -73,6 +74,8 @@ export default function HomePage() {
           </div>
         </div>
       </header>
+
+      <PwaInstallBanner />
 
       {/* Top Utility Area */}
       <div className="px-4 pt-6 pb-0 space-y-2">
