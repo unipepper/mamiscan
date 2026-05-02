@@ -348,11 +348,11 @@ export default function ScanPage() {
             </div>
           )}
 
-          <p className="text-center text-base text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] font-normal mb-5">
+          <p className="text-center text-base text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] font-normal mb-8">
             바코드를 스캔하거나<br />식료품을 촬영해 주세요
           </p>
           {!isProfileLoading && (
-            <div className="px-4 mb-7">
+            <div className="px-4 mb-4">
               {!authUser ? (
                 <div className="bg-black/60 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center justify-between cursor-pointer" onClick={() => router.push('/login')}>
                   <div className="flex items-center space-x-2">
@@ -376,7 +376,7 @@ export default function ScanPage() {
                     <ScanLine className="w-4 h-4 text-secondary" />
                     <span className="text-sm font-medium text-white">남은 횟수: <strong className="text-secondary">{remainingScans}회</strong></span>
                   </div>
-                  <span className="text-xs font-semibold text-black bg-secondary px-2.5 py-1.5 rounded-full shrink-0">충전하기</span>
+                  <span className="text-sm font-semibold text-black bg-secondary px-3.5 py-2 rounded-full shrink-0">충전하기</span>
                 </div>
               )}
             </div>

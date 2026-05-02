@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Receipt, MinusCircle, AlertCircle, X } from 'lucide-react';
+import { ChevronLeft, Receipt, MinusCircle, AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface Entitlement {
@@ -167,7 +167,7 @@ export default function BillingHistoryPage() {
     <div className="flex flex-col flex-1 bg-bg-canvas min-h-screen">
       <header className="safe-top sticky top-0 z-40 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2">
-          <ArrowLeft className="w-6 h-6" />
+          <ChevronLeft className="w-6 h-6" />
         </Button>
         <span className="font-medium ml-2 text-text-primary">스캔권 구매/사용 내역</span>
       </header>

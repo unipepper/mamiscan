@@ -127,7 +127,7 @@ export default function HistoryPage() {
             placeholder="제품명 검색"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-bg-surface border border-border-subtle rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full h-11 pl-9 pr-4 bg-bg-surface border border-border-subtle rounded-2xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
 

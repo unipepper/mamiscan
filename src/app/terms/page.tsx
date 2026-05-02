@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { ChevronLeft, FileText } from 'lucide-react';
 
 const EFFECTIVE_DATE = '2026년 4월 18일';
 
@@ -15,7 +15,7 @@ export default function TermsPage() {
           onClick={() => router.back()}
           className="p-1 -ml-1 mr-3 text-text-secondary hover:text-text-primary transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ChevronLeft className="w-5 h-5" />
         </button>
         <span className="font-bold text-lg text-text-primary">이용약관</span>
       </header>

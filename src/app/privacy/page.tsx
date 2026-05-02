@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Shield } from 'lucide-react';
+import { ChevronLeft, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const EFFECTIVE_DATE = '2026년 4월 22일';
@@ -13,7 +13,7 @@ export default function PrivacyPage() {
     <div className="flex flex-col flex-1 bg-bg-canvas pb-12">
       <header className="safe-top sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-1 mr-3 h-8 w-8">
-          <ArrowLeft className="w-5 h-5" />
+          <ChevronLeft className="w-5 h-5" />
         </Button>
         <span className="font-bold text-lg text-text-primary">개인정보처리방침</span>
       </header>

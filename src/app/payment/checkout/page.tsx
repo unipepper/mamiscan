@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { PLANS, type PlanType } from '@/lib/toss/plans';
 import { Button } from '@/components/ui/button';
@@ -104,16 +105,14 @@ function CheckoutContent() {
   if (!plan) return null;
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-md mx-auto px-4 py-8">
-        <Button
-          variant="ghost"
-          size="sm"
+    <div className="min-h-screen bg-white flex flex-col">
+      <div className="max-w-md w-full mx-auto px-4 py-8 flex-1 pb-32">
+        <button
           onClick={() => router.back()}
-          className="mb-6 text-text-secondary"
+          className="mb-6 p-2 -ml-2 text-text-primary"
         >
-          ← 뒤로
-        </Button>
+          <ChevronLeft className="w-6 h-6" />
+        </button>
 
         <h1 className="text-xl font-bold text-text-primary mb-1">{plan.orderName}</h1>
         <p className="text-2xl font-bold text-primary mb-6">{plan.amount.toLocaleString()}원</p>
@@ -126,18 +125,20 @@ function CheckoutContent() {
 
         <div id="payment-method" />
         <div id="agreement" className="mt-4" />
+      </div>
 
-        {!loading && (
+      {!loading && (
+        <div className="safe-bottom fixed bottom-0 w-full max-w-md left-1/2 -translate-x-1/2 px-4 pt-4 bg-white border-t border-border-subtle z-50">
           <Button
             onClick={handlePay}
             disabled={paying}
-            className="mt-6 w-full"
+            className="w-full"
             size="lg"
           >
             {paying ? '처리 중...' : `${plan.amount.toLocaleString()}원 결제하기`}
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

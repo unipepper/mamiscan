@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, MessageSquare, Loader2, CheckCircle, ImagePlus, X,
+  ChevronLeft, MessageSquare, Loader2, CheckCircle, ImagePlus, X,
   ChevronRight, ChevronDown, LogIn, MessageCircle, HelpCircle, Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -119,7 +119,7 @@ export default function SupportPage() {
           onClick={handleBack}
           className="p-1 -ml-1 mr-3 text-text-secondary hover:text-text-primary transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ChevronLeft className="w-5 h-5" />
         </button>
         <span className="font-semibold text-lg text-text-primary">{HEADER_TITLE[view]}</span>
       </header>

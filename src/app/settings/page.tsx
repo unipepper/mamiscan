@@ -205,15 +205,15 @@ export default function SettingsPage() {
         </section>
 
         {/* Subscription */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between px-1">
+        <section>
+          <div className="flex items-center justify-between px-1 mb-2">
             <h3 className="text-[18px] font-semibold text-text-primary">스캔권 정보</h3>
-            <Button variant="ghost" size="sm" onClick={() => router.push('/billing-history')} className="gap-0.5 text-text-secondary hover:text-primary">
+            <Button variant="ghost" size="sm" onClick={() => router.push('/billing-history')} className="gap-0.5 text-sm text-text-secondary hover:text-primary py-0 h-auto">
               전체 내역 보기 <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
           <Card className="bg-bg-surface border-border-subtle shadow-sm">
-            <CardContent className="p-5">
+            <CardContent className="p-4">
               {isActive ? (
                 <>
                   <p className="font-semibold text-primary mb-3">무제한 스캔권 사용 중</p>
@@ -231,7 +231,7 @@ export default function SettingsPage() {
                     <p className="text-xs text-text-tertiary mb-1">남은 스캔 횟수</p>
                     <p className="text-2xl font-bold text-text-primary">{remainingScans}<span className="text-sm font-medium text-text-secondary ml-1">회</span></p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => router.push('/pricing')}>충전하기</Button>
+                  <Button size="sm" onClick={() => router.push('/pricing')} className="font-semibold text-sm">충전하기</Button>
                 </div>
               )}
             </CardContent>
@@ -247,14 +247,14 @@ export default function SettingsPage() {
         </section>
 
         {/* Pregnancy Info */}
-        <section className="space-y-4">
-          <h3 className="text-[18px] font-semibold text-text-primary px-1">임신 정보</h3>
+        <section className="mt-6">
+          <h3 className="text-[18px] font-semibold text-text-primary px-1 mb-2">임신 정보</h3>
           <Card className="bg-bg-surface border-border-subtle shadow-sm overflow-hidden">
             <CardContent className="p-0">
               <Button
                 variant="ghost"
                 onClick={() => setShowWeekDial(true)}
-                className="w-full p-5 justify-between h-auto"
+                className="w-full p-4 justify-between h-auto"
               >
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
@@ -275,7 +275,7 @@ export default function SettingsPage() {
                   <ChevronRight className="w-5 h-5 text-text-secondary" />
                 </div>
               </Button>
-              <div className={`mx-5 mb-5 rounded-xl px-4 py-3 flex items-center space-x-2 ${calcPregnancyWeek(profile?.pregnancy_start_date) ? 'bg-primary/5' : 'bg-neutral-bg'}`}>
+              <div className={`mx-4 mb-4 rounded-xl px-4 py-3 flex items-center space-x-2 ${calcPregnancyWeek(profile?.pregnancy_start_date) ? 'bg-primary/5' : 'bg-neutral-bg'}`}>
                 {calcPregnancyWeek(profile?.pregnancy_start_date) ? (
                   <>
                     <span className="text-sm shrink-0">✨</span>
@@ -297,27 +297,27 @@ export default function SettingsPage() {
             <CardContent className="p-0">
               <Button variant="ghost" className="w-full p-4 border-b border-border-subtle justify-between h-auto rounded-none" onClick={() => router.push('/notices')}>
                 <div className="flex items-center space-x-3">
-                  <Bell className="w-4 h-4 text-text-secondary" />
-                  <span className="relative text-sm font-medium text-text-primary">
+                  <Bell className="w-5 h-5 text-text-secondary" />
+                  <span className="relative text-base font-medium text-text-primary">
                     공지사항
                     {unreadNoticeCount > 0 && <NotificationDot />}
                   </span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-text-secondary" />
+                <ChevronRight className="w-5 h-5 text-text-secondary" />
               </Button>
               <Button variant="ghost" className="w-full p-4 border-b border-border-subtle justify-between h-auto rounded-none" onClick={() => router.push('/support')}>
                 <div className="flex items-center space-x-3">
-                  <MessageSquare className="w-4 h-4 text-text-secondary" />
-                  <span className="text-sm font-medium text-text-primary">고객센터 / 문의하기</span>
+                  <MessageSquare className="w-5 h-5 text-text-secondary" />
+                  <span className="text-base font-medium text-text-primary">고객센터 / 문의하기</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-text-secondary" />
+                <ChevronRight className="w-5 h-5 text-text-secondary" />
               </Button>
               <Button variant="ghost" className="w-full p-4 justify-between h-auto rounded-none" onClick={() => router.push('/policies')}>
                 <div className="flex items-center space-x-3">
-                  <FileText className="w-4 h-4 text-text-secondary" />
-                  <span className="text-sm font-medium text-text-primary">약관 및 방침</span>
+                  <FileText className="w-5 h-5 text-text-secondary" />
+                  <span className="text-base font-medium text-text-primary">약관 및 방침</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-text-secondary" />
+                <ChevronRight className="w-5 h-5 text-text-secondary" />
               </Button>
             </CardContent>
           </Card>
@@ -328,8 +328,8 @@ export default function SettingsPage() {
           <Card className="bg-bg-surface border-border-subtle shadow-sm overflow-hidden">
             <CardContent className="p-0">
               <Button variant="ghost" className="w-full p-4 justify-start gap-3 h-auto text-danger-fg rounded-none" onClick={handleLogout}>
-                <LogOut className="w-4 h-4" />
-                <span className="text-sm font-medium">로그아웃</span>
+                <LogOut className="w-5 h-5" />
+                <span className="text-base font-medium">로그아웃</span>
               </Button>
             </CardContent>
           </Card>

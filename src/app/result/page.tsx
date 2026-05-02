@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, AlertTriangle, CheckCircle, Info, ChevronRight, ShoppingBag, Lock, Loader2, Flag, X } from 'lucide-react';
+import { ChevronLeft, AlertTriangle, CheckCircle, Info, ChevronRight, ShoppingBag, Lock, Loader2, Flag, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
@@ -437,7 +437,7 @@ function ResultContent() {
     <div className="flex flex-col flex-1 bg-bg-canvas pb-20">
       <header className="safe-top sticky top-0 z-50 flex items-center justify-between h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
         <div className="flex items-center">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2"><ArrowLeft className="w-6 h-6" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2"><ChevronLeft className="w-6 h-6" /></Button>
           <span className="font-semibold ml-2 text-text-primary">분석 결과</span>
         </div>
         <Button variant="danger" size="sm" onClick={() => setShowReportModal(true)} className="gap-1.5 rounded-full bg-danger-bg text-danger-fg border border-danger-fg/20 hover:bg-danger-fg hover:text-white shadow-none">

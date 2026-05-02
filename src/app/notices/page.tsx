@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Bell, ChevronRight, ShieldCheck, Megaphone, Wrench, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Bell, ChevronRight, ShieldCheck, Megaphone, Wrench, CheckCircle2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -115,7 +115,7 @@ export default function NoticesPage() {
             onClick={() => setSelected(null)}
             className="p-1 -ml-1 mr-3 text-text-secondary hover:text-text-primary transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
           <span className="font-semibold text-lg text-text-primary">공지사항</span>
         </header>
@@ -186,7 +186,7 @@ export default function NoticesPage() {
           onClick={() => router.back()}
           className="p-1 -ml-1 mr-3 text-text-secondary hover:text-text-primary transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ChevronLeft className="w-5 h-5" />
         </button>
         <span className="font-semibold text-lg text-text-primary">공지사항</span>
         {unreadCount > 0 && (

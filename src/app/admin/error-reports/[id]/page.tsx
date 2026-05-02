@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CheckCircle, XCircle, Edit2, Save, X, Sparkles, RefreshCw } from 'lucide-react';
+import { ChevronLeft, CheckCircle, XCircle, Edit2, Save, X, Sparkles, RefreshCw } from 'lucide-react';
 
 type Ingredient = { name: string; status: string; reason: string };
 
@@ -277,7 +277,7 @@ export default function ErrorReportDetailPage({ params }: { params: Promise<{ id
         {/* 헤더 */}
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-700">
-            <ArrowLeft className="w-5 h-5" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
             <h1 className="text-lg font-bold text-gray-900">

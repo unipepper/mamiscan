@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, Sparkles, Star, Clock } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, Sparkles, Star, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
@@ -49,7 +49,7 @@ export default function PricingPage() {
 
   const subText = () => {
     if (remainingScans !== null && remainingScans > 0) {
-      return `잔여 스캔권 ${remainingScans}회가 남아 있어요. 추가로 충전하면 더 오래 이용할 수 있어요.`;
+      return `잔여 스캔권 ${remainingScans}회가 남아 있어요.\n추가로 충전하면 더 오래 이용할 수 있어요.`;
     }
     return '장볼 때마다 계속 확인하려면 스캔권이 필요해요.';
   };
@@ -58,7 +58,7 @@ export default function PricingPage() {
     <div className="flex flex-col flex-1 bg-bg-canvas safe-bottom pb-8">
       <header className="safe-top sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md">
         <button onClick={() => router.back()} className="p-2 -ml-2 text-text-primary">
-          <ArrowLeft className="w-6 h-6" />
+          <ChevronLeft className="w-6 h-6" />
         </button>
         <span className="font-medium ml-2 text-text-primary">스캔권 구매</span>
       </header>
@@ -71,7 +71,7 @@ export default function PricingPage() {
           <h1 className="text-[26px] leading-[35px] font-bold text-text-primary whitespace-pre-line">
             {headingText()}
           </h1>
-          <p className="text-sm text-text-secondary">
+          <p className="text-sm text-text-secondary whitespace-pre-line">
             {subText()}
           </p>
         </section>
@@ -79,7 +79,7 @@ export default function PricingPage() {
         <section className="space-y-4">
           {/* 1개월 무제한 */}
           <Card className="bg-accent border-2 border-primary shadow-md relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-primary text-white text-[10px] font-medium px-3 py-1 rounded-bl-lg">
+            <div className="absolute top-0 right-0 bg-primary text-white text-xs font-medium px-3 py-1 rounded-bl-lg">
               가장 추천
             </div>
             <CardContent className="p-6">
@@ -91,7 +91,7 @@ export default function PricingPage() {
               <div className="mb-4">
                 <span className="text-3xl font-bold text-text-primary">5,800원</span>
                 <span className="text-sm text-text-secondary ml-1">/ 30일</span>
-                <p className="text-xs text-primary font-medium mt-1">정상가 6,900원 (베타 특별가)</p>
+                <p className="text-sm text-primary font-medium mt-1">정상가 6,900원 (베타 특별가)</p>
               </div>
               <ul className="space-y-3 mb-6">
                 {[
@@ -110,7 +110,8 @@ export default function PricingPage() {
                 </li>
               </ul>
               <Button
-                className="w-full text-base h-12"
+                size="lg"
+                className="w-full"
                 onClick={() => router.push('/payment/checkout?plan=monthly')}
               >
                 1개월 무제한 시작하기
@@ -120,7 +121,7 @@ export default function PricingPage() {
 
           {/* 5회 추가권 */}
           <Card className="bg-bg-surface border border-border-subtle shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-neutral-bg text-text-secondary text-[10px] font-medium px-3 py-1 rounded-bl-lg">
+            <div className="absolute top-0 right-0 bg-neutral-bg text-text-secondary text-xs font-medium px-3 py-1 rounded-bl-lg">
               부담 없이 시작
             </div>
             <CardContent className="p-6">
@@ -132,7 +133,7 @@ export default function PricingPage() {
               <div className="mb-4">
                 <span className="text-2xl font-bold text-text-primary">1,800원</span>
                 <span className="text-sm text-text-secondary ml-1">/ 5회</span>
-                <p className="text-xs text-text-secondary mt-1 line-through">정상가 2,400원</p>
+                <p className="text-sm text-text-secondary mt-1 line-through">정상가 2,400원</p>
               </div>
               <ul className="space-y-3 mb-6">
                 {['결제 후 14일 동안 사용 가능', '상세 분석 및 히스토리 제공'].map((item) => (
@@ -144,7 +145,8 @@ export default function PricingPage() {
               </ul>
               <Button
                 variant="outline"
-                className="w-full text-base h-12"
+                size="lg"
+                className="w-full"
                 onClick={() => router.push('/payment/checkout?plan=scan5')}
               >
                 5회 추가권 구매하기

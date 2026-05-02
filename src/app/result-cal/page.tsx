@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, AlertTriangle, CheckCircle, Info, ChevronRight, ShoppingBag, Lock, Loader2, Flag, X } from 'lucide-react';
+import { ChevronLeft, AlertTriangle, CheckCircle, Info, ChevronRight, ShoppingBag, Lock, Loader2, Flag, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { compressThumbnail } from '@/lib/compressImage';
@@ -397,7 +397,7 @@ function ResultContent() {
       {/* ── Header: Cal.com 방식 — bg-canvas 기반 ── */}
       <header className="safe-top sticky top-0 z-50 flex items-center justify-between h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
         <div className="flex items-center">
-          <button onClick={() => router.back()} className="p-2 -ml-2 text-text-primary"><ArrowLeft className="w-6 h-6" /></button>
+          <button onClick={() => router.back()} className="p-2 -ml-2 text-text-primary"><ChevronLeft className="w-6 h-6" /></button>
           <span className="font-bold ml-2 text-text-primary">분석 결과</span>
         </div>
         <button onClick={() => setShowReportModal(true)} className="px-2 py-1 text-sm text-text-secondary hover:text-text-primary transition-colors">
