@@ -87,25 +87,26 @@ Load via: `@font-face` with Pretendard Variable or CDN (`cdn.jsdelivr.net/gh/ori
 
 ### Type Scale
 
-| Role | Size | Line-height | Weight | Tailwind equivalent |
+| Role | Size | Line-height | Weight | Class |
 |---|---:|---:|---:|---|
-| `display.lg` | 30px | 40px | 700 | `text-[30px] leading-[40px] font-bold` |
-| `display.md` | 26px | 35px | 700 | `text-[26px] leading-[35px] font-bold` |
-| `title.lg` | 22px | 30px | 700 | `text-[22px] leading-[30px] font-bold` |
-| `title.md` | 18px | 26px | 700 | `text-lg font-bold` |
-| `body.lg` | 16px | 24px | 500 | `text-base` |
-| `body.md` | 14px | 22px | 500 | `text-sm` |
-| `label.md` | 13px | 18px | 600 | `text-[13px] leading-[18px] font-semibold` |
-| `caption` | 12px | 17px | 500 | `text-xs leading-[17px]` |
+| `display.md` | 26px | 35px | 700 | `type-display-md` |
+| `title.lg` | 22px | 30px | 600 | `type-title-lg` |
+| `title.md` | 18px | 26px | 600 | `type-title-md` |
+| `title.card` | 16px | 24px | 600 | `type-title-card` |
+| `body.contents` | 16px | 26px | 500 | `type-body-contents` |
+| `body.brief` | 14px | 21px | 500 | `type-body-brief` |
+| `label.md` | 13px | 18px | 600 | `type-label-md` |
+| `caption` | 12px | 17px | 500 | `type-caption` |
 
 ### Rules
-- 홈 메인 CTA 문구: `display.md`
-- 결과 상태 제목: `display.md`
-- 섹션 제목: `title.lg`
-- 카드 제목: `title.md`
-- 일반 설명문: `body.md`
-- 메타 정보, 배지 라벨: `label.md` or `caption`
-- 홈 상단에서 `display.lg`는 쓰지 않는다
+- 홈 메인 CTA 문구: `type-display-md`
+- 결과 상태 제목: `type-display-md`
+- 페이지 타이틀 (h1): `type-title-lg`
+- 섹션 제목: `type-title-md`
+- 카드 제목: `type-title-card`
+- 훑어보는 설명문 (카드 설명, 상태 요약): `type-body-brief`
+- 읽어야 하는 본문 (결과 상세, 성분 설명): `type-body-contents`
+- 메타 정보, 배지 라벨: `type-label-md` or `type-caption`
 
 ---
 
@@ -162,11 +163,20 @@ Only use values from this scale. No arbitrary px values.
 
 ## 9. Components
 
+### Large Button (단독 CTA)
+```tsx
+// 단독으로 임팩트가 필요한 CTA — h-14, text-base, font-semibold, shadow-lg
+<Button size="lg" className="w-full gap-2">
+  <Scan className="w-5 h-5" />
+  5초 안에 확인하기
+</Button>
+```
+
 ### Primary Button
 ```tsx
-// Full-width CTA (홈, 결과 화면)
+// Full-width CTA (결과 화면, 설정 저장 등 일반 CTA)
 <button className="w-full h-12 bg-primary text-white rounded-2xl text-sm font-semibold shadow-md active:bg-primary-strong transition-colors">
-  5초 안에 확인하기
+  저장하기
 </button>
 
 // Icon + text variant

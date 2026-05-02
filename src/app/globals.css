@@ -21,6 +21,49 @@ body {
   overflow-wrap: break-word;
 }
 
+@layer typography {
+  .type-display-md {
+    font-size: var(--font-size-26);
+    line-height: var(--line-height-35);
+    font-weight: var(--font-weight-bold);
+  }
+  .type-title-lg {
+    font-size: var(--font-size-22);
+    line-height: var(--line-height-30);
+    font-weight: var(--font-weight-semibold);
+  }
+  .type-title-md {
+    font-size: var(--font-size-18);
+    line-height: var(--line-height-26);
+    font-weight: var(--font-weight-semibold);
+  }
+  .type-title-card {
+    font-size: var(--font-size-16);
+    line-height: var(--line-height-24);
+    font-weight: var(--font-weight-semibold);
+  }
+  .type-body-contents {
+    font-size: var(--font-size-16);
+    line-height: var(--line-height-26);
+    font-weight: var(--font-weight-medium);
+  }
+  .type-body-brief {
+    font-size: var(--font-size-14);
+    line-height: var(--line-height-21);
+    font-weight: var(--font-weight-medium);
+  }
+  .type-label-md {
+    font-size: var(--font-size-13);
+    line-height: var(--line-height-18);
+    font-weight: var(--font-weight-semibold);
+  }
+  .type-caption {
+    font-size: var(--font-size-12);
+    line-height: var(--line-height-17);
+    font-weight: var(--font-weight-medium);
+  }
+}
+
 @layer base {
   /* 헤드라인: 26-24px 수준 */
   h1 {
@@ -62,6 +105,27 @@ body {
 }
 
 @theme {
+  /* Typography primitives */
+  --font-size-12: 12px;
+  --font-size-13: 13px;
+  --font-size-14: 14px;
+  --font-size-16: 16px;
+  --font-size-18: 18px;
+  --font-size-22: 22px;
+  --font-size-26: 26px;
+
+  --line-height-17: 17px;
+  --line-height-18: 18px;
+  --line-height-21: 21px;
+  --line-height-24: 24px;
+  --line-height-26: 26px;
+  --line-height-30: 30px;
+  --line-height-35: 35px;
+
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
   --color-primary: #F28C82;
   --color-primary-strong: #E06F64;
   --color-secondary: #9DB7A5;

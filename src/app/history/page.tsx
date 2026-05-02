@@ -96,10 +96,12 @@ export default function HistoryPage() {
   // 비교 테스트: '/result' | '/result-notion' | '/result-cal'
   const RESULT_ROUTE = '/result';
 
-  const navigateToResult = (resultData: any) => {
+  const navigateToResult = (resultData: any, productName?: string) => {
     if (resultData) {
       sessionStorage.setItem('resultData', JSON.stringify(resultData));
-      router.push(RESULT_ROUTE);
+      window.location.href = RESULT_ROUTE;
+    } else if (productName) {
+      window.location.href = `${RESULT_ROUTE}?productName=${encodeURIComponent(productName)}`;
     }
   };
 
@@ -132,7 +134,7 @@ export default function HistoryPage() {
         {/* 보관 정책 안내 */}
         {!isLoading && isActive && groupedHistory.length > 0 && (
           <p className="text-xs text-text-tertiary text-center">
-            기록은 스캔 후 90일이 지나면 자동으로 사라져요. 중요한 결과는 스크린샷으로 저장해두세요.
+            기록은 스캔 후 90일이 지나면 자동으로 사라져요.<br />중요한 결과는 스크린샷으로 저장해두세요.
           </p>
         )}
 
@@ -161,7 +163,7 @@ export default function HistoryPage() {
                       <Card
                         key={idx}
                         className="bg-bg-surface border-border-subtle shadow-sm hover:bg-neutral-bg transition-colors cursor-pointer"
-                        onClick={() => navigateToResult(item.resultData)}
+                        onClick={() => navigateToResult(item.resultData, item.name)}
                       >
                         <CardContent className="p-4 flex items-center justify-between">
                           <div className="flex items-center space-x-4">

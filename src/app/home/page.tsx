@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Scan, ShieldCheck, Search, ChevronRight, CheckCircle2, Star, Calendar } from 'lucide-react';
+import { Scan, ShieldCheck, Search, CheckCircle2, Calendar, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { calcPregnancyWeek } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,8 @@ export default function HomePage() {
   const [remainingScans, setRemainingScans] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [hasPendingMonthly, setHasPendingMonthly] = useState(false);
+  const [recentScans, setRecentScans] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,17 +35,19 @@ export default function HomePage() {
       setIsLoggedIn(true);
 
       const now = new Date().toISOString();
-      const [{ data: prof }, { data: scanRights }, { data: activeSub }, { data: pendingSub }] = await Promise.all([
+      const [{ data: prof }, { data: scanRights }, { data: activeSub }, { data: pendingSub }, { data: recent }] = await Promise.all([
         supabase.from('users').select('id, email, name, pregnancy_start_date').eq('id', user.id).single(),
         supabase.from('user_entitlements').select('scan_count').eq('user_id', user.id).in('type', ['scan5', 'trial', 'admin']).eq('status', 'active').gt('expires_at', now).gt('scan_count', 0),
         supabase.from('user_entitlements').select('expires_at').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'active').gt('expires_at', now).maybeSingle(),
         supabase.from('user_entitlements').select('id').eq('user_id', user.id).eq('type', 'monthly').eq('status', 'pending').maybeSingle(),
+        supabase.from('scan_history').select('product_name, status, created_at, result_json, image_url').eq('user_id', user.id).order('created_at', { ascending: false }).limit(3),
       ]);
 
       setProfile(prof);
       setRemainingScans(scanRights?.reduce((sum: number, c: any) => sum + c.scan_count, 0) ?? 0);
       setIsActive(!!activeSub);
       setHasPendingMonthly(!!pendingSub);
+      setRecentScans(recent ?? []);
       setLoading(false);
     });
   }, [router]);
@@ -62,12 +66,12 @@ export default function HomePage() {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-border-subtle bg-bg-surface/80 backdrop-blur-md">
         <div className="flex h-14 items-center justify-between px-4">
-          <span className="font-semibold text-lg text-text-primary tracking-tight">마미스캔</span>
+          <span className="font-bold text-lg text-text-primary tracking-tight">마미스캔</span>
         </div>
       </header>
 
       {/* Top Utility Area */}
-      <div className="px-4 pt-4 space-y-3">
+      <div className="px-4 pt-4 pb-0 space-y-3">
         {!isLoggedIn ? (
           <div
             className="bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-center justify-between cursor-pointer"
@@ -131,33 +135,111 @@ export default function HomePage() {
       </div>
 
       {/* Hero */}
-      <section className="px-4 pt-4 pb-6">
-        <div className="bg-accent rounded-2xl p-6 shadow-sm relative overflow-hidden">
-          <div className="relative z-10 flex flex-col items-start">
-            <span className="text-sm font-medium text-primary mb-2">
-              {isLoggedIn && profile?.name ? `${profile.name}님,` : '제품을 스캔하고'}
+      <section className="px-4 pt-6 pb-0">
+        <div className="bg-accent rounded-[28px] px-6 pt-6 pb-5 relative overflow-hidden">
+          <div className="relative z-10">
+            <span className="text-sm font-medium text-primary">
+              {isLoggedIn && profile?.name ? `${profile.name}님,` : '엄마도 맛있게, 아가도 건강하게'}
             </span>
-            <h1 className="text-[26px] leading-[35px] font-bold text-text-primary mb-3">
+            <h1 className="text-[26px] leading-[35px] font-bold text-text-primary mt-1 mb-2">
               지금 먹어도 되는지<br />바로 확인해보세요
             </h1>
-            <p className="text-sm text-text-secondary mb-5 max-w-[240px]">
+            <p className="text-sm text-text-secondary mb-5">
               임산부 기준 성분 분석부터<br />안전한 대체 제품 추천까지 5초면 충분해요.
             </p>
-            <Button className="w-full h-12 text-base shadow-md" onClick={() => router.push('/scan')}>
-              <Scan className="mr-2 h-5 w-5" />
+            <Button
+              size="lg"
+              onClick={() => router.push('/scan')}
+              className="w-full gap-2"
+            >
+              <Scan className="w-5 h-5" />
               5초 안에 확인하기
             </Button>
+
+            {/* 제품명 검색 — 카드 안 */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const q = searchQuery.trim();
+                if (q) router.push('/result?productName=' + encodeURIComponent(q));
+              }}
+              className="flex gap-2 mt-3"
+            >
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="제품명 검색"
+                  className="w-full h-11 pl-9 pr-3 bg-white/80 border border-primary/20 rounded-2xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+              <button
+                type="submit"
+                className="h-11 w-11 shrink-0 bg-white/80 border border-primary/20 rounded-2xl flex items-center justify-center active:bg-white/60 transition-colors"
+                aria-label="검색"
+              >
+                <Search className="w-4 h-4 text-text-secondary" />
+              </button>
+            </form>
           </div>
-          <div className="absolute -right-6 -bottom-6 opacity-10">
-            <Scan className="w-40 h-40 text-primary" />
+          <div className="absolute -right-10 -bottom-10 opacity-10">
+            <Scan className="w-72 h-72 text-primary" />
           </div>
         </div>
       </section>
 
+      {/* Recent Scans */}
+      {isLoggedIn && recentScans.length > 0 && (
+        <section className="px-4 pt-8 pb-0">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-text-primary">최근 스캔</h2>
+            <button
+              onClick={() => router.push('/history')}
+              className="flex items-center gap-0.5 text-xs font-medium text-text-secondary"
+            >
+              전체 보기 <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="bg-bg-surface border border-border-subtle rounded-[24px] shadow-sm overflow-hidden">
+            {recentScans.map((item: any, idx: number) => {
+              const statusColor =
+                item.status === 'success' ? 'bg-success-fg' :
+                item.status === 'caution' ? 'bg-caution-fg' : 'bg-danger-fg';
+              const statusLabel =
+                item.status === 'success' ? '안전' :
+                item.status === 'caution' ? '주의' : '위험';
+              const statusTextColor =
+                item.status === 'success' ? 'text-success-fg' :
+                item.status === 'caution' ? 'text-caution-fg' : 'text-danger-fg';
+              const statusBgColor =
+                item.status === 'success' ? 'bg-success-bg' :
+                item.status === 'caution' ? 'bg-caution-bg' : 'bg-danger-bg';
+              let resultData: any = null;
+              try { resultData = JSON.parse(item.result_json); if (item.image_url) resultData.userImageUrl = item.image_url; } catch {}
+              return (
+                <button
+                  key={idx}
+                  onClick={() => { if (resultData) { sessionStorage.setItem('scanResult', JSON.stringify(resultData)); router.push('/result'); } }}
+                  className={`w-full flex items-center px-4 py-3.5 gap-3 hover:bg-neutral-bg transition-colors text-left ${idx < recentScans.length - 1 ? 'border-b border-border-subtle' : ''}`}
+                >
+                  <div className={`w-1.5 h-8 rounded-full shrink-0 ${statusColor}`} />
+                  <p className="flex-1 text-sm font-medium text-text-primary truncate">{item.product_name}</p>
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${statusBgColor} ${statusTextColor}`}>
+                    {statusLabel}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Features */}
-      <section className="px-4 py-4 space-y-4">
-        <h2 className="text-[22px] leading-[30px] font-semibold text-text-primary px-1">
-          마미스캔이 도와드릴게요
+      <section className="px-4 pt-6 pb-6 space-y-4">
+        <h2 className="text-lg font-semibold text-text-primary px-1">
+          이렇게 도와드려요
         </h2>
         <div className="grid gap-4">
           {[
@@ -171,8 +253,8 @@ export default function HomePage() {
                   <Icon className={`w-6 h-6 text-${color}`} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-text-primary mb-1">{title}</h3>
-                  <p className="text-sm text-text-secondary leading-relaxed">{desc}</p>
+                  <h3 className="text-base font-semibold text-text-primary mb-1">{title}</h3>
+                  <p className="text-sm text-text-secondary">{desc}</p>
                 </div>
               </CardContent>
             </Card>
@@ -181,9 +263,9 @@ export default function HomePage() {
       </section>
 
       {/* Trust */}
-      <section className="px-4 py-6 mt-2 bg-white border-y border-border-subtle">
+      <section className="px-4 py-6 bg-bg-surface border-y border-border-subtle">
         <div className="text-center space-y-3">
-          <h2 className="text-[18px] font-semibold text-text-primary">믿을 수 있는 데이터 기준</h2>
+          <h2 className="text-lg font-semibold text-text-primary">믿을 수 있는 데이터 기준</h2>
           <p className="text-sm text-text-secondary px-4">
             식약처(MFDS), 미국 FDA, CDC 등<br />공신력 있는 기관의 임산부 가이드라인을 바탕으로 분석합니다.
           </p>

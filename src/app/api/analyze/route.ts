@@ -381,8 +381,8 @@ status는 "success", "caution", "danger" 중 하나로 설정해줘.
 ★카페인 음료 필수 규칙★: 녹차, 홍차, 우롱차, 커피, 에너지드링크 등 카페인이 함유된 음료는 카페인 함량이 낮더라도 반드시 "caution" 이상으로 분류해줘. 임산부는 하루 총 카페인 섭취량(200mg 미만 권고)을 관리해야 하기 때문이야.
 ★날생선·날해산물 필수 규칙★: 생선회, 회, 날것의 생선, 날새우, 날굴, 날조개, 스시(날것 토핑), 세비체 등 익히지 않은 생선·해산물이 포함된 경우 반드시 "danger"로 분류해줘. 리스테리아균·기생충(아니사키스)·노로바이러스 감염 위험이 있어 임신 중 섭취를 피해야 하기 때문이야.
 ${hasWeekInfo
-  ? `현재 사용자는 임신 ${pregnancyWeeks}주차입니다. description은 일반적인 설명으로 작성하고, weekAnalysis 필드에 이 주차의 임산부에게 맞는 맞춤형 섭취 조언을 작성해줘.`
-  : `일반적인 임산부 기준으로 섭취 조언을 weekAnalysis에 작성해줘.`}
+  ? `현재 사용자는 임신 ${pregnancyWeeks}주차입니다. description은 왜 주의/위험/안전한지 결론 한 줄로 작성하고, weekAnalysis에는 위험 이유 재설명 없이 "${pregnancyWeeks}주차에 얼마나/어떻게/대신 무엇을" 같은 실천 가능한 행동 지침만 2문장 이내로 작성해줘.`
+  : `일반적인 임산부 기준으로 weekAnalysis에 실천 가능한 섭취 행동 지침만 2문장 이내로 작성해줘.`}
 
 ${hasDBAlts
   ? `★대체 제품 제약★: 아래는 실제로 안전 판정을 받은 제품 목록이야. alternatives는 반드시 이 목록에 있는 제품 이름만 사용해줘. 목록에 관련 제품이 없으면 alternatives를 빈 배열([])로 반환해줘. 절대 목록 외의 제품을 만들어 넣지 마.
@@ -394,7 +394,7 @@ ${hasDBAlts
   "status": "success" | "caution" | "danger",
   "productName": "${product.productName}",
   "headline": "요약 헤드라인 (주의/위험 성분명 직접 언급 절대 금지)",
-  "description": "임산부 섭취 관련 핵심 포인트 2~3가지를 \\n으로 구분해서 작성해줘. 각 포인트는 1~2문장으로, 수치·근거를 포함해줘. 예: '카페인이 60mg 함유되어 있어요. 임산부 하루 권고량(200mg)의 30% 수준이에요.\\n타우린은 에너지 음료에 고용량으로 들어가며, 임산부 안전성 연구가 부족해요.'",
+  "description": "이 제품이 임산부에게 왜 주의/위험/안전한지 결론을 1~2문장으로 요약해줘. 핵심 이유(성분명·수치)를 직접 언급하고, 행동 지침은 weekAnalysis에서 다루므로 여기선 쓰지 마. ★절대 금지★: '성분표를 확인하세요', '라벨을 읽어보세요' 같이 유저에게 확인을 떠넘기는 표현 금지. 예: '나트륨이 1회 제공량당 890mg(하루 권고량 2,000mg의 45%)으로 높아 임신 중 부종·혈압 상승 위험이 있어요.' 또는 '주의할 성분이 발견되지 않았어요. 임산부도 일반적인 섭취량이라면 안심하셔도 돼요.'",
   "ingredients": [{ "name": "성분명 (구체적인 이름)", "status": "success" | "caution" | "danger", "reason": "구체적인 수치·성분명 포함 설명. 예: '1회 제공량당 설탕 12g 함유. WHO 하루 첨가당 권고량(25g)의 48% 수준으로 혈당 관리에 주의가 필요해요.' / '타우린 1,000mg 함유. 임산부 대상 안전성 연구가 부족해 과도한 섭취는 피하는 게 좋아요.' — 수치 정보가 없을 땐 구체적인 성분명과 작용 기전을 명시해줘." }],
   "alternatives": [{ "name": "대체 식품 이름", "brand": "브랜드명", "price": "예상 가격대" }],
   "weekAnalysis": "임신 주차에 따른 섭취 조언"
@@ -460,9 +460,9 @@ export async function POST(req: Request) {
   try {
     // pregnancyWeeks는 클라이언트에서 전달할 수도 있고(비캐시 경로 호환),
     // 생략 시 서버에서 직접 조회 — 클라이언트 auth 대기 없이 즉시 호출 가능하도록
-    const { imageBase64, barcode, pregnancyWeeks: clientWeeks } = await req.json();
+    const { imageBase64, barcode, productName: inputProductName, pregnancyWeeks: clientWeeks } = await req.json();
 
-    if (!imageBase64 && !barcode) {
+    if (!imageBase64 && !barcode && !inputProductName) {
       return NextResponse.json({ error: 'no_input' }, { status: 400 });
     }
 
@@ -487,8 +487,10 @@ export async function POST(req: Request) {
     let pregnancyWeeks: number | null = clientWeeks ?? null;
     if (pregnancyWeeks === null && userId) {
       const { data: prof } = await supabase
-        .from('users').select('pregnancy_start_date').eq('id', userId).single();
-      if (prof?.pregnancy_start_date) {
+        .from('users').select('pregnancy_weeks, pregnancy_start_date').eq('id', userId).single();
+      if (prof?.pregnancy_weeks) {
+        pregnancyWeeks = prof.pregnancy_weeks;
+      } else if (prof?.pregnancy_start_date) {
         const start = new Date(prof.pregnancy_start_date);
         const diffDays = Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24));
         const week = Math.floor(diffDays / 7) + 1;
@@ -606,6 +608,64 @@ export async function POST(req: Request) {
       }
     }
 
+    // ── 제품명 텍스트 검색 (이미지/바코드 없이 productName만 있는 경우) ──
+    if (inputProductName && !imageBase64) {
+      const dbSafeProducts = await getDBSafeProducts(supabase);
+
+      // 1. catalog 캐시 조회
+      const catalogHit = await lookupCatalogByName(supabase, inputProductName);
+      if (catalogHit?.result_json) {
+        supabase.from('catalog')
+          .update({ hit_count: (catalogHit.hit_count ?? 0) + 1 })
+          .eq('cache_key', catalogHit.cache_key)
+          .then(({ error }) => { if (error) console.error('[analyze] hit_count update failed (text-search):', error); });
+        console.log(`[analyze] TEXT_CATALOG_HIT key=${catalogHit.cache_key} total=${Date.now()-_t0}ms`);
+        return NextResponse.json({ success: true, result: catalogHit.result_json, fromCache: true });
+      }
+
+      // 2. HACCP 이름 검색
+      const haccpHit = await lookupHaccpByName(inputProductName);
+      if (haccpHit?.rawIngredients) {
+        const product = {
+          productName: inputProductName,
+          brand: '',
+          rawIngredients: haccpHit.rawIngredients,
+          allergyInfo: haccpHit.allergyInfo,
+          imageUrl: haccpHit.imageUrl,
+        };
+        const matchedIngredients = await matchIngredientRules(supabase, haccpHit.rawIngredients);
+        const result = await callGeminiBarcode(product, pregnancyWeeks, matchedIngredients, dbSafeProducts);
+        normalizeStatus(result);
+        result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts, inputProductName);
+        if (product.imageUrl) result.imageUrl = product.imageUrl;
+
+        const saveResult = { ...result };
+        delete saveResult.weekAnalysis;
+        delete saveResult.imageUrl;
+        await supabase.from('catalog').upsert({
+          cache_key: `product:${normalizeProductName(inputProductName)}`,
+          product_name: inputProductName,
+          raw_ingredients: haccpHit.rawIngredients,
+          allergy_info: haccpHit.allergyInfo || null,
+          result_json: saveResult,
+          status: result.status,
+          hit_count: 0,
+        }, { onConflict: 'cache_key' });
+
+        console.log(`[analyze] TEXT_HACCP_HIT name="${inputProductName}" total=${Date.now()-_t0}ms`);
+        return NextResponse.json({ success: true, result });
+      }
+
+      // 3. Gemini에 제품명만으로 분석 요청 (추론 기반)
+      const product = { productName: inputProductName, brand: '', rawIngredients: '', allergyInfo: '', imageUrl: '' };
+      const result = await callGeminiBarcode(product, pregnancyWeeks, [], dbSafeProducts);
+      result.inferred = true;
+      normalizeStatus(result);
+      result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts, inputProductName);
+      console.log(`[analyze] TEXT_INFERRED name="${inputProductName}" total=${Date.now()-_t0}ms`);
+      return NextResponse.json({ success: true, result });
+    }
+
     // ── 이미지 분석 (순수 이미지 촬영 또는 바코드 DB 미스 폴백) ──
     if (!imageBase64) {
       return NextResponse.json({ error: 'no_input' }, { status: 400 });
@@ -703,14 +763,14 @@ export async function POST(req: Request) {
 ★날생선·날해산물 필수 규칙★: 생선회, 회, 날것의 생선, 날새우, 날굴, 날조개, 스시(날것 토핑), 세비체 등 익히지 않은 생선·해산물이 포함된 경우 반드시 "danger"로 분류해줘. 리스테리아균·기생충(아니사키스)·노로바이러스 감염 위험이 있어 임신 중 섭취를 피해야 하기 때문이야.
 ${dbAltsHint}
 ${hasWeekInfo
-  ? `현재 사용자는 임신 ${pregnancyWeeks}주차입니다. description은 일반적인 임산부 기준으로 작성하고, weekAnalysis 필드에는 임신 ${pregnancyWeeks}주차에 맞는 맞춤형 섭취 조언을 별도로 작성해줘.`
-  : `일반적인 임산부 기준으로 섭취 조언을 weekAnalysis에 작성해줘.`}
+  ? `현재 사용자는 임신 ${pregnancyWeeks}주차입니다. description은 왜 주의/위험/안전한지 결론 한 줄로 작성하고, weekAnalysis에는 위험 이유 재설명 없이 "${pregnancyWeeks}주차에 얼마나/어떻게/대신 무엇을" 같은 실천 가능한 행동 지침만 2문장 이내로 작성해줘.`
+  : `일반적인 임산부 기준으로 weekAnalysis에 실천 가능한 섭취 행동 지침만 2문장 이내로 작성해줘.`}
 다음 JSON 형식으로 응답해줘:
 {
   "status": "success" | "caution" | "danger" | "error_food_estimate" | "error_future_category" | "error_unsupported_category" | "error_image_quality" | "error_db_mismatch",
   "productName": "식별된 음식/제품 이름 (식별 불가시 '알 수 없음')",
   "headline": "요약 헤드라인 (주의/위험 성분명 직접 언급 절대 금지. 예: 안심하고 드셔도 좋아요, 주의가 필요한 성분이 있어요 등)",
-  "description": "임산부 섭취 관련 핵심 포인트 2~3가지를 \\n으로 구분해서 작성해줘. 각 포인트는 1~2문장, 수치·근거 포함. 주의/위험 성분명 직접 언급 절대 금지. 식별 불가시 그 이유를 짧게 한 줄로만 작성. (예: '너무 어두워요')",
+  "description": "이 제품/음식이 임산부에게 왜 주의/위험/안전한지 결론을 1~2문장으로 요약해줘. 핵심 이유(성분명·수치)를 직접 언급하고, 행동 지침은 weekAnalysis에서 다루므로 여기선 쓰지 마. ★절대 금지★: '성분표를 확인하세요', '라벨을 읽어보세요' 같이 유저에게 확인을 떠넘기는 표현 금지. 식별 불가시 그 이유를 짧게 한 줄로만 작성. (예: '너무 어두워요')",
   "ingredients": [{ "name": "성분명 (구체적인 이름)", "status": "success" | "caution" | "danger", "reason": "구체적인 수치·성분명 포함 설명. 예: '1회 제공량당 설탕 12g 함유. WHO 하루 첨가당 권고량(25g)의 48% 수준으로 혈당 관리에 주의가 필요해요.' / '카페인 60mg 함유. 임산부 하루 권고량(200mg)의 30% 수준이에요.' — 수치 정보가 없을 땐 구체적인 성분명과 작용 기전을 명시해줘." }],
   "alternatives": [{ "name": "대체 식품 이름", "brand": "브랜드명 (없으면 일반명칭)", "price": "예상 가격대" }],
   "weekAnalysis": "임신 주차에 따른 섭취 조언",
