@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Scan, ShieldCheck, Search, CheckCircle2, Calendar, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { calcPregnancyWeek } from '@/lib/utils';
@@ -66,7 +67,11 @@ export default function HomePage() {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-border-subtle bg-bg-surface/80 backdrop-blur-md">
         <div className="flex h-14 items-center justify-between px-4">
-          <span className="font-bold text-lg text-text-primary tracking-tight">마미스캔</span>
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="마미스캔" style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, objectFit: 'contain' }} />
+            <span className="font-bold text-lg text-text-primary tracking-tight">마미스캔</span>
+          </div>
         </div>
       </header>
 

@@ -33,7 +33,7 @@ export default function LoginPage() {
       provider: 'kakao',
       options: {
         redirectTo: `${location.origin}/api/auth/callback`,
-        scopes: '', // 카카오 동의항목 미설정으로 인해 추가 scope 요청 제외
+        scopes: 'account_email',
       },
     });
     if (error) {
