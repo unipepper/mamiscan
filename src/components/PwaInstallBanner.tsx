@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Share, Plus, ExternalLink } from 'lucide-react';
+import { X, Share, Plus, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const DISMISS_KEY = 'pwa-install-dismissed-at';
@@ -59,8 +59,8 @@ function IosSafariBanner({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(62,58,57,0.4)' }}>
       <div
-        className="w-full max-w-md bg-bg-surface rounded-t-[32px] px-5 pt-5 pb-8 shadow-lg"
-        style={{ paddingBottom: 'max(32px, env(safe-area-inset-bottom, 32px))' }}
+        className="w-full max-w-md bg-bg-surface rounded-t-[32px] px-5 pt-5 shadow-lg"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}
       >
         {/* 핸들 */}
         <div className="w-10 h-1 rounded-full bg-border-subtle mx-auto mb-5" />
@@ -101,7 +101,23 @@ function IosSafariBanner({ onClose }: { onClose: () => void }) {
 
 // iOS Chrome/기타 — Safari로 열기 유도 배너
 function IosOtherBanner({ onClose }: { onClose: () => void }) {
-  const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+    } catch {
+      // clipboard API 실패 시 fallback
+      const ta = document.createElement('textarea');
+      ta.value = window.location.href;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
+  };
 
   return (
     <div className="w-full bg-bg-surface border-b border-border-subtle shadow-sm px-4 py-3">
@@ -110,22 +126,22 @@ function IosOtherBanner({ onClose }: { onClose: () => void }) {
         <img src="/icons/icon-192.png" alt="마미스캔" className="w-10 h-10 rounded-[12px] shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="type-title-card text-text-primary leading-snug">앱으로 저장하려면 Safari를 이용해주세요</p>
-          <p className="type-caption text-text-secondary mt-0.5">iOS Chrome에서는 홈 화면 추가가 지원되지 않아요.</p>
+          <p className="type-caption mt-0.5 transition-colors" style={{ color: copied ? 'var(--color-success-fg)' : 'var(--color-text-secondary)' }}>
+            {copied ? '복사됐어요. Safari에 붙여넣기 해주세요.' : 'iOS Chrome에서는 홈 화면 추가가 지원되지 않아요.'}
+          </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <a
-            href={currentUrl}
-            // x-web-search scheme으로 Safari 강제 오픈은 불가 — 복사 유도가 현실적
-            onClick={(e) => {
-              e.preventDefault();
-              navigator.clipboard?.writeText(currentUrl).catch(() => {});
-              alert('주소가 복사됐어요. Safari에 붙여넣기 해주세요.');
+          <button
+            onClick={handleCopy}
+            className="inline-flex items-center gap-1 h-9 px-3 rounded-xl text-xs font-medium transition-colors shrink-0"
+            style={{
+              background: copied ? 'var(--color-success-bg)' : 'var(--color-primary)',
+              color: copied ? 'var(--color-success-fg)' : '#fff',
             }}
-            className="inline-flex items-center gap-1 h-9 px-3 bg-primary text-white rounded-xl text-xs font-medium shrink-0"
           >
-            <ExternalLink className="w-3.5 h-3.5" />
-            주소 복사
-          </a>
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? '복사됨' : '링크 복사'}
+          </button>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-neutral-bg transition-colors"
