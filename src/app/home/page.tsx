@@ -260,7 +260,8 @@ export default function HomePage() {
               { icon: ShieldCheck, iconBg: 'bg-[#E8F0EC]', iconColor: 'text-secondary', title: '뱃속 아가가 커갈수록', desc: '주차에 맞게 주의 성분이 달라지니까, 지금 기준으로 다시 확인해드려요.' },
               { icon: Search, iconBg: 'bg-caution-bg', iconColor: 'text-caution-fg', title: '먹고 싶은데 찜찜할 때', desc: '비슷하지만 더 안심할 수 있는 제품을 바로 찾아드려요.' },
             ].map(({ icon: Icon, iconBg, iconColor, title, desc }, idx, arr) => (
-              <div key={title} className={`flex items-start gap-4 px-4 py-4 ${idx < arr.length - 1 ? 'border-b border-border-subtle' : ''}`}>
+              <div key={title} className="flex flex-col">
+                <div className="flex items-start gap-4 px-4 py-4">
                 <div className={`${iconBg} p-2.5 rounded-full shrink-0`}>
                   <Icon className={`w-5 h-5 ${iconColor}`} />
                 </div>
@@ -268,6 +269,8 @@ export default function HomePage() {
                   <h3 className="text-base font-semibold text-text-primary mb-0.5">{title}</h3>
                   <p className="type-body-brief text-text-secondary">{desc}</p>
                 </div>
+                </div>
+                {idx < arr.length - 1 && <div className="border-b border-border-subtle mx-8" />}
               </div>
             ))}
           </div>
