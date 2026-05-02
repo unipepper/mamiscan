@@ -4,6 +4,10 @@ import './globals.css';
 export const metadata: Metadata = {
   title: '마미스캔',
   description: '임산부를 위한 성분 안전 확인 서비스',
+  icons: {
+    icon: '/icon.png',
+    apple: '/apple-icon.png',
+  },
   other: {
     'format-detection': 'telephone=no, date=no, address=no, email=no',
   },
