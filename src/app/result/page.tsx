@@ -515,7 +515,7 @@ function ResultContent() {
 
               {hasWeekInfo && result.weekAnalysis && (
                 <div className="mt-6 pt-5 border-t border-current/10 space-y-2">
-                  <p className="text-sm font-semibold text-primary">✦ 임신 {pregnancyWeeks}주차 맞춤 조언</p>
+                  <p className={`text-sm font-semibold ${result.status === 'caution' ? 'text-[#986006]' : result.status === 'danger' ? 'text-danger-fg' : 'text-primary-text'}`}>✦ 임신 {pregnancyWeeks}주차 맞춤 조언</p>
                   <p className="text-base leading-relaxed break-keep text-text-strong">{result.weekAnalysis}</p>
                 </div>
               )}
@@ -657,13 +657,11 @@ function ResultContent() {
           </div>
 
           {/* Disclaimer */}
-          <section className="pt-3 pb-4">
-            <div className="bg-neutral-bg rounded-[24px] p-4 flex items-start space-x-3">
-              <Info className="w-5 h-5 text-text-secondary shrink-0 mt-0.5" />
-              <p className="text-xs leading-relaxed text-text-secondary">
-                본 서비스의 분석 결과는 식약처 및 관련 기관의 가이드라인을 바탕으로 제공되나, <strong>의료적 진단이나 조언을 대체할 수 없습니다.</strong> 불안하다면 담당 의료진의 안내를 우선해 주세요.
-              </p>
-            </div>
+          <section className="pt-3 pb-4 flex items-start space-x-2 px-1">
+            <Info className="w-4 h-4 text-text-tertiary shrink-0 mt-0.5" />
+            <p className="text-xs leading-relaxed text-text-tertiary">
+              본 서비스의 분석 결과는 식약처 및 관련 기관의 가이드라인을 바탕으로 제공되나, <strong>의료적 진단이나 조언을 대체할 수 없습니다.</strong> 불안하다면 담당 의료진의 안내를 우선해 주세요.
+            </p>
           </section>
       </main>
 

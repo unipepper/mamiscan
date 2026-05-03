@@ -312,7 +312,7 @@ export default function SettingsPage() {
                   <div className="text-left">
                     <p className="text-xs text-text-secondary mb-0.5">현재 임신 주차</p>
                     {calcPregnancyWeek(profile?.pregnancy_start_date) ? (
-                      <p className="text-lg font-medium text-text-primary">{calcPregnancyWeek(profile?.pregnancy_start_date)}주차</p>
+                      <p className="text-lg font-medium text-text-primary"><span className="font-bold">{calcPregnancyWeek(profile?.pregnancy_start_date)}</span>주차</p>
                     ) : (
                       <p className="text-sm font-medium text-text-secondary">마지막 생리일을 입력해주세요</p>
                     )}
@@ -329,17 +329,18 @@ export default function SettingsPage() {
                 const info = getPregnancyInfo(week);
                 return (
                   <div className="mx-4 mb-4 space-y-2">
-                    <div className="bg-primary/5 rounded-xl px-4 py-3 flex items-center space-x-2">
+                    {info && (
+                      <div className="bg-bg-canvas rounded-xl px-4 py-3 flex items-center space-x-2">
+                        <span className="text-sm shrink-0">🐣</span>
+                        <p className="text-xs text-text-secondary leading-relaxed">{info}</p>
+                      </div>
+                    )}
+                    <div className="bg-primary/10 rounded-xl px-4 py-3 flex items-center space-x-2">
                       <span className="text-sm shrink-0">✨</span>
                       <p className="text-xs text-primary font-medium leading-relaxed">
                         {week ? `${week}주차 맞춤 분석이 스캔 결과에 반영돼요` : '마지막 생리일을 입력하면 스캔 결과에 주차별 맞춤 분석을 드려요'}
                       </p>
                     </div>
-                    {info && (
-                      <div className="bg-neutral-bg rounded-xl px-4 py-3">
-                        <p className="text-xs text-text-secondary leading-relaxed">🐣 {info}</p>
-                      </div>
-                    )}
                   </div>
                 );
               })()}
