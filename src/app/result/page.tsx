@@ -517,7 +517,7 @@ function ResultContent() {
 
               {hasWeekInfo && result.weekAnalysis && (
                 <div className="mt-6 pt-5 border-t border-current/10 space-y-2">
-                  <p className="text-sm font-semibold text-text-primary">✦ 임신 {pregnancyWeeks}주차 맞춤 조언</p>
+                  <p className={`text-sm font-semibold ${result.status === 'caution' ? 'text-[#986006]' : result.status === 'danger' ? 'text-danger-fg' : 'text-primary-text'}`}>✦ 임신 {pregnancyWeeks}주차 맞춤 조언</p>
                   <p className="text-base leading-relaxed break-keep text-text-primary">{result.weekAnalysis}</p>
                 </div>
               )}
