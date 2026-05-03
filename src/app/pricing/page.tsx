@@ -56,7 +56,7 @@ export default function PricingPage() {
 
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas safe-bottom pb-8">
-      <header className="safe-top sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md">
+      <header className="safe-top sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-surface/80 backdrop-blur-md">
         <button onClick={() => router.back()} className="p-2 -ml-2 text-text-primary">
           <ChevronLeft className="w-6 h-6" />
         </button>

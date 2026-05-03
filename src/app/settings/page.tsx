@@ -212,7 +212,7 @@ export default function SettingsPage() {
   if (!authUser) {
     return (
       <div className="flex flex-col flex-1 bg-bg-canvas pb-nav">
-        <header className="safe-top sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
+        <header className="safe-top sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-surface/80 backdrop-blur-md border-b border-border-subtle">
           <span className="text-lg font-semibold text-text-primary">내 정보</span>
         </header>
         <main className="px-6 py-10 flex flex-col items-center text-center">
@@ -232,7 +232,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas pb-nav">
-      <header className="safe-top sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
+      <header className="safe-top sticky top-0 z-50 flex items-center h-14 px-4 bg-bg-surface/80 backdrop-blur-md border-b border-border-subtle">
         <span className="text-lg font-semibold text-text-primary">내 정보</span>
       </header>
 

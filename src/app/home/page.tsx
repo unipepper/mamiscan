@@ -8,6 +8,7 @@ import { Scan, ShieldCheck, Search, CheckCircle2, Calendar, ChevronRight } from 
 import { createClient } from '@/lib/supabase/client';
 import { calcPregnancyWeek } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SectionLinkButton } from '@/components/ui/section-link-button';
 import { BottomNav } from '@/components/BottomNav';
@@ -207,12 +208,12 @@ export default function HomePage() {
 
       {/* Recent Scans */}
       {isLoggedIn && recentScans.length > 0 && (
-        <section className="px-4 pt-4 pb-8">
+        <section className="px-4 pt-6 pb-8">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold text-text-primary pl-2">최근 스캔</h2>
             <SectionLinkButton label="전체 보기" onClick={() => router.push('/history')} />
           </div>
-          <div className="bg-bg-surface border border-border-subtle rounded-[24px] shadow-sm overflow-hidden">
+          <div className="grid gap-2">
             {recentScans.map((item: any, idx: number) => {
               const statusColor =
                 item.status === 'success' ? 'bg-success-fg' :
@@ -227,15 +228,19 @@ export default function HomePage() {
                 ? { ...(typeof item.result_json === 'string' ? JSON.parse(item.result_json) : item.result_json), ...(item.image_url ? { userImageUrl: item.image_url } : {}) }
                 : null;
               return (
-                <button
+                <Card
                   key={idx}
+                  className="bg-bg-surface border-border-subtle shadow-sm hover:bg-neutral-bg transition-colors cursor-pointer"
                   onClick={() => { if (resultData) { sessionStorage.setItem('resultData', JSON.stringify(resultData)); router.push('/result'); } }}
-                  className={`w-full flex items-center px-4 py-3.5 gap-3 hover:bg-neutral-bg transition-colors text-left ${idx < recentScans.length - 1 ? 'border-b border-border-subtle' : ''}`}
                 >
-                  <div className={`w-1.5 h-8 rounded-full shrink-0 ${statusColor}`} />
-                  <p className="flex-1 text-base font-medium text-text-primary truncate">{item.product_name}</p>
-                  <Badge size="sm" variant={badgeVariant} className="shrink-0">{statusLabel}</Badge>
-                </button>
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-2 h-10 rounded-full ${statusColor}`} />
+                      <p className="font-medium text-text-primary text-sm">{item.product_name}</p>
+                    </div>
+                    <Badge size="sm" variant={badgeVariant} className="shrink-0">{statusLabel}</Badge>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, Search, Lock, BookOpen, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Clock, Search, Lock, BookOpen, ShieldCheck, ArrowRight, Info } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -120,16 +120,19 @@ export default function HistoryPage() {
 
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas pb-nav">
-      <header className="safe-top sticky top-0 z-50 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
+      <header className="safe-top sticky top-0 z-50 px-4 bg-bg-surface/80 backdrop-blur-md border-b border-border-subtle">
         <div className="flex items-center h-14">
           <span className="text-lg font-semibold text-text-primary">스캔 히스토리</span>
         </div>
-        {!isLoading && isActive && groupedHistory.length > 0 && (
-          <p className="text-xs text-text-tertiary pb-2.5">기록은 스캔 후 90일이 지나면 자동으로 사라져요.</p>
-        )}
       </header>
 
       <main className="px-4 py-6 flex flex-col flex-1 space-y-4">
+        {!isLoading && isActive && groupedHistory.length > 0 && (
+          <div className="flex items-center gap-1.5 text-xs text-text-tertiary pl-2">
+            <Info className="w-3 h-3 shrink-0" />
+            <p>기록은 스캔 후 90일이 지나면 자동으로 사라져요.</p>
+          </div>
+        )}
         {/* Search */}
         <div className="relative flex-shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />

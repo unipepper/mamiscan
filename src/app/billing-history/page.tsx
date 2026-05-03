@@ -165,7 +165,7 @@ export default function BillingHistoryPage() {
 
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas min-h-screen">
-      <header className="safe-top sticky top-0 z-40 flex items-center h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
+      <header className="safe-top sticky top-0 z-40 flex items-center h-14 px-4 bg-bg-surface/80 backdrop-blur-md border-b border-border-subtle">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="-ml-2">
           <ChevronLeft className="w-6 h-6" />
         </Button>

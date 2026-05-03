@@ -395,7 +395,7 @@ function ResultContent() {
   return (
     <div className="flex flex-col flex-1 bg-bg-canvas pb-24">
       {/* ── Header: Cal.com 방식 — bg-canvas 기반 ── */}
-      <header className="safe-top sticky top-0 z-50 flex items-center justify-between h-14 px-4 bg-bg-canvas/80 backdrop-blur-md border-b border-border-subtle">
+      <header className="safe-top sticky top-0 z-50 flex items-center justify-between h-14 px-4 bg-bg-surface/80 backdrop-blur-md border-b border-border-subtle">
         <div className="flex items-center">
           <button onClick={() => router.back()} className="p-2 -ml-2 text-text-primary"><ChevronLeft className="w-6 h-6" /></button>
           <span className="font-bold ml-2 text-text-primary">분석 결과</span>
