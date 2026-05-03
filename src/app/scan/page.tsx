@@ -163,8 +163,8 @@ export default function ScanPage() {
                   setTimeout(() => router.push(RESULT_ROUTE + '?barcode=' + encodeURIComponent(barcode)), 300);
                 };
                 if (video) {
-                  // pause 이벤트 후 캡처 — 완전히 정지된 프레임을 사용
-                  video.addEventListener('pause', captureAndNavigate, { once: true });
+                  // pause 전에 현재 프레임 캡처 — iOS에서 pause 후 canvas가 검은색이 되는 버그 방지
+                  captureAndNavigate();
                   video.pause();
                 } else {
                   captureAndNavigate();
@@ -220,7 +220,8 @@ export default function ScanPage() {
         video.play();
       }
     };
-    video.addEventListener('pause', doCapture, { once: true });
+    // pause 전에 현재 프레임 캡처 — iOS에서 pause 후 canvas가 검은색이 되는 버그 방지
+    doCapture();
     video.pause();
   };
 

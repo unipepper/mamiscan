@@ -83,7 +83,7 @@ export default function HistoryPage() {
             grouped[label].push({
               name: row.product_name,
               status: row.status,
-              time: new Date(row.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+              time: new Date(row.created_at).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' }),
               resultData: (() => {
                 if (!row.result_json) return null;
                 const parsed = typeof row.result_json === 'string'

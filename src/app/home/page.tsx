@@ -234,11 +234,23 @@ export default function HomePage() {
                   onClick={() => { if (resultData) { sessionStorage.setItem('resultData', JSON.stringify(resultData)); router.push('/result'); } }}
                 >
                   <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-2 h-10 rounded-full ${statusColor}`} />
-                      <p className="font-medium text-text-primary text-sm">{item.product_name}</p>
+                    <div className="flex items-center space-x-4 min-w-0">
+                      <div className={`w-2 h-10 rounded-full shrink-0 ${statusColor}`} />
+                      <p className="font-medium text-text-primary text-sm truncate">{item.product_name}</p>
                     </div>
-                    <Badge size="sm" variant={badgeVariant} className="shrink-0">{statusLabel}</Badge>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <Badge size="sm" variant={badgeVariant}>{statusLabel}</Badge>
+                      <span className="text-[10px] text-text-secondary">
+                        {(() => {
+                          const d = new Date(item.created_at);
+                          const today = new Date();
+                          const isToday = d.toDateString() === today.toDateString();
+                          const time = d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
+                          if (isToday) return time;
+                          return d.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) + ' ' + time;
+                        })()}
+                      </span>
+                    </div>
                   </CardContent>
                 </Card>
               );

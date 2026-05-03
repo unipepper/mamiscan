@@ -19,6 +19,19 @@ function splitHeadline(headline: string): React.ReactNode {
   return headline;
 }
 
+function cleanProductName(name: string): string {
+  return name
+    .replace(/\s*-\s*[A-Z][A-Z\s]+(\s*-.*)?$/, '')
+    .replace(/\s*-\s*[A-Za-z0-9][A-Za-z0-9\s%]*$/, '')
+    .replace(/\s*\([A-Za-z][^)]*\)\s*/g, ' ')
+    .replace(/\s*\(\d+\s*(g|kg|ml|l|[Gg][Rr]|[Oo][Zz])\s*([Xx×]\s*\d+\s*(팩|개|입|봉)?)?\)\s*/g, ' ')
+    .replace(/\s+\d+\s*(g|kg|ml|l|gr|oz)\s*$/i, '')
+    .replace(/_/g, ' ')
+    .replace(/^["']+|["']+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function cleanBrand(brand: string): string {
   return brand
     .replace(/^주식회사\s+/i, '')
@@ -193,7 +206,7 @@ function ResultContent() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  productName: (parsedResult.brand?.trim() ? `${cleanBrand(parsedResult.brand)} ${parsedResult.productName}` : parsedResult.productName) || '알 수 없는 제품',
+                  productName: parsedResult.productName || '알 수 없는 제품',
                   status: parsedResult.status,
                   resultJson: resultToSave,
                   imageBase64: thumbnail,
@@ -318,9 +331,7 @@ function ResultContent() {
   if (!result) return null;
 
   const isError = result.status.startsWith('error_');
-  const displayProductName = result.brand?.trim()
-    ? `${cleanBrand(result.brand)} ${result.productName}`
-    : result.productName;
+  const displayProductName = cleanProductName(result.productName);
 
   if (isError && (result.status === 'error_image_quality' || !(result.productName && result.productName.trim()))) {
     const errorConfig: Record<string, { head: string; body: string; primaryLabel: string; primaryAction: () => void; secondaryLabel?: string; secondaryAction?: () => void }> = {

@@ -21,8 +21,14 @@ function splitHeadline(headline: string): React.ReactNode {
 
 function cleanProductName(name: string): string {
   return name
-    .replace(/\s*-\s*[A-Z][A-Z\s]+(\s*-.*)?$/, '')
-    .replace(/\s*\([A-Za-z][^)]*\)\s*/g, ' ')
+    .replace(/\s*-\s*[A-Z][A-Z\s]+(\s*-.*)?$/, '')                    // "- HARIIHARIZUKE -..." suffix 제거
+    .replace(/\s*-\s*[A-Za-z0-9][A-Za-z0-9\s%]*$/, '')                // "- 건조무우 65%" suffix 제거
+    .replace(/\s*\([A-Za-z][^)]*\)\s*/g, ' ')                         // "(Hariharizuke)" 괄호 영문 제거
+    .replace(/\s*\(\d+\s*(g|kg|ml|l|[Gg][Rr]|[Oo][Zz])\s*([Xx×]\s*\d+\s*(팩|개|입|봉)?)?\)\s*/g, ' ') // "(285g)", "(110g X 9팩)" 용량 괄호 제거
+    .replace(/\s+\d+\s*(g|kg|ml|l|gr|oz)\s*$/i, '')                  // "300 g", "1.5kg" 괄호 없는 용량 suffix 제거
+    .replace(/_/g, ' ')                                                // 언더스코어 → 공백
+    .replace(/^["']+|["']+$/g, '')                                     // 앞뒤 따옴표 제거
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -236,7 +242,7 @@ function ResultContent() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  productName: (parsedResult.brand?.trim() ? `${cleanBrand(parsedResult.brand)} ${parsedResult.productName}` : parsedResult.productName) || '알 수 없는 제품',
+                  productName: cleanProductName(parsedResult.productName) || '알 수 없는 제품',
                   status: parsedResult.status,
                   resultJson: resultToSave,
                   imageBase64: thumbnail,
@@ -356,11 +362,7 @@ function ResultContent() {
   if (!result) return null;
 
   const isError = result.status.startsWith('error_');
-  const displayProductName = cleanProductName(
-    result.brand?.trim()
-      ? `${cleanBrand(result.brand)} ${result.productName}`
-      : result.productName
-  );
+  const displayProductName = cleanProductName(result.productName);
 
   // Error with no product identified, or image quality error → full error screen (유형별 CTA)
   // error_image_quality는 productName이 있어도 전체 에러 화면을 표시 (식별 불가 케이스)
@@ -509,14 +511,14 @@ function ResultContent() {
 
               <div className={`space-y-2 ${displayImageSrc ? 'mt-6' : 'mt-4'}`}>
                 {result.description.split('\n').filter(Boolean).map((line: string, i: number) => (
-                  <p key={i} className="text-base leading-relaxed break-keep text-text-strong">{line}</p>
+                  <p key={i} className="text-base leading-relaxed break-keep text-text-primary">{line}</p>
                 ))}
               </div>
 
               {hasWeekInfo && result.weekAnalysis && (
                 <div className="mt-6 pt-5 border-t border-current/10 space-y-2">
-                  <p className={`text-sm font-semibold ${result.status === 'caution' ? 'text-[#986006]' : result.status === 'danger' ? 'text-danger-fg' : 'text-primary-text'}`}>✦ 임신 {pregnancyWeeks}주차 맞춤 조언</p>
-                  <p className="text-base leading-relaxed break-keep text-text-strong">{result.weekAnalysis}</p>
+                  <p className="text-sm font-semibold text-text-primary">✦ 임신 {pregnancyWeeks}주차 맞춤 조언</p>
+                  <p className="text-base leading-relaxed break-keep text-text-primary">{result.weekAnalysis}</p>
                 </div>
               )}
 
