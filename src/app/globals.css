@@ -147,15 +147,16 @@ body {
   --color-bg-surface: #FFFCFB;
   --color-border-subtle: #E2D9D4;
   --color-text-primary: #3E3A39;
-  --color-text-secondary: #7B7672;
+  --color-text-strong: #1A1714;
+  --color-text-secondary: #696460;
   --color-text-tertiary: #A09A97;
   --color-text-disabled: #C4BEBC;
   --color-neutral-bg: #EDEBE9;
   --color-neutral-fg: #7F7A77;
   --color-success-bg: #D9EFE0;
   --color-success-fg: #5B8661;
-  --color-caution-bg: #FDEFD0;
-  --color-caution-fg: #A8781F;
+  --color-caution-bg: #FEEBD6;
+  --color-caution-fg: #B85C0D; /* 텍스트용 — WCAG 4.5:1 이상 */
   --color-danger-bg: #FAD8D5;
   --color-danger-fg: #B85750;
 }

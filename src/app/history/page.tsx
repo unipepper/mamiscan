@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Clock, Search, Lock, BookOpen, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { createClient } from '@/lib/supabase/client';
 import { BottomNav } from '@/components/BottomNav';
 
@@ -84,11 +85,13 @@ export default function HistoryPage() {
               status: row.status,
               time: new Date(row.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
               resultData: (() => {
-                try {
-                  const parsed = JSON.parse(row.result_json);
-                  if (row.image_url) parsed.userImageUrl = row.image_url;
-                  return parsed;
-                } catch { return null; }
+                if (!row.result_json) return null;
+                const parsed = typeof row.result_json === 'string'
+                  ? (() => { try { return JSON.parse(row.result_json); } catch { return null; } })()
+                  : row.result_json;
+                if (!parsed) return null;
+                if (row.image_url) parsed.userImageUrl = row.image_url;
+                return parsed;
               })(),
             });
           });
@@ -102,13 +105,10 @@ export default function HistoryPage() {
   // 비교 테스트: '/result' | '/result-notion' | '/result-cal'
   const RESULT_ROUTE = '/result';
 
-  const navigateToResult = (resultData: any, productName?: string) => {
-    if (resultData) {
-      sessionStorage.setItem('resultData', JSON.stringify(resultData));
-      window.location.href = RESULT_ROUTE;
-    } else if (productName) {
-      window.location.href = `${RESULT_ROUTE}?productName=${encodeURIComponent(productName)}`;
-    }
+  const navigateToResult = (resultData: any) => {
+    if (!resultData) return;
+    sessionStorage.setItem('resultData', JSON.stringify(resultData));
+    window.location.href = RESULT_ROUTE;
   };
 
   const filtered = groupedHistory.map((group) => ({
@@ -168,7 +168,7 @@ export default function HistoryPage() {
                       <Card
                         key={idx}
                         className="bg-bg-surface border-border-subtle shadow-sm hover:bg-neutral-bg transition-colors cursor-pointer"
-                        onClick={() => navigateToResult(item.resultData, item.name)}
+                        onClick={() => navigateToResult(item.resultData)}
                       >
                         <CardContent className="p-4 flex items-center justify-between">
                           <div className="flex items-center space-x-4">
@@ -178,11 +178,9 @@ export default function HistoryPage() {
                             <p className="font-medium text-text-primary text-sm">{item.name}</p>
                           </div>
                           <div className="flex flex-col items-end space-y-1">
-                            <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white ${item.status === 'success' ? 'bg-success-fg' :
-                              item.status === 'caution' ? 'bg-caution-fg' : 'bg-danger-fg'
-                              }`}>
+                            <Badge size="sm" variant={item.status === 'success' ? 'solid-success' : item.status === 'caution' ? 'solid-caution' : 'solid-danger'}>
                               {item.status === 'success' ? '안전' : item.status === 'caution' ? '주의' : '위험'}
-                            </div>
+                            </Badge>
                             <span className="text-[10px] text-text-secondary">{item.time}</span>
                           </div>
                         </CardContent>
@@ -221,9 +219,9 @@ export default function HistoryPage() {
                       <p className="font-medium text-text-primary text-sm">{item.name}</p>
                     </div>
                     <div className="flex flex-col items-end space-y-1">
-                      <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white ${item.status === 'success' ? 'bg-success-fg' : 'bg-caution-fg'}`}>
+                      <Badge size="sm" variant={item.status === 'success' ? 'solid-success' : 'solid-caution'}>
                         {item.status === 'success' ? '안전' : '주의'}
-                      </div>
+                      </Badge>
                       <span className="text-[10px] text-text-secondary">{item.time}</span>
                     </div>
                   </CardContent>
@@ -283,6 +281,7 @@ export default function HistoryPage() {
       </main>
 
       <BottomNav />
+
     </div>
   );
 }

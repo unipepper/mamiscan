@@ -8,6 +8,7 @@ import { Scan, ShieldCheck, Search, CheckCircle2, Calendar, ChevronRight } from 
 import { createClient } from '@/lib/supabase/client';
 import { calcPregnancyWeek } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { SectionLinkButton } from '@/components/ui/section-link-button';
 import { BottomNav } from '@/components/BottomNav';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
@@ -184,7 +185,7 @@ export default function HomePage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="제품명 검색"
+                  placeholder="제품명으로 검색"
                   className="w-full h-11 pl-9 pr-3 bg-white/80 border border-primary/20 rounded-2xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
@@ -219,25 +220,21 @@ export default function HomePage() {
               const statusLabel =
                 item.status === 'success' ? '안전' :
                 item.status === 'caution' ? '주의' : '위험';
-              const statusTextColor =
-                item.status === 'success' ? 'text-success-fg' :
-                item.status === 'caution' ? 'text-caution-fg' : 'text-danger-fg';
-              const statusBgColor =
-                item.status === 'success' ? 'bg-success-bg' :
-                item.status === 'caution' ? 'bg-caution-bg' : 'bg-danger-bg';
-              let resultData: any = null;
-              try { resultData = JSON.parse(item.result_json); if (item.image_url) resultData.userImageUrl = item.image_url; } catch {}
+              const badgeVariant: 'solid-success' | 'solid-caution' | 'solid-danger' =
+                item.status === 'success' ? 'solid-success' :
+                item.status === 'caution' ? 'solid-caution' : 'solid-danger';
+              const resultData: any = item.result_json
+                ? { ...(typeof item.result_json === 'string' ? JSON.parse(item.result_json) : item.result_json), ...(item.image_url ? { userImageUrl: item.image_url } : {}) }
+                : null;
               return (
                 <button
                   key={idx}
-                  onClick={() => { if (resultData) { sessionStorage.setItem('scanResult', JSON.stringify(resultData)); router.push('/result'); } }}
+                  onClick={() => { if (resultData) { sessionStorage.setItem('resultData', JSON.stringify(resultData)); router.push('/result'); } }}
                   className={`w-full flex items-center px-4 py-3.5 gap-3 hover:bg-neutral-bg transition-colors text-left ${idx < recentScans.length - 1 ? 'border-b border-border-subtle' : ''}`}
                 >
                   <div className={`w-1.5 h-8 rounded-full shrink-0 ${statusColor}`} />
                   <p className="flex-1 text-base font-medium text-text-primary truncate">{item.product_name}</p>
-                  <span className={`text-sm font-semibold px-2.5 py-1 rounded-full shrink-0 ${statusBgColor} ${statusTextColor}`}>
-                    {statusLabel}
-                  </span>
+                  <Badge size="sm" variant={badgeVariant} className="shrink-0">{statusLabel}</Badge>
                 </button>
               );
             })}

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, AlertTriangle, CheckCircle, Info, ChevronRight, ShoppingBag, Lock, Loader2, Flag, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
 import { compressThumbnail } from '@/lib/compressImage';
@@ -11,13 +12,6 @@ import { pendingAnalyze } from '@/lib/pendingAnalyze';
 import { Suspense } from 'react';
 import LoadingTips from '@/components/LoadingTips';
 
-function highlightNumbers(text: string): React.ReactNode {
-  const pattern = /(\d+(?:\.\d+)?\s*(?:mg|g|kg|ml|l|kcal|μg|%))/gi;
-  const parts = text.split(pattern);
-  return parts.map((part, i) =>
-    i % 2 === 1 ? <strong key={i} className="font-semibold">{part}</strong> : part
-  );
-}
 
 function splitHeadline(headline: string): React.ReactNode {
   const match = headline.match(/^(.+?(?:로 인해|으로 인해|므로|어서|아서|이라서|해서|니까|으니까|아|어))\s+(.+)$/);
@@ -475,20 +469,16 @@ function ResultContent() {
             result.status === 'success' ? 'bg-success-bg' :
               result.status === 'danger' ? 'bg-danger-bg' : 'bg-caution-bg'
             }`}>
-            <CardContent className={`px-6 pt-4 flex flex-col ${!hasWeekInfo && authUser ? 'pb-4' : 'pb-8'}`}>
+            <CardContent className={`px-6 pt-6 flex flex-col ${!hasWeekInfo && authUser ? 'pb-4' : 'pb-8'}`}>
               {/* 배지 + 헤드라인 + 제품명 */}
               {/* 1. 상태 배지 */}
-              <div className="flex items-center flex-wrap gap-2 mb-3">
-                <div className={`inline-flex items-center rounded-full px-3 py-1 text-[13px] font-medium text-white ${
-                  isError ? 'bg-text-secondary' :
-                  result.status === 'success' ? 'bg-success-fg' :
-                  result.status === 'danger' ? 'bg-danger-fg' : 'bg-caution-fg'
-                }`}>
+              <div className="flex items-center flex-wrap gap-2 mb-4">
+                <Badge size="lg" variant={isError ? 'solid-neutral' : result.status === 'success' ? 'solid-success' : result.status === 'danger' ? 'solid-danger' : 'solid-caution'}>
                   {isError ? <Info className="w-3.5 h-3.5 mr-1.5" /> :
                     result.status === 'success' ? <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> :
                     <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />}
                   {isError ? '참고 정보' : result.status === 'success' ? '안전' : result.status === 'danger' ? '위험' : '주의 필요'}
-                </div>
+                </Badge>
                 {!displayImageSrc && result.imageUrl && (
                   <div className="ml-auto w-14 h-14 rounded-xl overflow-hidden bg-white/40 border border-white/40 shrink-0">
                     <img src={result.imageUrl} alt={result.productName} className="w-full h-full object-cover"
@@ -498,12 +488,12 @@ function ResultContent() {
               </div>
 
               {/* 2. 헤드라인 */}
-              <h1 className="text-[26px] leading-[35px] font-bold mb-3 break-keep text-text-primary">
+              <h1 className="text-[26px] leading-[35px] font-bold mb-2 break-keep text-text-primary">
                 {splitHeadline(result.headline)}
               </h1>
 
               {/* 3. 제품명 — 스캔 확인용 주요 정보 */}
-              <p className="text-sm font-medium leading-normal mb-4 text-text-primary">{displayProductName}</p>
+              <p className="text-base font-medium leading-normal mb-5 text-text-primary">{displayProductName}</p>
 
               {/* 촬영 이미지 (제품명 아래, 설명 위) */}
               {displayImageSrc && (
@@ -511,22 +501,22 @@ function ResultContent() {
                   <img
                     src={displayImageSrc}
                     alt="촬영 이미지"
-                    className="w-full aspect-square object-cover"
+                    className="w-full"
                     onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }}
                   />
                 </div>
               )}
 
-              <div className={`space-y-3 ${displayImageSrc ? 'mt-6' : 'mt-4'}`}>
+              <div className={`space-y-2 ${displayImageSrc ? 'mt-6' : 'mt-4'}`}>
                 {result.description.split('\n').filter(Boolean).map((line: string, i: number) => (
-                  <p key={i} className="text-base leading-relaxed break-keep text-text-primary">{highlightNumbers(line)}</p>
+                  <p key={i} className="text-base leading-relaxed break-keep text-text-strong">{line}</p>
                 ))}
               </div>
 
               {hasWeekInfo && result.weekAnalysis && (
-                <div className="mt-8 pt-6 border-t border-current/10 space-y-3">
+                <div className="mt-6 pt-5 border-t border-current/10 space-y-2">
                   <p className="text-sm font-semibold text-primary">✦ 임신 {pregnancyWeeks}주차 맞춤 조언</p>
-                  <p className="text-base leading-relaxed break-keep text-text-primary">{result.weekAnalysis}</p>
+                  <p className="text-base leading-relaxed break-keep text-text-strong">{result.weekAnalysis}</p>
                 </div>
               )}
 
@@ -565,7 +555,7 @@ function ResultContent() {
               </div>
             )}
 
-            <div className={!authUser ? 'opacity-30 pointer-events-none select-none overflow-hidden max-h-[400px]' : ''}>
+            <div className={!authUser ? 'opacity-30 pointer-events-none select-none overflow-hidden max-h-[400px] mt-10' : 'mt-10'}>
               {/* Ingredients */}
               {!isError && (
                 <section>
@@ -573,17 +563,17 @@ function ResultContent() {
                     <h2 className="text-lg font-semibold text-text-primary">어떤 성분/특징 때문인가요?</h2>
                     {hasWeekInfo && <span className="text-[13px] leading-[18px] font-semibold text-primary bg-primary/10 px-2 py-1 rounded-lg">{pregnancyWeeks}주차 기준</span>}
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     {!authUser ? (
                       <>
                         {['주의 성분 A', '위험 성분 B'].map((name, i) => (
                           <Card key={name} className="bg-bg-surface border-border-subtle shadow-sm rounded-[24px]">
                             <CardContent className="py-4 px-5">
-                              <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center justify-between mb-1.5">
                                 <span className="text-base font-semibold text-text-primary">{name}</span>
-                                <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[13px] font-semibold text-white ${i === 0 ? 'bg-caution-fg' : 'bg-danger-fg'}`}>
+                                <Badge size="sm" variant={i === 0 ? 'solid-caution' : 'solid-danger'}>
                                   {i === 0 ? '주의' : '위험'}
-                                </div>
+                                </Badge>
                               </div>
                               <p className="text-sm text-text-secondary leading-relaxed">임산부에게 영향을 줄 수 있는 성분으로 섭취량 조절이 필요합니다.</p>
                             </CardContent>
@@ -594,13 +584,13 @@ function ResultContent() {
                       result.ingredients.filter((i: any) => i.status !== 'success').map((ingredient: any, idx: number) => (
                         <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm rounded-[24px]">
                           <CardContent className="py-4 px-5">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-base font-semibold text-text-primary">{ingredient.name}</span>
-                              <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[13px] font-semibold text-white ${ingredient.status === 'caution' ? 'bg-caution-fg' : 'bg-danger-fg'}`}>
+                            <div className="flex items-center justify-between mb-2.5">
+                              <span className="text-base font-bold text-text-primary">{ingredient.name}</span>
+                              <Badge size="sm" variant={ingredient.status === 'caution' ? 'solid-caution' : 'solid-danger'}>
                                 {ingredient.status === 'caution' ? '주의' : '위험'}
-                              </div>
+                              </Badge>
                             </div>
-                            <p className="text-base leading-relaxed text-text-primary break-keep">{highlightNumbers(ingredient.reason)}</p>
+                            <p className="text-sm leading-relaxed text-text-secondary break-keep">{ingredient.reason}</p>
                           </CardContent>
                         </Card>
                       ))
@@ -678,10 +668,10 @@ function ResultContent() {
       </main>
 
       {/* Bottom Action Panel */}
-      <div className="safe-bottom fixed bottom-0 w-full max-w-md left-1/2 -translate-x-1/2 px-4 pt-4 bg-bg-surface border-t border-border-subtle z-50">
+      <div className="fixed bottom-0 w-full max-w-md left-1/2 -translate-x-1/2 px-4 pt-4 bg-bg-surface border-t border-border-subtle z-50" style={{paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))'}}>
         <div className="flex space-x-3">
-          <Button variant="secondary" className="flex-1 h-12" onClick={() => router.push('/home')}>홈으로</Button>
-          <Button className="flex-1 h-12" onClick={() => router.push('/scan')}>다른 제품 스캔</Button>
+          <Button variant="secondary" className="flex-1 h-[52px]" onClick={() => router.push('/home')}>홈으로</Button>
+          <Button className="flex-1 h-[52px]" onClick={() => router.push('/scan')}>다른 제품 스캔</Button>
         </div>
       </div>
 

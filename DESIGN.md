@@ -49,6 +49,7 @@
 | `bg-bg-surface` | `#FFFEFD` | Card, sheet, input surface |
 | `border-border-subtle` | `#EEE8E4` | Dividers, card borders |
 | `text-text-primary` | `#3E3A39` | Title, body copy |
+| `text-text-strong` | `#1A1714` | tinted 배경 위 본문 텍스트 — 작은 크기(16px 이하)에서 명암비 보강 시 사용 |
 | `text-text-secondary` | `#7B7672` | Secondary text, meta info |
 | `text-text-tertiary` | `#A09A97` | Placeholder, helper |
 | `text-text-disabled` | `#C4BEBC` | Disabled state |
@@ -72,6 +73,10 @@ bg-bg-canvas      ← 앱 전체 배경
 ```
 
 Never use raw white (`#ffffff`) for surfaces. Always use the token.
+
+### Accessibility
+- 모든 텍스트 색상은 배경 대비 **WCAG 2.1 AA 기준 4.5:1 이상**을 충족해야 한다.
+- 색상 토큰을 추가하거나 변경할 때는 반드시 대비율을 검증한 후 적용한다.
 
 ---
 
@@ -357,6 +362,7 @@ Tone: 당근식 — 가깝고 따뜻하게, 쉽고 편하게, 생활 밀착형
 - 홈 상단에 긴 브랜드 슬로건 배너 → 상태 정보 + 기능 유도 구조 우선
 - Primary CTA를 같은 화면에 2개 이상 사용
 - `text-red-500` 같은 기본 Tailwind 시멘틱 색상 → `text-danger-fg` 등 토큰 사용
+- 텍스트/배경 색상 조합의 대비율이 4.5:1 미만인 경우 → 토큰 값 조정 후 재검증
 - 동적 Tailwind 클래스 interpolation (e.g. `` `bg-${color}/10` ``) → Tailwind JIT purge로 렌더링 안 됨. 명시적 클래스 문자열 사용
 - 섹션 구분에 `h-px` 또는 `h-2/h-3 bg-neutral-bg` 띠 → 배경색 토큰(`bg-neutral-bg`)으로 섹션 자체를 구분
 
