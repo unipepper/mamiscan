@@ -285,7 +285,7 @@ export default function HistoryPage() {
           <div className="space-y-4">
             {/* 미리보기 더미 카드 */}
             <div className="space-y-3 pointer-events-none select-none" aria-hidden="true">
-              {DUMMY_HISTORY.map((item, idx) => (
+              {DUMMY_HISTORY.flatMap(g => g.items).map((item, idx) => (
                 <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm">
                   <CardContent className="p-4 flex items-center justify-between">
                     <div className="flex items-center space-x-4">
