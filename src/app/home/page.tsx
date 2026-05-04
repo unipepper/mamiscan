@@ -161,7 +161,7 @@ export default function HomePage() {
 
       {/* Hero */}
       <section className="px-4 pt-4 pb-2">
-        <div className="bg-accent rounded-[28px] px-6 pt-6 pb-5 relative overflow-hidden">
+        <div className="bg-accent rounded-[28px] px-6 pt-6 pb-5 relative overflow-hidden border border-primary/20">
           <div className="relative z-10">
             <span className="text-sm font-medium text-primary">
               엄마도 맛있게, 아가도 건강하게
@@ -255,7 +255,7 @@ export default function HomePage() {
               { icon: Search, iconBg: 'bg-caution-bg', iconColor: 'text-caution-fg', title: '먹고 싶은데 찜찜할 때', desc: '비슷하지만 더 안심할 수 있는 제품을 바로 찾아드려요.' },
             ].map(({ icon: Icon, iconBg, iconColor, title, desc }, idx, arr) => (
               <div key={title} className="flex flex-col">
-                <div className="flex items-start gap-4 px-4 py-4">
+                <div className="flex items-start gap-4 px-4 py-[18px]">
                 <div className={`${iconBg} p-2.5 rounded-full shrink-0`}>
                   <Icon className={`w-5 h-5 ${iconColor}`} />
                 </div>
@@ -264,7 +264,7 @@ export default function HomePage() {
                   <p className="type-body-brief text-text-secondary">{desc}</p>
                 </div>
                 </div>
-                {idx < arr.length - 1 && <div className="border-b border-border-subtle mx-8" />}
+                {idx < arr.length - 1 && <div className="border-b border-border-subtle mx-4" />}
               </div>
             ))}
           </div>
