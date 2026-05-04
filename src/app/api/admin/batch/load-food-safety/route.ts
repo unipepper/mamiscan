@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-
-function createAdminClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
+import { createAdminClient } from '@/lib/supabase/admin';
+import { verifyAdmin } from '@/lib/admin-auth';
 
 function extractXmlTag(xml: string, tag: string): string {
   const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
@@ -51,10 +45,8 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
  * 인증: X-Admin-Secret 헤더
  */
 export async function POST(req: Request) {
-  const secret = req.headers.get('x-admin-secret');
-  if (secret !== process.env.ADMIN_SECRET) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  }
+  const auth = await verifyAdmin(req);
+  if (!auth.ok) return auth.response;
 
   const koreaKey = process.env.FOOD_SAFETY_KOREA_API_KEY;
   const haccpKey = process.env.FOOD_SAFETY_API_KEY;

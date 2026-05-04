@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-
-function createAdminClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
+import { createAdminClient } from '@/lib/supabase/admin';
+import { verifyAdmin } from '@/lib/admin-auth';
 
 /**
  * GET /api/admin/error-reports
@@ -20,10 +14,8 @@ function createAdminClient() {
  *   ai_confidence    필터 (미지정 시 전체)
  */
 export async function GET(req: Request) {
-  const secret = req.headers.get('x-admin-secret');
-  if (secret !== process.env.ADMIN_SECRET) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  }
+  const auth = await verifyAdmin(req);
+  if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
   const page = Math.max(1, Number(searchParams.get('page') ?? 1));

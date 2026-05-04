@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-
-function createAdminClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
+import { createAdminClient } from '@/lib/supabase/admin';
+import { verifyAdmin } from '@/lib/admin-auth';
 
 /**
  * POST /api/admin/cleanup/stale-products
@@ -23,14 +17,9 @@ function createAdminClient() {
 const ANALYZED_THRESHOLD = 20_000;
 
 export async function POST(req: Request) {
-  const cronSecret = req.headers.get('authorization');
-  const adminSecret = req.headers.get('x-admin-secret');
-  const isCron = cronSecret === `Bearer ${process.env.CRON_SECRET}`;
-  const isAdmin = adminSecret === process.env.ADMIN_SECRET;
-
-  if (!isCron && !isAdmin) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  }
+  const auth = await verifyAdmin(req);
+  if (!auth.ok) return auth.response;
+  const isCron = auth.isCron;
 
   const supabase = createAdminClient();
 

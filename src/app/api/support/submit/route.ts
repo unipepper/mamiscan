@@ -1,6 +1,6 @@
 import { NextResponse, after } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { analyzeErrorReport } from '@/lib/ai/error-report-analyzer';
 
 type InquiryBody = {
@@ -47,30 +47,11 @@ export async function POST(req: Request) {
   }
 
   // 세션에서 사용자 ID 추출 (비로그인이면 null로 처리)
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-          } catch { /* Server Component에서는 무시 */ }
-        },
-      },
-    }
-  );
-
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // service role key로 RLS 우회하여 삽입
-  const adminSupabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { cookies: { getAll: () => [], setAll: () => {} } }
-  );
+  // RLS 우회 삽입 — 비로그인 사용자도 제출 가능하므로 Service Role 사용
+  const adminSupabase = createAdminClient();
 
   const attachmentsValue = attachments && attachments.length > 0 ? attachments : null;
 

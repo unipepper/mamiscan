@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { verifyAdmin } from '@/lib/admin-auth';
 
 export async function POST(req: Request) {
-  // Admin 인증
-  const secret = req.headers.get('x-admin-secret');
-  if (secret !== process.env.ADMIN_SECRET) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  }
+  const auth = await verifyAdmin(req);
+  if (!auth.ok) return auth.response;
 
   const { userId, delta, reason } = await req.json();
   if (!userId || typeof delta !== 'number' || delta === 0) {

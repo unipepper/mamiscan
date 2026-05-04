@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-
-function createAdminClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
+import { createAdminClient } from '@/lib/supabase/admin';
+import { verifyAdmin } from '@/lib/admin-auth';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -33,10 +27,8 @@ type ApprovedChanges = {
  *   admin_note?: string  (선택적 내부 메모)
  */
 export async function POST(req: Request, ctx: RouteContext) {
-  const secret = req.headers.get('x-admin-secret');
-  if (secret !== process.env.ADMIN_SECRET) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  }
+  const auth = await verifyAdmin(req);
+  if (!auth.ok) return auth.response;
 
   const { id } = await ctx.params;
   const reportId = Number(id);

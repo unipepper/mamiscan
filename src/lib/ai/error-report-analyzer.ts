@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from '@google/genai';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -92,13 +92,6 @@ function buildPrompt(reportBody: string, productName: string): string {
   ].join('\n');
 }
 
-/** service_role 클라이언트 (백그라운드 함수용, 쿠키 불필요) */
-function createAdminClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
 
 async function saveFailure(
   supabase: ReturnType<typeof createAdminClient>,

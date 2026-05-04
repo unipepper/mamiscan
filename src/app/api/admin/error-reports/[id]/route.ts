@@ -1,13 +1,7 @@
 import { NextResponse, after } from 'next/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { verifyAdmin } from '@/lib/admin-auth';
 import { rescanProduct } from '@/lib/ai/error-report-rescanner';
-
-function createAdminClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -16,10 +10,8 @@ type RouteContext = { params: Promise<{ id: string }> };
  * 오류 제보 상세 조회 — AI 분석 결과 + 연결된 스캔 이력 + products 캐시 포함
  */
 export async function GET(req: Request, ctx: RouteContext) {
-  const secret = req.headers.get('x-admin-secret');
-  if (secret !== process.env.ADMIN_SECRET) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  }
+  const auth = await verifyAdmin(req);
+  if (!auth.ok) return auth.response;
 
   const { id } = await ctx.params;
   const reportId = Number(id);
@@ -91,10 +83,8 @@ export async function GET(req: Request, ctx: RouteContext) {
  * Body: { product_name: string }
  */
 export async function POST(req: Request, ctx: RouteContext) {
-  const secret = req.headers.get('x-admin-secret');
-  if (secret !== process.env.ADMIN_SECRET) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  }
+  const auth = await verifyAdmin(req);
+  if (!auth.ok) return auth.response;
 
   const { id } = await ctx.params;
   const reportId = Number(id);
@@ -126,10 +116,8 @@ export async function POST(req: Request, ctx: RouteContext) {
  * Body: { status?, admin_note? }
  */
 export async function PATCH(req: Request, ctx: RouteContext) {
-  const secret = req.headers.get('x-admin-secret');
-  if (secret !== process.env.ADMIN_SECRET) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  }
+  const auth = await verifyAdmin(req);
+  if (!auth.ok) return auth.response;
 
   const { id } = await ctx.params;
   const reportId = Number(id);

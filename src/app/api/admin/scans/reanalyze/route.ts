@@ -1,18 +1,12 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { verifyAdmin } from '@/lib/admin-auth';
 
 // Vercel Pro: 최대 60초 허용 (Hobby는 10초 — Gemini 응답 시간 고려 시 Pro 권장)
 export const maxDuration = 60;
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-
-function createAdminClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
 
 const RESCAN_SCHEMA = {
   type: Type.OBJECT,
@@ -69,10 +63,8 @@ function buildPrompt(productName: string): string {
  * Response: { scan: { status, headline, description, ingredients, evidence, scanned_at } }
  */
 export async function POST(req: Request) {
-  const secret = req.headers.get('x-admin-secret');
-  if (secret !== process.env.ADMIN_SECRET) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  }
+  const auth = await verifyAdmin(req);
+  if (!auth.ok) return auth.response;
 
   let body: { product_name?: string; report_id?: number };
   try {

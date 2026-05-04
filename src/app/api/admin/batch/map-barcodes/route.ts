@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { verifyAdmin } from '@/lib/admin-auth';
 
 const BATCH_SIZE = 50;
 
@@ -33,16 +34,8 @@ async function findBarcodeViaAPI(productName: string): Promise<string | null> {
 }
 
 export async function POST(req: Request) {
-  // Vercel Cron 또는 직접 호출 모두 지원
-  const cronSecret = req.headers.get('authorization');
-  const adminSecret = req.headers.get('x-admin-secret');
-
-  const isVercelCron = cronSecret === `Bearer ${process.env.CRON_SECRET}`;
-  const isAdmin = adminSecret === process.env.ADMIN_SECRET;
-
-  if (!isVercelCron && !isAdmin) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  }
+  const auth = await verifyAdmin(req);
+  if (!auth.ok) return auth.response;
 
   const supabase = await createClient();
 

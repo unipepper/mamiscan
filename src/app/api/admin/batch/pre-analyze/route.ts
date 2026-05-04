@@ -1,18 +1,12 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { verifyAdmin } from '@/lib/admin-auth';
 
 // Vercel Pro 최대 실행 시간 (Hobby는 10초라 배치 크기를 작게 유지해야 함)
 export const maxDuration = 300;
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-
-function createAdminClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -177,13 +171,8 @@ ${hasDBAlts
  * Response: { analyzed, failed, remaining }
  */
 export async function POST(req: Request) {
-  const cronSecret = req.headers.get('authorization');
-  const adminSecret = req.headers.get('x-admin-secret');
-  const isVercelCron = cronSecret === `Bearer ${process.env.CRON_SECRET}`;
-  const isAdmin = adminSecret === process.env.ADMIN_SECRET;
-  if (!isVercelCron && !isAdmin) {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  }
+  const auth = await verifyAdmin(req);
+  if (!auth.ok) return auth.response;
 
   let limit = 10;
   try {

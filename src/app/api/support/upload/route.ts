@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const BUCKET = 'support-attachments';
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -23,11 +23,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'file_too_large' }, { status: 400 });
   }
 
-  const adminSupabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { cookies: { getAll: () => [], setAll: () => {} } }
-  );
+  const adminSupabase = createAdminClient();
 
   const ext = (file.name.split('.').pop() ?? 'jpg').toLowerCase();
   const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;

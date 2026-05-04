@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createServerClient } from '@supabase/ssr';
 import { POLICY_CURRENT_VERSION } from '@/lib/policy';
 
 export async function POST() {
@@ -23,14 +22,8 @@ export async function POST() {
     return NextResponse.json({ ok: true });
   }
 
-  // service role로 insert (RLS insert 정책 없이 서버에서만 처리)
-  const adminSupabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { cookies: { getAll: () => [], setAll: () => {} } }
-  );
-
-  const { error: insertError } = await adminSupabase
+  // RLS INSERT 정책: "users can insert own terms agreement" (migration-v30)
+  const { error: insertError } = await supabase
     .from('user_terms_agreements')
     .insert({
       user_id: user.id,
@@ -47,8 +40,8 @@ export async function POST() {
   // JWT user_metadata에 동의 여부 기록 (미들웨어에서 DB 조회 없이 체크)
   await supabase.auth.updateUser({ data: { terms_agreed: true } });
 
-  // trial 이용권 지급
-  const { data: existingTrial } = await adminSupabase
+  // trial 이용권 지급 — RLS INSERT 정책: "users can insert own entitlements" (migration-v30)
+  const { data: existingTrial } = await supabase
     .from('user_entitlements')
     .select('id')
     .eq('user_id', user.id)
@@ -59,7 +52,7 @@ export async function POST() {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    await adminSupabase.from('user_entitlements').insert({
+    await supabase.from('user_entitlements').insert({
       user_id: user.id,
       type: 'trial',
       status: 'active',
