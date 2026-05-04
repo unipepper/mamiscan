@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, Search, Lock, BookOpen, ShieldCheck, ArrowRight, Info } from 'lucide-react';
+import { Clock, Search, Lock, BookOpen, ShieldCheck, Info } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -282,74 +282,55 @@ export default function HistoryPage() {
 
         {/* Logged in but no subscription */}
         {!isLoading && authUser && !isActive && (
-          <div className="space-y-4">
-            {/* 미리보기 더미 카드 */}
-            <div className="space-y-3 pointer-events-none select-none" aria-hidden="true">
-              {DUMMY_HISTORY.flatMap(g => g.items).map((item, idx) => (
-                <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-2 h-10 rounded-full ${item.status === 'success' ? 'bg-success-fg' : 'bg-caution-fg'}`} />
-                      <p className="font-medium text-text-primary text-sm">{item.name}</p>
-                    </div>
-                    <div className="flex flex-col items-end space-y-1">
-                      <Badge size="sm" variant={item.status === 'success' ? 'solid-success' : 'solid-caution'}>
-                        {item.status === 'success' ? '안전' : '주의'}
-                      </Badge>
-                      <span className="text-[10px] text-text-secondary">{item.time}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {/* 가치 전달 카드 */}
-            <div className="bg-accent border border-primary/20 rounded-2xl p-5 space-y-4">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-primary uppercase tracking-wide">히스토리 저장</p>
-                <h3 className="text-lg font-semibold text-text-primary leading-snug">
-                  스캔한 제품, 언제든<br />다시 확인하세요
-                </h3>
+          <div className="space-y-3">
+            <div className="bg-primary/5 border border-primary/20 rounded-xl px-5 py-8 space-y-4">
+              <div className="text-center">
+                <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Lock className="w-7 h-7 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold text-text-primary mb-1">스캔권이 있으면 기록도 함께 쌓여요.</h3>
+                <p className="text-sm text-text-tertiary leading-relaxed">
+                  스캔할 때마다 기록이 쌓여요.<br />언제든 꺼내보고, 제품명으로 검색해보세요.
+                </p>
               </div>
-
-              <ul className="space-y-3">
-                <li className="flex items-start gap-3">
-                  <div className="bg-primary/10 p-1.5 rounded-lg shrink-0 mt-0.5">
-                    <BookOpen className="w-4 h-4 text-primary" />
+              <div className="bg-bg-surface border border-border-subtle rounded-xl px-4 py-6 pointer-events-none select-none" aria-hidden="true">
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
+                  <div className="w-full h-11 pl-9 pr-4 bg-bg-canvas border border-border-subtle rounded-2xl flex items-center">
+                    <span className="text-sm text-text-tertiary">제품명 검색</span>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-text-primary">언제든 결과 다시 보기</p>
-                    <p className="text-xs text-text-secondary mt-0.5">마트에서 확인했던 성분 분석을 집에서도 꺼내볼 수 있어요.</p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="bg-primary/10 p-1.5 rounded-lg shrink-0 mt-0.5">
-                    <ShieldCheck className="w-4 h-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-text-primary">주의 성분 이력 한눈에</p>
-                    <p className="text-xs text-text-secondary mt-0.5">주의 또는 위험으로 나온 제품을 리스트로 관리하세요.</p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="bg-primary/10 p-1.5 rounded-lg shrink-0 mt-0.5">
-                    <Search className="w-4 h-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-text-primary">제품명으로 빠르게 검색</p>
-                    <p className="text-xs text-text-secondary mt-0.5">비슷한 제품들을 비교하거나 과거 결과를 찾을 수 있어요.</p>
-                  </div>
-                </li>
-              </ul>
-
-              <Button
-                className="w-full flex items-center justify-center gap-1.5"
-                onClick={() => router.push('/pricing')}
-              >
-                스캔권 알아보기
-                <ArrowRight className="w-4 h-4" />
-              </Button>
+                </div>
+                {DUMMY_HISTORY.map((group, gIdx) => (
+                  <section key={gIdx} className="space-y-2 mb-4 last:mb-0">
+                    <h3 className="text-sm text-text-secondary pl-2">{group.date}</h3>
+                    <div className="grid gap-2">
+                      {group.items.map((item, idx) => (
+                        <Card key={idx} className="bg-bg-surface border-border-subtle shadow-sm">
+                          <CardContent className="p-4 flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div className={`w-2 h-10 rounded-full ${item.status === 'success' ? 'bg-success-fg' : 'bg-caution-fg'}`} />
+                              <p className="font-medium text-text-primary text-sm">{item.name}</p>
+                            </div>
+                            <div className="flex flex-col items-end space-y-1">
+                              <Badge size="sm" variant={item.status === 'success' ? 'solid-success' : 'solid-caution'}>
+                                {item.status === 'success' ? '안전' : '주의'}
+                              </Badge>
+                              <span className="text-[10px] text-text-secondary">{item.time}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
             </div>
+            <Button
+              className="w-full h-12 rounded-xl"
+              onClick={() => router.push('/pricing')}
+            >
+              스캔권 알아보기
+            </Button>
           </div>
         )}
       </main>

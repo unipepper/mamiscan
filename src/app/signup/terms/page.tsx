@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, Check, FileCheck2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -41,6 +41,15 @@ export default function SignupTermsPage() {
   });
 
   const allChecked = TERMS_ITEMS.every((item) => checked[item.key]);
+  const [shaking, setShaking] = useState<Record<string, boolean>>({});
+  const [showHint, setShowHint] = useState(false);
+
+  const shakeUnchecked = useCallback(() => {
+    if (allChecked) return;
+    setShaking({ all: true });
+    setShowHint(true);
+    setTimeout(() => setShaking({}), 500);
+  }, [allChecked]);
 
   function toggleAll() {
     const next = !allChecked;
@@ -89,54 +98,64 @@ export default function SignupTermsPage() {
         {/* 약관 목록 */}
         <div className="space-y-1">
           {/* 전체 동의 */}
-          <button
-            type="button"
-            onClick={toggleAll}
-            className="w-full flex items-center gap-3 h-11 px-1 rounded-xl hover:bg-gray-50 transition-colors"
-          >
-            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${allChecked ? 'bg-primary border-primary' : 'border-border-subtle'}`}>
-              {allChecked && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-            </span>
-            <span className="text-base font-semibold text-text-primary">전체 동의하기</span>
-          </button>
+          <div>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="w-full flex items-center gap-3 h-11 px-1 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${allChecked ? 'bg-primary border-primary' : shaking.all ? 'border-primary' : 'border-border-subtle'} ${shaking.all ? 'animate-shake' : ''}`}>
+                {allChecked && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+              </span>
+              <span className="text-base font-semibold text-text-primary">필수항목 전체 동의</span>
+            </button>
+            {showHint && (
+              <p className="text-xs text-danger-fg pl-9 -mt-1">모든 필수 항목에 동의해주세요</p>
+            )}
+          </div>
 
-          <div className="border-t border-border-subtle my-1" />
+          <div className="border-t border-border-subtle mt-2" />
 
           {/* 개별 항목 */}
           <ul className="space-y-0">
             {TERMS_ITEMS.map((item) => (
-              <li key={item.key} className="flex items-center justify-between h-9 px-1">
-                <button
-                  type="button"
-                  onClick={() => toggle(item.key)}
-                  className="flex items-center gap-3 flex-1 text-left"
-                >
-                  <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${checked[item.key] ? 'bg-primary border-primary' : 'border-border-subtle'}`}>
-                    {checked[item.key] && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                  </span>
-                  <span className="text-sm text-text-primary">
-                    <span className="text-text-tertiary mr-1.5">[필수]</span>
-                    {item.label}
-                    {item.tooltip && (
-                      <span
-                        className="ml-1.5 text-xs text-text-tertiary cursor-default"
-                        title={item.tooltip}
-                      >
-                        ⓘ
-                      </span>
-                    )}
-                  </span>
-                </button>
-                {item.href && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => window.open(item.href!, '_blank')}
-                    className="gap-0.5 shrink-0 text-text-tertiary hover:text-text-secondary h-9"
+              <li key={item.key} className="px-1">
+                <div className="flex items-center justify-between h-9">
+                  <button
+                    type="button"
+                    onClick={() => toggle(item.key)}
+                    className="flex items-center gap-3 flex-1 text-left"
                   >
-                    보기
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </Button>
+                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${checked[item.key] ? 'bg-primary border-primary' : 'border-border-subtle'}`}>
+                      {checked[item.key] && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                    </span>
+                    <span className="text-sm text-text-primary">
+                      <span className="text-text-tertiary mr-1.5">[필수]</span>
+                      {item.label}
+                      {item.tooltip && (
+                        <span
+                          className="ml-1.5 text-xs text-text-tertiary cursor-default"
+                          title={item.tooltip}
+                        >
+                          ⓘ
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                  {item.href && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(item.href!, '_blank')}
+                      className="gap-0.5 shrink-0 text-text-tertiary hover:text-text-secondary h-9"
+                    >
+                      보기
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+                {showHint && !checked[item.key] && (
+                  <p className="text-xs text-danger-fg pl-8 pb-1">필수 동의 항목이에요</p>
                 )}
               </li>
             ))}
@@ -152,8 +171,8 @@ export default function SignupTermsPage() {
             <p className="text-center text-sm text-danger-fg">{error}</p>
           )}
           <Button
-            onClick={handleAgree}
-            disabled={loading || !allChecked}
+            onClick={allChecked ? handleAgree : shakeUnchecked}
+            disabled={loading}
             className="w-full"
           >
             {loading ? (

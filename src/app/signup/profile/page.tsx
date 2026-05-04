@@ -126,16 +126,9 @@ export default function SignupProfilePage() {
               />
               <Button
                 onClick={() => setNameConfirmed(true)}
-                className="w-full"
+                className="w-full mt-2"
               >
                 확인
-              </Button>
-              <Button
-                variant="link"
-                onClick={() => { setName(''); setNameConfirmed(true); }}
-                className="w-full"
-              >
-                다음에 입력할게요
               </Button>
             </>
           )}
@@ -232,44 +225,25 @@ export default function SignupProfilePage() {
                   · 주차별 맞춤 성분 분석에 사용돼요. 설정에서 언제든 변경할 수 있어요.
                 </p>
 
+                {error && (
+                  <p className="text-center text-sm text-danger-fg">{error}</p>
+                )}
                 <Button
-                  onClick={() => setPregnancyConfirmed(true)}
-                  className="w-full"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="w-full mt-2"
                 >
-                  확인
-                </Button>
-                <Button
-                  variant="link"
-                  onClick={() => { setWeekInput(''); setLmpInput(''); setPregnancyConfirmed(true); }}
-                  className="w-full"
-                >
-                  다음에 입력할게요
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      저장 중...
+                    </span>
+                  ) : (
+                    '시작하기'
+                  )}
                 </Button>
               </>
             )}
-          </div>
-        )}
-
-        {/* CTA */}
-        {pregnancyConfirmed && (
-          <div ref={ctaRef} className="space-y-3">
-            {error && (
-              <p className="text-center text-sm text-danger-fg">{error}</p>
-            )}
-            <Button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="w-full"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  저장 중...
-                </span>
-              ) : (
-                '시작하기'
-              )}
-            </Button>
           </div>
         )}
 

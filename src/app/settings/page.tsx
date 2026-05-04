@@ -11,6 +11,7 @@ import { SectionLinkButton } from '@/components/ui/section-link-button';
 import { createClient } from '@/lib/supabase/client';
 import { getRemainingDays } from '@/lib/subscription';
 import { BottomNav } from '@/components/BottomNav';
+import { HintCheckbox } from '@/components/ui/hint-checkbox';
 
 const PREGNANCY_INFO: Record<number, string> = {
   1: '착상이 이루어지고 있어요. 엄마 몸이 임신을 준비하는 중이에요.',
@@ -94,12 +95,15 @@ export default function SettingsPage() {
   const [weekNumInput, setWeekNumInput] = useState('');
   const [dateInput, setDateInput] = useState('');
   const [weekSaveStatus, setWeekSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [lmpError, setLmpError] = useState<string | null>(null);
   const [showNicknameSheet, setShowNicknameSheet] = useState(false);
   const [nicknameInput, setNicknameInput] = useState('');
   const [nicknameSaveStatus, setNicknameSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'deleting'>('idle');
   const [deleteAgreed, setDeleteAgreed] = useState(false);
+  const [showDeleteHint, setShowDeleteHint] = useState(false);
+  const [shakeDeleteCheckbox, setShakeDeleteCheckbox] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'kakao' | null>(null);
   const [oauthError, setOauthError] = useState<string | null>(null);
 
@@ -142,9 +146,27 @@ export default function SettingsPage() {
 
   const handleDialSave = async () => {
     if (!authUser) return;
-    const startDate = weekDialMode === 'weeks'
-      ? (() => { const w = parseInt(weekNumInput, 10); return w >= 1 && w <= 42 ? weeksToStartDate(w) : null; })()
-      : (dateInput || null);
+    let startDate: string | null = null;
+    if (weekDialMode === 'weeks') {
+      const w = parseInt(weekNumInput, 10);
+      startDate = w >= 1 && w <= 42 ? weeksToStartDate(w) : null;
+    } else {
+      if (!dateInput) return;
+      const d = new Date(dateInput);
+      const now = new Date();
+      const minDate = new Date();
+      minDate.setDate(now.getDate() - 42 * 7);
+      if (d > now) {
+        setLmpError('마지막 생리일은 오늘보다 이전 날짜여야 해요.');
+        return;
+      }
+      if (d < minDate) {
+        setLmpError('마지막 생리일 기준으로 42주가 지났어요. 이미 출산하셨나요?');
+        return;
+      }
+      setLmpError(null);
+      startDate = dateInput;
+    }
     if (!startDate) return;
     setWeekSaveStatus('saving');
     try {
@@ -469,7 +491,7 @@ export default function SettingsPage() {
 
       {/* 회원 탈퇴 확인 Bottom Sheet */}
       {showDeleteSheet && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setShowDeleteSheet(false); setDeleteAgreed(false); }}>
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setShowDeleteSheet(false); setDeleteAgreed(false); setShowDeleteHint(false); }}>
           <div className="bg-bg-canvas w-full rounded-t-3xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 bg-border-subtle rounded-full" />
@@ -498,21 +520,25 @@ export default function SettingsPage() {
                 ))}
               </div>
 
-              <label className="flex items-center gap-3 mb-5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={deleteAgreed}
-                  onChange={(e) => setDeleteAgreed(e.target.checked)}
-                  className="w-4 h-4 rounded accent-danger-fg cursor-pointer shrink-0"
-                />
-                <span className="text-sm text-text-secondary">안내를 확인하였으며, 이에 동의합니다</span>
-              </label>
+              <HintCheckbox
+                checked={deleteAgreed}
+                onChange={setDeleteAgreed}
+                label="안내를 확인하였으며, 이에 동의합니다"
+                hint="동의 후 탈퇴를 진행할 수 있어요"
+                showHint={showDeleteHint}
+                shaking={shakeDeleteCheckbox}
+                className="mb-5 pl-2"
+              />
 
               <div className="space-y-2 pb-10">
                 <Button
                   variant="danger"
-                  onClick={handleDeleteAccount}
-                  disabled={deleteStatus === 'deleting' || !deleteAgreed}
+                  onClick={!deleteAgreed ? () => {
+                    setShowDeleteHint(true);
+                    setShakeDeleteCheckbox(true);
+                    setTimeout(() => setShakeDeleteCheckbox(false), 500);
+                  } : handleDeleteAccount}
+                  disabled={deleteStatus === 'deleting'}
                   className="w-full gap-2"
                 >
                   {deleteStatus === 'deleting'
@@ -522,7 +548,7 @@ export default function SettingsPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => { setShowDeleteSheet(false); setDeleteAgreed(false); }}
+                  onClick={() => { setShowDeleteSheet(false); setDeleteAgreed(false); setShowDeleteHint(false); }}
                   disabled={deleteStatus === 'deleting'}
                   className="w-full"
                 >
@@ -595,11 +621,14 @@ export default function SettingsPage() {
                   <input
                     type="date"
                     value={dateInput}
-                    onChange={(e) => setDateInput(e.target.value)}
+                    onChange={(e) => { setDateInput(e.target.value); setLmpError(null); }}
                     max={new Date().toISOString().split('T')[0]}
                     className="w-full h-14 px-4 rounded-2xl border-2 border-primary/30 bg-bg-surface text-text-primary text-base focus:outline-none focus:border-primary transition-colors"
                   />
-                  {dateInput && calcPregnancyWeek(dateInput) && (
+                  {lmpError && (
+                    <p className="text-xs text-danger-fg mt-1 px-1">{lmpError}</p>
+                  )}
+                  {!lmpError && dateInput && calcPregnancyWeek(dateInput) && (
                     <p className="text-sm text-primary font-medium mt-2 px-1">
                       현재 임신 {calcPregnancyWeek(dateInput)}주차로 계산돼요
                     </p>

@@ -1,4 +1,4 @@
-Always read DESIGN.md before coding.
+Always read DESIGN.md and UX_PRINCIPLES.md before coding.
 
 ## Rules
 - Reuse existing components in src/components/ui
