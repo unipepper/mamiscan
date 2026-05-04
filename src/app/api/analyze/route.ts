@@ -361,6 +361,76 @@ function filterAlternatives(
   });
 }
 
+/**
+ * 바코드 번호만 있고 식품 DB 조회가 실패했을 때 Gemini 웹 검색으로 제품 정보 확보 + 분석
+ * Google Search grounding으로 바코드 → 제품명 → 원재료 → 임산부 판정까지 한 번에 처리
+ */
+async function callGeminiBarcodeSearch(
+  barcode: string,
+  pregnancyWeeks: number | null,
+  dbSafeProducts: string[] = []
+): Promise<Record<string, any>> {
+  const hasWeekInfo = pregnancyWeeks !== undefined && pregnancyWeeks !== null;
+  const hasDBAlts = dbSafeProducts.length > 0;
+
+  const response = await withRetry(() => ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: {
+      parts: [
+        {
+          text: `바코드 번호 ${barcode}로 제품을 Google Search로 찾아줘. 식품안전나라, 공식 브랜드 홈페이지, 쇼핑몰 상품 페이지 등을 검색해서 제품명과 원재료를 확인해줘.
+
+검색으로 제품을 찾으면 임산부가 섭취해도 안전한지 분석해줘.
+검색으로도 제품을 특정할 수 없으면 status를 "error_db_mismatch"로 설정해줘.
+
+status는 "success", "caution", "danger", "error_db_mismatch" 중 하나로 설정해줘.
+
+★판정 기준 핵심 원칙★
+- caution/danger는 의학적으로 임산부에게 실질적 위험이 있는 성분에만 부여해줘.
+- 아래 성분들은 일반 가공식품에 보편적으로 사용되며 임산부에게 특별한 위험이 없으므로 반드시 "success"로 분류해줘:
+  설탕, 포화지방, 나트륨, 단백질, 탄수화물, 유화제, 증점제, 산도조절제, 향료, 합성향료, 천연향료, 카라멜색소, 구연산, 젖산, 혼합분유, 탈지분유, 유청분말
+- caution을 줄 수 있는 성분: 카페인·과라나·마테(음료), 액상과당·고과당콘시럽(혈당), 아질산나트륨(가공육), 아스파탐·사카린(인공감미료), 타르색소(적색2호·황색4호 등), 경화유·부분경화유(트랜스지방), 참치·연어·훈제연어(수은·리스테리아), 레티놀 고함량(비타민A), 감초추출물·글리시리진
+- danger를 줄 수 있는 성분: 알코올·에탄올·주정, 황새치·상어·삼치·옥돔(고수은 어류), 비살균·생우유·원유, 육회·생햄·하몽·프로슈토(리스테리아), 날달걀·생란(살모넬라), 쑥추출물·당귀·홍화(자궁수축), 부자·반하 등 독성 한약재
+
+★원재료 미확인 시 추론 금지★: 검색으로도 원재료를 확인하지 못한 경우, 불확실한 성분에 caution/danger를 부여하지 마. 불확실하면 success로 두고 description에 "원재료를 확인하지 못해 정밀 분석이 어렵다"고 명시해줘.
+★카페인 음료 필수 규칙★: 녹차, 홍차, 우롱차, 커피, 에너지드링크 등 카페인이 함유된 음료는 카페인 함량이 낮더라도 반드시 "caution" 이상으로 분류해줘.
+★날생선·날해산물 필수 규칙★: 익히지 않은 생선·해산물이 포함된 경우 반드시 "danger"로 분류해줘.
+
+${hasWeekInfo
+  ? `현재 사용자는 임신 ${pregnancyWeeks}주차입니다. description은 왜 주의/위험/안전한지 결론 한 줄로 작성하고, weekAnalysis에는 "${pregnancyWeeks}주차에 얼마나/어떻게/대신 무엇을" 같은 실천 가능한 행동 지침만 2문장 이내로 작성해줘.`
+  : `일반적인 임산부 기준으로 weekAnalysis에 실천 가능한 섭취 행동 지침만 2문장 이내로 작성해줘.`}
+
+${hasDBAlts
+  ? `★대체 제품 제약★: 아래는 실제로 안전 판정을 받은 제품 목록이야. alternatives는 반드시 이 목록에 있는 제품 이름만 사용해줘. 목록에 관련 제품이 없으면 빈 배열([])로 반환해줘.
+[${dbSafeProducts.join(', ')}]`
+  : 'alternatives는 빈 배열([])로 반환해줘.'}
+
+다음 JSON 형식으로 응답해줘:
+{
+  "status": "success" | "caution" | "danger" | "error_db_mismatch",
+  "productName": "한국어 브랜드명(있으면) + 한국어 제품명을 자연스럽게 조합. 브랜드명이 없으면 제품명만. 외국 제품이면 원래 표기 유지. 식별 불가시 '알 수 없는 제품'.",
+  "headline": "요약 헤드라인 (주의/위험 성분명 직접 언급 절대 금지)",
+  "description": "이 제품이 임산부에게 왜 주의/위험/안전한지 결론을 1~2문장으로 요약. ★절대 금지★: '성분표를 확인하세요', '라벨을 읽어보세요' 같은 표현. error_db_mismatch 시 '검색으로도 제품 정보를 찾지 못했어요. 사진 촬영으로 다시 시도해 주세요.'",
+  "ingredients": [{ "name": "성분명", "status": "success" | "caution" | "danger", "reason": "구체적인 설명" }],
+  "alternatives": [{ "name": "대체 식품 이름", "brand": "브랜드명", "price": "예상 가격대" }],
+  "weekAnalysis": "임신 주차에 따른 섭취 조언"
+}`,
+        },
+      ],
+    },
+    config: {
+      tools: [{ googleSearch: {} }],
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  }));
+
+  const raw = response.text?.trim() ?? '';
+  const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/) ?? raw.match(/(\{[\s\S]*\})/);
+  const parsed = JSON.parse(jsonMatch?.[1] ?? jsonMatch?.[0] ?? '{}');
+  if (!parsed.status) throw new Error('Gemini returned empty or invalid response');
+  return parsed;
+}
+
 async function callGeminiBarcode(
   product: { productName: string; brand: string; rawIngredients: string; allergyInfo?: string; productType?: string },
   pregnancyWeeks: number | null,
@@ -588,26 +658,40 @@ export async function POST(req: Request) {
 
       if (!product) {
         if (!imageBase64) {
-          // 이미지 폴백 없음 → error_db_mismatch
-          saveUnsupportedLog(supabase, {
-            userId,
-            uploadType: 'barcode',
-            failureReason: 'db_no_match',
-            productHint: barcode,
-          }).catch(() => {});
+          // 이미지 없음 → Gemini 웹 검색으로 바코드 → 제품 정보 확보
+          const _tGemini = Date.now();
+          const dbSafeProducts = await getDBSafeProducts(supabase);
+          const result = await callGeminiBarcodeSearch(barcode, pregnancyWeeks, dbSafeProducts);
+          normalizeStatus(result);
+          result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts, result.productName);
+          console.log(`[analyze] BARCODE_SEARCH barcode=${barcode} status=${result.status} gemini=${Date.now()-_tGemini}ms total=${Date.now()-_t0}ms`);
 
-          return NextResponse.json({
-            success: true,
-            result: {
-              status: 'error_db_mismatch',
-              productName: '알 수 없는 제품',
-              headline: '데이터베이스에 없는 제품이에요',
-              description: '바코드가 인식되었지만 식품 DB에 등록되지 않은 제품이에요. 사진 촬영으로 다시 시도해 보세요.',
-              ingredients: [],
-              alternatives: [],
-              weekAnalysis: '',
-            },
-          });
+          if (result.status === 'error_db_mismatch') {
+            saveUnsupportedLog(supabase, {
+              userId,
+              uploadType: 'barcode',
+              failureReason: 'db_no_match',
+              productHint: barcode,
+            }).catch(() => {});
+            result.headline = result.headline || '데이터베이스에 없는 제품이에요';
+            result.productName = result.productName || '알 수 없는 제품';
+          } else {
+            // 검색으로 찾은 경우 catalog에 저장 (다음 조회 시 캐시 활용)
+            const saveResult = { ...result };
+            delete saveResult.weekAnalysis;
+            supabase.from('catalog').upsert({
+              cache_key: `barcode:${barcode}`,
+              product_name: result.productName,
+              result_json: saveResult,
+              status: result.status,
+              barcode,
+              hit_count: 0,
+            }, { onConflict: 'cache_key' }).then(({ error }) => {
+              if (error) console.error('[analyze] catalog upsert failed (barcode-search):', error);
+            });
+          }
+
+          return NextResponse.json({ success: true, result });
         }
         // imageBase64 있음 → 이미지 분석으로 폴백 (fall through)
       } else {

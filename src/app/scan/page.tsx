@@ -163,9 +163,13 @@ export default function ScanPage() {
                 }
                 startScanning();
                 const video = videoRef.current;
-                const captureAndNavigate = () => {
+                const captureAndNavigate = async () => {
                   let capturedImage: string | null = null;
                   try {
+                    // videoWidth가 0이면 최대 200ms 대기 후 재시도 (ZXing 콜백 타이밍 이슈)
+                    if (video && video.videoWidth === 0) {
+                      await new Promise(r => setTimeout(r, 200));
+                    }
                     if (video && video.videoWidth > 0) {
                       capturedImage = captureContentArea(video, 0.6);
                       if (capturedImage) sessionStorage.setItem('scanImage', capturedImage);
@@ -180,13 +184,8 @@ export default function ScanPage() {
                   pendingAnalyze.imageBase64 = capturedImage;
                   setTimeout(() => router.push(RESULT_ROUTE + '?barcode=' + encodeURIComponent(barcode)), 300);
                 };
-                if (video) {
-                  // pause 전에 현재 프레임 캡처 — iOS에서 pause 후 canvas가 검은색이 되는 버그 방지
-                  captureAndNavigate();
-                  video.pause();
-                } else {
-                  captureAndNavigate();
-                }
+                // iOS에서 pause 후 canvas가 검은색이 되는 버그 방지: 캡처 완료 후 pause
+                captureAndNavigate().then(() => { if (video) video.pause(); });
               }
               if (err && !(err instanceof NotFoundException)) {
                 if (err.message?.includes('Video stream has ended')) return;
@@ -277,6 +276,10 @@ export default function ScanPage() {
           try {
             const result = await codeReaderRef.current!.decodeFromImageElement(img);
             const barcode = result.getText();
+            // 바코드 인식 성공해도 이미지 저장 — DB 미스 시 Gemini 이미지 폴백 및 오류 제보에 활용
+            compressForAnalysis(dataUrl)
+              .then(compressed => sessionStorage.setItem('scanImage', compressed))
+              .catch(() => sessionStorage.setItem('scanImage', dataUrl));
             setTimeout(() => router.push(RESULT_ROUTE + '?barcode=' + encodeURIComponent(barcode)), 1500);
           } catch {
             // 앨범 이미지는 풀 해상도 → Vercel 4.5MB 제한 초과 방지를 위해 압축 후 저장
