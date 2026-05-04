@@ -61,6 +61,7 @@ export async function POST(req: Request, ctx: RouteContext) {
     .select(`
       id,
       status,
+      user_confirmed,
       scan_history_id,
       scan_history (
         id,
@@ -142,15 +143,17 @@ export async function POST(req: Request, ctx: RouteContext) {
     return NextResponse.json({ error: 'db_error' }, { status: 500 });
   }
 
-  // 5. scan_history 업데이트 — 수정된 결과 반영 + 검토 해제
+  // 5. scan_history 업데이트 — 수정된 결과 반영
+  // 'incorrect' 케이스는 스캔권 미차감이므로 히스토리 미노출 유지
   if (report.scan_history_id) {
+    const restoreVisibility = report.user_confirmed !== 'incorrect';
     await supabase
       .from('scan_history')
       .update({
         result_json: JSON.stringify({ ...updatedResult, weekAnalysis: '', detectedBarcode: undefined }),
         product_name: correctedProductName,
         status: (changes.status ?? updatedResult.status) as string,
-        is_under_review: false,
+        ...(restoreVisibility ? { is_under_review: false } : {}),
       })
       .eq('id', report.scan_history_id);
   }
