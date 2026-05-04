@@ -164,7 +164,12 @@ function ResultContent() {
       return { user: null, prof: null };
     });
 
-    if (!barcode && !scanImage && !productNameQuery) {
+    if (productNameQuery) {
+      router.replace('/home');
+      return;
+    }
+
+    if (!barcode && !scanImage) {
       setError('스캔 데이터가 없어요. 다시 촬영해 주세요.');
       setIsLoading(false);
       return;
@@ -181,7 +186,7 @@ function ResultContent() {
           body: JSON.stringify({
             barcode: barcode || null,
             imageBase64: scanImage || null,
-            productName: productNameQuery || null,
+            productName: null,
           }),
         });
 
@@ -620,8 +625,7 @@ function ResultContent() {
                     {result.alternatives?.length > 0 ? result.alternatives.map((alt: any, idx: number) => (
                       <Card
                         key={idx}
-                        className="bg-bg-surface border-border-subtle shadow-sm rounded-[24px] cursor-pointer hover:bg-neutral-bg transition-colors"
-                        onClick={() => router.push(`/result?productName=${encodeURIComponent(alt.name)}`)}
+                        className="bg-bg-surface border-border-subtle shadow-sm rounded-[24px]"
                       >
                         <CardContent className="py-4 px-4 flex items-center justify-between">
                           <div className="flex items-center space-x-3">
@@ -633,7 +637,6 @@ function ResultContent() {
                               <p className="text-base font-medium text-text-primary">{alt.name}</p>
                             </div>
                           </div>
-                          <ChevronRight className="w-5 h-5 text-text-secondary" />
                         </CardContent>
                       </Card>
                     )) : (
@@ -659,7 +662,7 @@ function ResultContent() {
           </div>
 
           {/* Disclaimer */}
-          <section className="pt-3 pb-4 flex items-start space-x-2 px-1">
+          <section className="pt-3 pb-24 flex items-start space-x-2 px-1">
             <Info className="w-4 h-4 text-text-tertiary shrink-0 mt-0.5" />
             <p className="text-xs leading-relaxed text-text-tertiary">
               본 서비스의 분석 결과는 식약처 및 관련 기관의 가이드라인을 바탕으로 제공되나, <strong>의료적 진단이나 조언을 대체할 수 없습니다.</strong> 불안하다면 담당 의료진의 안내를 우선해 주세요.

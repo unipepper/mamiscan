@@ -54,6 +54,17 @@ export default function ScanPage() {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user) {
+        // 게스트 사용량 동기화: 로그인 직후 localStorage에 guest 스캔 이력이 있으면 trial에서 차감
+        const guestUsed = parseInt(localStorage.getItem(GUEST_KEY) || '0', 10);
+        if (guestUsed > 0) {
+          await fetch('/api/auth/sync-guest-scans', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ guestUsed }),
+          }).catch(() => {});
+          localStorage.removeItem(GUEST_KEY);
+        }
+
         const now = new Date().toISOString();
         const [{ data: scanRights }, { data: activeSub }] = await Promise.all([
           supabase.from('user_entitlements').select('scan_count').eq('user_id', user.id).in('type', ['scan5', 'trial', 'admin']).eq('status', 'active').gt('expires_at', now).gt('scan_count', 0),

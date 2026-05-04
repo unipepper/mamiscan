@@ -32,20 +32,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, message: '결제 정보를 찾을 수 없어요. 고객센터로 문의해 주세요.' }, { status: 400 });
   }
 
-  // 스캔 이력 확인: 사용한 이력이 있으면 환불 불가
-  const { count } = await supabase
-    .from('scan_history')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .gte('created_at', tx.created_at);
-
-  if ((count ?? 0) > 0) {
-    return NextResponse.json({
-      success: false,
-      message: '이용권 사용 이력이 있어 자동 환불이 어려워요. 고객센터로 문의해 주세요.',
-    }, { status: 400 });
-  }
-
   // 연결된 이용권 조회 (Toss 호출 전 미리 확인)
   const { data: entitlement } = await supabase
     .from('user_entitlements')
@@ -53,6 +39,20 @@ export async function POST(req: Request) {
     .eq('transaction_id', transactionId)
     .eq('user_id', user.id)
     .maybeSingle();
+
+  // 스캔 이력 확인: 해당 이용권으로 사용한 이력이 있으면 환불 불가
+  const { count } = await supabase
+    .from('scan_usage_logs')
+    .select('id', { count: 'exact', head: true })
+    .eq('entitlement_id', entitlement?.id ?? '')
+    .eq('type', 'scan_use');
+
+  if ((count ?? 0) > 0) {
+    return NextResponse.json({
+      success: false,
+      message: '이용권 사용 이력이 있어 자동 환불이 어려워요. 고객센터로 문의해 주세요.',
+    }, { status: 400 });
+  }
 
   // Toss 결제 취소 API 호출
   const tossRes = await fetch(`https://api.tosspayments.com/v1/payments/${tx.payment_key}/cancel`, {

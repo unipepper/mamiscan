@@ -28,6 +28,11 @@
 | TC-01-16 | 비로그인으로 /history 접근 | 비로그인 상태 | 1. 주소창에 /history 입력 | /login 리다이렉트 | ⬜ Pass ⬜ Fail ⬜ Skip | middleware |
 | TC-01-17 | 비로그인으로 /billing-history 접근 | 비로그인 상태 | 1. 주소창에 /billing-history 입력 | /login 리다이렉트 | ⬜ Pass ⬜ Fail ⬜ Skip | middleware |
 
+| TC-01-18 | 게스트 2회 사용 후 로그인 → trial 잔여 1회 | 비로그인 guest_scans=2, 신규 가입 | 1. 게스트로 2회 스캔<br>2. 로그인 (신규 가입)<br>3. 홈 또는 스캔 페이지 진입<br>4. 잔여 스캔 확인 | trial scan_count=1 (3-2), localStorage 초기화 | ⬜ Pass ⬜ Fail ⬜ Skip | sync-guest-scans API |
+| TC-01-19 | 게스트 0회 사용 후 로그인 → trial 잔여 3회 | 비로그인 guest_scans=0, 신규 가입 | 1. 게스트 스캔 없이 로그인<br>2. 잔여 스캔 확인 | trial scan_count=3 그대로 | ⬜ Pass ⬜ Fail ⬜ Skip | |
+| TC-01-20 | 게스트 3회 모두 사용 후 로그인 → trial 잔여 0회 | 비로그인 guest_scans=3, 신규 가입 | 1. 게스트로 3회 스캔<br>2. 로그인<br>3. 잔여 스캔 확인 | trial scan_count=0, 스캔 시 /pricing 리다이렉트 | ⬜ Pass ⬜ Fail ⬜ Skip | |
+| TC-01-21 | 기존 유저 재로그인 시 sync-guest-scans 미호출 | 기존 유저 (trial 이미 일부 사용) | 1. guest_scans 없는 상태로 재로그인 | localStorage 없으므로 API 호출 안 함, trial 변동 없음 | ⬜ Pass ⬜ Fail ⬜ Skip | |
+
 ---
 
 ## 체크포인트

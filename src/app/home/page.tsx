@@ -29,7 +29,6 @@ export default function HomePage() {
   const [isActive, setIsActive] = useState(false);
   const [hasPendingMonthly, setHasPendingMonthly] = useState(false);
   const [recentScans, setRecentScans] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,6 +36,17 @@ export default function HomePage() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { setLoading(false); return; }
       setIsLoggedIn(true);
+
+      // 게스트 사용량 동기화: 로그인 직후 localStorage에 guest 스캔 이력이 있으면 trial에서 차감
+      const guestUsed = parseInt(localStorage.getItem('mamiscan_guest_scans') || '0', 10);
+      if (guestUsed > 0) {
+        await fetch('/api/auth/sync-guest-scans', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guestUsed }),
+        }).catch(() => {});
+        localStorage.removeItem('mamiscan_guest_scans');
+      }
 
       const now = new Date().toISOString();
       const [{ data: prof }, { data: scanRights }, { data: activeSub }, { data: pendingSub }, { data: recent }] = await Promise.all([
@@ -171,33 +181,6 @@ export default function HomePage() {
               5초 안에 확인하기
             </Button>
 
-            {/* 제품명 검색 — 카드 안 */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const q = searchQuery.trim();
-                if (q) router.push('/result?productName=' + encodeURIComponent(q));
-              }}
-              className="flex gap-2 mt-3"
-            >
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary pointer-events-none" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="제품명으로 검색"
-                  className="w-full h-11 pl-9 pr-3 bg-white/80 border border-primary/20 rounded-2xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-              </div>
-              <button
-                type="submit"
-                className="h-11 w-11 shrink-0 bg-white/80 border border-primary/20 rounded-2xl flex items-center justify-center active:bg-white/60 transition-colors"
-                aria-label="검색"
-              >
-                <Search className="w-4 h-4 text-text-secondary" />
-              </button>
-            </form>
           </div>
           <div className="absolute -right-10 -bottom-10 opacity-10">
             <Scan className="w-72 h-72 text-primary" />

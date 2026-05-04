@@ -111,6 +111,16 @@ async function lookupHaccpByName(productName: string): Promise<{ rawIngredients:
     if (!xml.includes('<item>')) return null;
     const rawIngredients = extractXmlTag(xml, 'rawmtrl');
     if (!rawIngredients) return null;
+
+    // 반환된 제품명이 입력 쿼리와 충분히 일치하는지 검증.
+    // HACCP API는 부분 문자열 매칭이라 "롯데"만 입력해도 "롯데 돼지고기 바비큐"가 히트됨.
+    // 조건: 토큰이 2개 이상이어야 하고, 모든 토큰(2글자 이상)이 반환 제품명에 포함돼야 함.
+    // 단일 단어(브랜드명만 등) 입력은 HACCP 히트를 신뢰하지 않고 Gemini 추론으로 넘김.
+    const returnedName = extractXmlTag(xml, 'prdlstNm').toLowerCase();
+    const queryTokens = productName.toLowerCase().split(/\s+/).filter(t => t.length >= 2);
+    const isRelevant = queryTokens.length >= 2 && queryTokens.every(t => returnedName.includes(t));
+    if (!isRelevant) return null;
+
     return {
       rawIngredients,
       allergyInfo: extractXmlTag(xml, 'allergy'),
@@ -470,7 +480,7 @@ export async function POST(req: Request) {
     // 생략 시 서버에서 직접 조회 — 클라이언트 auth 대기 없이 즉시 호출 가능하도록
     const { imageBase64, barcode, productName: inputProductName, pregnancyWeeks: clientWeeks } = await req.json();
 
-    if (!imageBase64 && !barcode && !inputProductName) {
+    if (!imageBase64 && !barcode) {
       return NextResponse.json({ error: 'no_input' }, { status: 400 });
     }
 
@@ -614,64 +624,6 @@ export async function POST(req: Request) {
 
         return NextResponse.json({ success: true, result });
       }
-    }
-
-    // ── 제품명 텍스트 검색 (이미지/바코드 없이 productName만 있는 경우) ──
-    if (inputProductName && !imageBase64) {
-      const dbSafeProducts = await getDBSafeProducts(supabase);
-
-      // 1. catalog 캐시 조회
-      const catalogHit = await lookupCatalogByName(supabase, inputProductName);
-      if (catalogHit?.result_json) {
-        supabase.from('catalog')
-          .update({ hit_count: (catalogHit.hit_count ?? 0) + 1 })
-          .eq('cache_key', catalogHit.cache_key)
-          .then(({ error }) => { if (error) console.error('[analyze] hit_count update failed (text-search):', error); });
-        console.log(`[analyze] TEXT_CATALOG_HIT key=${catalogHit.cache_key} total=${Date.now()-_t0}ms`);
-        return NextResponse.json({ success: true, result: catalogHit.result_json, fromCache: true });
-      }
-
-      // 2. HACCP 이름 검색
-      const haccpHit = await lookupHaccpByName(inputProductName);
-      if (haccpHit?.rawIngredients) {
-        const product = {
-          productName: inputProductName,
-          brand: '',
-          rawIngredients: haccpHit.rawIngredients,
-          allergyInfo: haccpHit.allergyInfo,
-          imageUrl: haccpHit.imageUrl,
-        };
-        const matchedIngredients = await matchIngredientRules(supabase, haccpHit.rawIngredients);
-        const result = await callGeminiBarcode(product, pregnancyWeeks, matchedIngredients, dbSafeProducts);
-        normalizeStatus(result);
-        result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts, inputProductName);
-        if (product.imageUrl) result.imageUrl = product.imageUrl;
-
-        const saveResult = { ...result };
-        delete saveResult.weekAnalysis;
-        delete saveResult.imageUrl;
-        await supabase.from('catalog').upsert({
-          cache_key: `product:${normalizeProductName(inputProductName)}`,
-          product_name: inputProductName,
-          raw_ingredients: haccpHit.rawIngredients,
-          allergy_info: haccpHit.allergyInfo || null,
-          result_json: saveResult,
-          status: result.status,
-          hit_count: 0,
-        }, { onConflict: 'cache_key' });
-
-        console.log(`[analyze] TEXT_HACCP_HIT name="${inputProductName}" total=${Date.now()-_t0}ms`);
-        return NextResponse.json({ success: true, result });
-      }
-
-      // 3. Gemini에 제품명만으로 분석 요청 (추론 기반)
-      const product = { productName: inputProductName, brand: '', rawIngredients: '', allergyInfo: '', imageUrl: '' };
-      const result = await callGeminiBarcode(product, pregnancyWeeks, [], dbSafeProducts);
-      result.inferred = true;
-      normalizeStatus(result);
-      result.alternatives = filterAlternatives(result.alternatives, dbSafeProducts, inputProductName);
-      console.log(`[analyze] TEXT_INFERRED name="${inputProductName}" total=${Date.now()-_t0}ms`);
-      return NextResponse.json({ success: true, result });
     }
 
     // ── 이미지 분석 (순수 이미지 촬영 또는 바코드 DB 미스 폴백) ──
