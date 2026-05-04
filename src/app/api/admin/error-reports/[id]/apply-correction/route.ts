@@ -142,7 +142,20 @@ export async function POST(req: Request, ctx: RouteContext) {
     return NextResponse.json({ error: 'db_error' }, { status: 500 });
   }
 
-  // 5. scan_error_reports resolved 처리
+  // 5. scan_history 업데이트 — 수정된 결과 반영 + 검토 해제
+  if (report.scan_history_id) {
+    await supabase
+      .from('scan_history')
+      .update({
+        result_json: JSON.stringify({ ...updatedResult, weekAnalysis: '', detectedBarcode: undefined }),
+        product_name: correctedProductName,
+        status: (changes.status ?? updatedResult.status) as string,
+        is_under_review: false,
+      })
+      .eq('id', report.scan_history_id);
+  }
+
+  // 6. scan_error_reports resolved 처리
   const { error: resolveErr } = await supabase
     .from('scan_error_reports')
     .update({
