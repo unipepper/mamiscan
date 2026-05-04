@@ -119,7 +119,7 @@ export default function BillingHistoryPage() {
     if (fromLogs > 0) return fromLogs;
     // 최종 fallback: 이용권 타입 기본값 (migration 데이터 불일치 대비)
     if (ent.type === 'scan5') return 5;
-    if (ent.type === 'trial') return 3;
+    if (ent.type === 'trial') return 5;
     return 0;
   };
 

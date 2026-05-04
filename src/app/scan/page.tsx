@@ -22,6 +22,7 @@ export default function ScanPage() {
   const [remainingScans, setRemainingScans] = useState(0);
   const [isScanning, setIsScanning] = useState(false);
   const isScanningRef = useRef(false);
+  const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [showPermissionGuide, setShowPermissionGuide] = useState(false);
   const [albumPermissionHint, setAlbumPermissionHint] = useState(false);
@@ -45,26 +46,33 @@ export default function ScanPage() {
   const GUEST_LIMIT = 3;
   const GUEST_KEY = 'mamiscan_guest_scans';
 
+  const startScanning = () => {
+    if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
+    isScanningRef.current = true;
+    setIsScanning(true);
+    // 10초 안에 네비게이션 안 되면 자동 해제
+    scanTimeoutRef.current = setTimeout(() => {
+      isScanningRef.current = false;
+      setIsScanning(false);
+    }, 10000);
+  };
+
+  const stopScanning = () => {
+    if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
+    isScanningRef.current = false;
+    setIsScanning(false);
+  };
+
   useEffect(() => {
     const used = parseInt(localStorage.getItem(GUEST_KEY) || '0', 10);
     setGuestScansUsed(used);
+    return () => { if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current); };
   }, []);
 
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user) {
-        // 게스트 사용량 동기화: 로그인 직후 localStorage에 guest 스캔 이력이 있으면 trial에서 차감
-        const guestUsed = parseInt(localStorage.getItem(GUEST_KEY) || '0', 10);
-        if (guestUsed > 0) {
-          await fetch('/api/auth/sync-guest-scans', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ guestUsed }),
-          }).catch(() => {});
-          localStorage.removeItem(GUEST_KEY);
-        }
-
         const now = new Date().toISOString();
         const [{ data: scanRights }, { data: activeSub }] = await Promise.all([
           supabase.from('user_entitlements').select('scan_count').eq('user_id', user.id).in('type', ['scan5', 'trial', 'admin']).eq('status', 'active').gt('expires_at', now).gt('scan_count', 0),
@@ -93,7 +101,7 @@ export default function ScanPage() {
 
   const handleNoScans = () => {
     if (!authUser) {
-      setToastMessage('무료 체험 3회를 모두 사용했어요. 로그인하고 계속 이용해보세요!');
+      setToastMessage('무료 체험을 모두 사용했어요. 로그인하고 계속 이용해보세요!');
       setTimeout(() => { setToastMessage(null); router.push('/login'); }, 2000);
     } else {
       setToastMessage('남은 스캔 횟수가 없어요. 스캔권을 충전해주세요.');
@@ -145,7 +153,7 @@ export default function ScanPage() {
                   : (GUEST_LIMIT - parseInt(localStorage.getItem(GUEST_KEY) || '0', 10)) > 0;
                 if (!canScan) {
                   if (!currentUser) {
-                    setToastMessage('무료 체험 3회를 모두 사용했어요. 로그인하고 계속 이용해보세요!');
+                    setToastMessage('무료 체험을 모두 사용했어요. 로그인하고 계속 이용해보세요!');
                     setTimeout(() => { setToastMessage(null); router.push('/login'); }, 2000);
                   } else {
                     setToastMessage('남은 스캔 횟수가 없어요. 스캔권을 충전해주세요.');
@@ -153,8 +161,7 @@ export default function ScanPage() {
                   }
                   return;
                 }
-                isScanningRef.current = true;
-                setIsScanning(true);
+                startScanning();
                 const video = videoRef.current;
                 const captureAndNavigate = () => {
                   let capturedImage: string | null = null;
@@ -214,8 +221,7 @@ export default function ScanPage() {
   const handleCapture = async () => {
     if (isScanningRef.current || !videoRef.current) return;
     if (!hasScans) { handleNoScans(); return; }
-    isScanningRef.current = true;
-    setIsScanning(true);
+    startScanning();
     const video = videoRef.current;
     console.log('[scan] camera button pressed → image-only path (no barcode detected by ZXing)');
     const doCapture = () => {
@@ -224,10 +230,12 @@ export default function ScanPage() {
         if (cropped) {
           sessionStorage.setItem('scanImage', cropped);
           router.push(RESULT_ROUTE);
+        } else {
+          stopScanning();
+          video.play();
         }
       } catch {
-        setIsScanning(false);
-        isScanningRef.current = false;
+        stopScanning();
         video.play();
       }
     };
@@ -256,13 +264,12 @@ export default function ScanPage() {
     if (!file || isScanningRef.current) return;
     setAlbumPermissionHint(false);
     if (!hasScans) { handleNoScans(); return; }
-    isScanningRef.current = true;
-    setIsScanning(true);
+    startScanning();
 
     const reader = new FileReader();
     reader.onload = async (event) => {
       const dataUrl = event.target?.result as string;
-      if (!dataUrl) { setIsScanning(false); isScanningRef.current = false; return; }
+      if (!dataUrl) { stopScanning(); return; }
       try {
         if (!codeReaderRef.current) codeReaderRef.current = new BrowserMultiFormatReader();
         const img = new Image();
@@ -281,8 +288,7 @@ export default function ScanPage() {
         };
         img.src = dataUrl;
       } catch {
-        setIsScanning(false);
-        isScanningRef.current = false;
+        stopScanning();
       }
     };
     reader.readAsDataURL(file);
@@ -379,7 +385,7 @@ export default function ScanPage() {
                     <span className="text-sm font-medium text-white">
                       {guestRemaining > 0
                         ? <>무료 체험 남은 횟수: <strong className="text-primary">{guestRemaining}회</strong></>
-                        : '무료 체험 3회를 모두 사용했어요'}
+                        : '무료 체험을 모두 사용했어요'}
                     </span>
                   </div>
                   <span className="text-xs font-medium text-black bg-primary px-2 py-1 rounded-full shadow-sm">로그인</span>

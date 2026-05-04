@@ -37,17 +37,6 @@ export default function HomePage() {
       if (!user) { setLoading(false); return; }
       setIsLoggedIn(true);
 
-      // 게스트 사용량 동기화: 로그인 직후 localStorage에 guest 스캔 이력이 있으면 trial에서 차감
-      const guestUsed = parseInt(localStorage.getItem('mamiscan_guest_scans') || '0', 10);
-      if (guestUsed > 0) {
-        await fetch('/api/auth/sync-guest-scans', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ guestUsed }),
-        }).catch(() => {});
-        localStorage.removeItem('mamiscan_guest_scans');
-      }
-
       const now = new Date().toISOString();
       const [{ data: prof }, { data: scanRights }, { data: activeSub }, { data: pendingSub }, { data: recent }] = await Promise.all([
         supabase.from('users').select('id, email, name, pregnancy_start_date').eq('id', user.id).single(),

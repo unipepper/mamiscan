@@ -159,11 +159,12 @@ function TermsContent() {
         <p className="text-text-secondary mt-1">위반 행위의 경중에 따라 <strong className="text-text-primary">경고 → 일시 정지 → 영구 정지</strong> 순으로 제재합니다. 불법 행위의 경우 법적 조치를 취할 수 있습니다.</p>
       </Section>
 
-      <Section title="제8조 (게스트 이용)">
+      <Section title="제8조 (게스트 이용 및 가입 보상)">
         <ol className="list-decimal pl-5 space-y-2 text-text-secondary">
           <li>비회원(게스트)은 로그인 없이 <strong className="text-text-primary">3회의 무료 스캔</strong>을 이용할 수 있습니다.</li>
           <li>게스트 스캔 횟수는 브라우저 로컬 스토리지에 저장되며, 브라우저 데이터 삭제 시 초기화될 수 있습니다.</li>
           <li>게스트 이용 시 스캔 기록이 저장되지 않으며, 유료서비스 결제 및 히스토리 조회가 불가합니다.</li>
+          <li>회원가입 완료 시 <strong className="text-text-primary">5회의 가입 보상 스캔권</strong>이 자동으로 지급됩니다. 가입 보상 스캔권은 가입일로부터 30일간 유효합니다.</li>
         </ol>
       </Section>
 

@@ -56,7 +56,7 @@ export async function POST() {
       user_id: user.id,
       type: 'trial',
       status: 'active',
-      scan_count: 3,
+      scan_count: 5,
       expires_at: expiresAt.toISOString(),
     });
   }
