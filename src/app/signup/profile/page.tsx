@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { calcPregnancyWeek, weeksToStartDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { EscapeButton } from '@/components/ui/escape-button';
 
 export default function SignupProfilePage() {
   const router = useRouter();
@@ -81,14 +82,9 @@ export default function SignupProfilePage() {
 
       {/* 상단 */}
       <div className="flex justify-end pt-5 pb-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleSubmit}
-          className="text-text-tertiary hover:text-text-secondary"
-        >
+        <EscapeButton onClick={handleSubmit} className="w-auto">
           건너뛰기
-        </Button>
+        </EscapeButton>
       </div>
 
       <div className="flex flex-col max-w-sm w-full mx-auto pt-6 pb-24 gap-8">

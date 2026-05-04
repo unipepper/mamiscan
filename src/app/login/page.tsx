@@ -6,6 +6,7 @@ import { ChevronLeft } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
+import { EscapeButton } from '@/components/ui/escape-button';
 
 export default function LoginPage() {
   const supabase = createClient();
@@ -102,13 +103,9 @@ export default function LoginPage() {
             <p className="text-center text-sm text-danger-fg">{loginError}</p>
           )}
 
-          <Button
-            variant="ghost"
-            onClick={() => router.push('/home')}
-            className="w-full text-text-tertiary hover:text-text-secondary text-sm font-normal mt-2"
-          >
+          <EscapeButton onClick={() => router.push('/home')}>
             로그인 없이 둘러보기
-          </Button>
+          </EscapeButton>
         </div>
       </div>
       </div>

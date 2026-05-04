@@ -99,6 +99,7 @@ export default function SettingsPage() {
   const [nicknameSaveStatus, setNicknameSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [showDeleteSheet, setShowDeleteSheet] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'deleting'>('idle');
+  const [deleteAgreed, setDeleteAgreed] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'kakao' | null>(null);
   const [oauthError, setOauthError] = useState<string | null>(null);
 
@@ -468,7 +469,7 @@ export default function SettingsPage() {
 
       {/* 회원 탈퇴 확인 Bottom Sheet */}
       {showDeleteSheet && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowDeleteSheet(false)}>
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setShowDeleteSheet(false); setDeleteAgreed(false); }}>
           <div className="bg-bg-canvas w-full rounded-t-3xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 bg-border-subtle rounded-full" />
@@ -491,17 +492,27 @@ export default function SettingsPage() {
                   '결제·거래 기록은 전자상거래법에 따라 5년간 보관돼요',
                 ].map((text) => (
                   <div key={text} className="flex items-start gap-2">
-                    <span className="text-danger-fg text-xs mt-0.5 shrink-0">•</span>
-                    <p className="text-xs text-text-secondary leading-relaxed">{text}</p>
+                    <span className="text-danger-fg text-sm mt-0.5 shrink-0">•</span>
+                    <p className="text-sm text-text-secondary leading-relaxed">{text}</p>
                   </div>
                 ))}
               </div>
+
+              <label className="flex items-center gap-3 mb-5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={deleteAgreed}
+                  onChange={(e) => setDeleteAgreed(e.target.checked)}
+                  className="w-4 h-4 rounded accent-danger-fg cursor-pointer shrink-0"
+                />
+                <span className="text-sm text-text-secondary">안내를 확인하였으며, 이에 동의합니다</span>
+              </label>
 
               <div className="space-y-2 pb-10">
                 <Button
                   variant="danger"
                   onClick={handleDeleteAccount}
-                  disabled={deleteStatus === 'deleting'}
+                  disabled={deleteStatus === 'deleting' || !deleteAgreed}
                   className="w-full gap-2"
                 >
                   {deleteStatus === 'deleting'
@@ -511,7 +522,7 @@ export default function SettingsPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setShowDeleteSheet(false)}
+                  onClick={() => { setShowDeleteSheet(false); setDeleteAgreed(false); }}
                   disabled={deleteStatus === 'deleting'}
                   className="w-full"
                 >
