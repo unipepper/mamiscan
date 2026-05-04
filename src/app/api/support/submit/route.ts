@@ -2,6 +2,7 @@ import { NextResponse, after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { analyzeErrorReport } from '@/lib/ai/error-report-analyzer';
+import { refundScan } from '@/lib/entitlement';
 
 type InquiryBody = {
   type: 'inquiry';
@@ -16,6 +17,15 @@ type ErrorReportBody = {
   body: string;
   scanHistoryId?: number;
   attachments?: string[];
+  correctProductName?: string;
+  rescanResult?: {
+    status: string;
+    productName: string;
+    headline: string;
+    description: string;
+    ingredients: { name: string; status: string; reason: string }[];
+    weekAnalysis?: string;
+  };
 };
 
 type SupportSubmitBody = InquiryBody | ErrorReportBody;
@@ -69,7 +79,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'db_error' }, { status: 500 });
     }
   } else {
-    const { scanHistoryId } = payload as ErrorReportBody;
+    const { scanHistoryId, correctProductName, rescanResult } = payload as ErrorReportBody;
+
+    // 유저가 재분석 결과를 확인했으면 ai_analysis에 저장
+    const aiAnalysis = rescanResult
+      ? {
+          diagnosis: correctProductName
+            ? `유저 제보 정확한 제품명: "${correctProductName}" — 재분석 결과`
+            : '유저 요청 재분석 결과',
+          evidence: `Google Search grounding 기반 재분석. 제품명: ${rescanResult.productName}`,
+          suggested_changes: {
+            status:      rescanResult.status,
+            headline:    rescanResult.headline,
+            description: rescanResult.description,
+            ingredients: rescanResult.ingredients,
+          },
+        }
+      : null;
+
     const { data: inserted, error } = await adminSupabase
       .from('scan_error_reports')
       .insert({
@@ -77,6 +104,14 @@ export async function POST(req: Request) {
         body: body.trim(),
         scan_history_id: scanHistoryId ?? null,
         attachments: attachmentsValue,
+        correct_product_name: correctProductName?.trim() || null,
+        user_rescan_result: rescanResult ?? null,
+        ...(aiAnalysis && {
+          ai_analysis: aiAnalysis,
+          ai_confidence: 'high',
+          correction_type: 'status_change',
+          ai_analyzed_at: new Date().toISOString(),
+        }),
       })
       .select('id')
       .single();
@@ -85,14 +120,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'db_error' }, { status: 500 });
     }
 
-    // scan_history_id가 있으면 products 캐시 무효화 + 백그라운드 AI 분석 실행
+    const reportId = inserted.id;
+
+    // scan_history: 검토 중 표시 + error_report_id 연결
     if (scanHistoryId) {
       const { data: history } = await adminSupabase
         .from('scan_history')
-        .select('product_name')
+        .select('product_name, entitlement_id')
         .eq('id', scanHistoryId)
         .maybeSingle();
 
+      await adminSupabase
+        .from('scan_history')
+        .update({ is_under_review: true, error_report_id: reportId })
+        .eq('id', scanHistoryId);
+
+      // catalog 캐시 무효화
       if (history?.product_name) {
         await adminSupabase
           .from('catalog')
@@ -100,11 +143,28 @@ export async function POST(req: Request) {
           .eq('product_name', history.product_name);
       }
 
-      const reportId = inserted.id;
-      after(async () => {
-        await analyzeErrorReport(reportId);
-      });
+      // 스캔권 환불 (로그인 유저 + 횟수권인 경우)
+      if (user && history?.entitlement_id) {
+        await refundScan(supabase, user.id, history.entitlement_id);
+        await adminSupabase.from('scan_usage_logs').insert({
+          user_id: user.id,
+          type: 'scan_refund',
+          count: 1,
+          entitlement_id: history.entitlement_id,
+          scan_history_id: scanHistoryId,
+          description: '오류 제보 환불',
+        });
+      }
+
+      // 재분석 결과 없으면 백그라운드 AI 분석 실행
+      if (!rescanResult) {
+        after(async () => {
+          await analyzeErrorReport(reportId);
+        });
+      }
     }
+
+    return NextResponse.json({ success: true, reportId });
   }
 
   return NextResponse.json({ success: true });

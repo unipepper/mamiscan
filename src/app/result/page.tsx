@@ -57,8 +57,13 @@ function ResultContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [reportText, setReportText] = useState('');
-  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  // 모달 단계: 'input' → 'rescan' → 'done'
+  const [reportStep, setReportStep] = useState<'input' | 'rescan' | 'done'>('input');
+  const [correctProductName, setCorrectProductName] = useState('');
+  const [isRescanning, setIsRescanning] = useState(false);
+  const [rescanResult, setRescanResult] = useState<any>(null);
+  const [reportId, setReportId] = useState<number | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [savedImageUrl, setSavedImageUrl] = useState<string | null>(null);
   const [scanHistoryId, setScanHistoryId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -308,30 +313,99 @@ function ResultContent() {
     }
   };
 
-  const handleReportSubmit = async () => {
-    if (!reportText.trim()) return;
-    setIsSubmittingReport(true);
+  const closeReportModal = () => {
+    setShowReportModal(false);
+    setReportStep('input');
+    setCorrectProductName('');
+    setRescanResult(null);
+    setReportId(null);
+  };
+
+  // Step 1 → Step 2: 제품명 제출 + 재진단 + 제보 접수 동시 처리
+  const handleRescanAndSubmit = async () => {
+    if (!correctProductName.trim()) return;
+    setIsRescanning(true);
     try {
-      const res = await fetch('/api/support/submit', {
+      const barcodeParam = barcode ?? undefined;
+
+      // 재진단 + 제보 접수 병렬
+      const [rescanRes, submitRes] = await Promise.all([
+        fetch('/api/analyze/rescan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productName: correctProductName.trim(), barcode: barcodeParam }),
+        }),
+        fetch('/api/support/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'error_report',
+            category: 'scan_error',
+            body: `정확한 제품명: ${correctProductName.trim()}`,
+            scanHistoryId: scanHistoryId ?? undefined,
+            correctProductName: correctProductName.trim(),
+          }),
+        }),
+      ]);
+
+      if (!rescanRes.ok) throw new Error('rescan_failed');
+      const rescanData = await rescanRes.json();
+      if (!rescanData.success) throw new Error('rescan_failed');
+
+      setRescanResult(rescanData.result);
+
+      if (submitRes.ok) {
+        const submitData = await submitRes.json();
+        if (submitData.reportId) setReportId(submitData.reportId);
+      }
+
+      // submit 실패해도 재분석 결과는 보여줌 (reportId 없으면 confirm은 스킵됨)
+      setReportStep('rescan');
+    } catch {
+      setToastMessage('재분석에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      setTimeout(() => setToastMessage(null), 3000);
+    } finally {
+      setIsRescanning(false);
+    }
+  };
+
+  // Step 2: 유저 확인 응답
+  const handleConfirm = async (confirmed: 'correct' | 'incorrect') => {
+    if (!rescanResult) return;
+    // reportId 없으면 서버 confirm 스킵하고 클라이언트만 처리
+    if (!reportId) {
+      if (confirmed === 'correct') setResult(rescanResult);
+      closeReportModal();
+      return;
+    }
+    setIsConfirming(true);
+    try {
+      const res = await fetch('/api/support/confirm-rescan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'error_report',
-          category: 'scan_error',
-          body: reportText.trim(),
-          scanHistoryId: scanHistoryId ?? undefined,
+          reportId,
+          confirmed,
+          rescanResult,
+          barcode: barcode ?? undefined,
         }),
       });
-      if (!res.ok) throw new Error('submit_failed');
-      setShowReportModal(false);
-      setReportText('');
-      setToastMessage('소중한 의견이 정상적으로 접수되었습니다. 감사합니다!');
-      setTimeout(() => setToastMessage(null), 3000);
+      if (!res.ok) throw new Error('confirm_failed');
+
+      if (confirmed === 'correct') {
+        // 결과 페이지 즉시 업데이트
+        setResult(rescanResult);
+        setToastMessage('결과가 업데이트됐어요. 히스토리에서도 확인할 수 있어요!');
+      } else {
+        setToastMessage('제보가 접수됐어요. 관리자가 검토 후 수정할게요.');
+      }
+      setTimeout(() => setToastMessage(null), 3500);
+      closeReportModal();
     } catch {
-      setToastMessage('오류 제보 접수에 실패했어요. 잠시 후 다시 시도해 주세요.');
+      setToastMessage('처리 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.');
       setTimeout(() => setToastMessage(null), 3000);
     } finally {
-      setIsSubmittingReport(false);
+      setIsConfirming(false);
     }
   };
 
@@ -682,44 +756,107 @@ function ResultContent() {
 
       {/* Report Modal */}
       {showReportModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-bg-canvas w-full max-w-sm rounded-[32px] p-6 shadow-2xl relative">
-            <Button variant="ghost" size="icon" onClick={() => setShowReportModal(false)} className="absolute top-4 right-4 h-8 w-8">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-bg-canvas w-full max-w-sm rounded-t-[32px] sm:rounded-[32px] p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <Button variant="ghost" size="icon" onClick={closeReportModal} className="absolute top-4 right-4 h-8 w-8">
               <X className="w-5 h-5" />
             </Button>
-            <h3 className="text-lg font-semibold text-text-primary mb-2 flex items-center">
-              <Flag className="w-5 h-5 mr-2 text-primary" />정보 오류 제보
-            </h3>
-            <p className="text-sm leading-relaxed text-text-secondary mb-4">AI가 분석한 결과가 실제 제품과 다르다면 알려주세요.</p>
 
-            {/* 연결된 분석 결과 확인 */}
-            <div className="mb-4 rounded-xl bg-neutral-bg p-3 flex items-center gap-3">
-              {(displayImageSrc || savedImageUrl) ? (
-                <img
-                  src={displayImageSrc ?? savedImageUrl!}
-                  alt="촬영 이미지"
-                  className="w-14 h-14 rounded-lg object-cover shrink-0"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-              ) : null}
-              <div className="min-w-0">
-                <p className="text-xs text-text-tertiary mb-0.5">연결된 분석 결과</p>
-                <p className="text-sm font-medium text-text-primary truncate">
-                  {result.productName || '알 수 없는 제품'}
+            {/* Step 1: 제품명 입력 */}
+            {reportStep === 'input' && (
+              <>
+                <h3 className="text-lg font-semibold text-text-primary mb-1 flex items-center">
+                  <Flag className="w-5 h-5 mr-2 text-primary" />정보 오류 제보
+                </h3>
+                <p className="text-sm leading-relaxed text-text-secondary mb-4">
+                  인식된 제품이 실제와 다른가요? 정확한 제품명을 입력하면 바로 재분석해드릴게요.
                 </p>
-                <p className="text-xs text-text-secondary mt-0.5">이 분석에 대한 오류를 제보합니다</p>
-              </div>
-            </div>
 
-            <textarea
-              value={reportText}
-              onChange={(e) => setReportText(e.target.value)}
-              placeholder="예: 이 제품은 떡볶이 스낵이 아니라 감자칩입니다."
-              className="w-full h-24 px-3 py-2 bg-bg-surface border border-border-subtle rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none mb-4"
-            />
-            <Button onClick={handleReportSubmit} disabled={isSubmittingReport} className="w-full py-2.5">
-              {isSubmittingReport ? <Loader2 className="w-5 h-5 animate-spin" /> : '제보하기'}
-            </Button>
+                <div className="mb-4 rounded-xl bg-neutral-bg p-3 flex items-center gap-3">
+                  {(displayImageSrc || savedImageUrl) ? (
+                    <img
+                      src={displayImageSrc ?? savedImageUrl!}
+                      alt="촬영 이미지"
+                      className="w-14 h-14 rounded-lg object-cover shrink-0"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : null}
+                  <div className="min-w-0">
+                    <p className="text-xs text-text-tertiary mb-0.5">잘못 인식된 제품</p>
+                    <p className="text-sm font-medium text-text-primary truncate line-through opacity-60">
+                      {result.productName || '알 수 없는 제품'}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-sm font-medium text-text-primary mb-2">정확한 제품명</p>
+                <input
+                  type="text"
+                  value={correctProductName}
+                  onChange={(e) => setCorrectProductName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && correctProductName.trim()) handleRescanAndSubmit(); }}
+                  placeholder="예: 링티제로 레몬라임맛"
+                  className="w-full px-3 py-2.5 bg-bg-surface border border-border-subtle rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 mb-4"
+                  autoFocus
+                />
+                <Button
+                  onClick={handleRescanAndSubmit}
+                  disabled={!correctProductName.trim() || isRescanning}
+                  className="w-full py-2.5"
+                >
+                  {isRescanning
+                    ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />재분석 중...</>
+                    : '재분석하기'}
+                </Button>
+              </>
+            )}
+
+            {/* Step 2: 재분석 결과 + 유저 확인 */}
+            {reportStep === 'rescan' && rescanResult && (
+              <>
+                <h3 className="text-lg font-semibold text-text-primary mb-1">재분석 결과</h3>
+                <p className="text-sm text-text-secondary mb-4">
+                  <span className="font-medium text-text-primary">{correctProductName}</span>으로 다시 분석했어요. 맞나요?
+                </p>
+
+                <div className={`rounded-2xl p-4 mb-5 ${
+                  rescanResult.status === 'success' ? 'bg-success-bg' :
+                  rescanResult.status === 'danger'  ? 'bg-danger-bg' : 'bg-caution-bg'
+                }`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge size="sm" variant={
+                      rescanResult.status === 'success' ? 'solid-success' :
+                      rescanResult.status === 'danger'  ? 'solid-danger' : 'solid-caution'
+                    }>
+                      {rescanResult.status === 'success' ? '안전' : rescanResult.status === 'danger' ? '위험' : '주의 필요'}
+                    </Badge>
+                    <span className="text-sm font-semibold text-text-primary">{rescanResult.productName}</span>
+                  </div>
+                  <p className="text-sm leading-relaxed text-text-primary">{rescanResult.description}</p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 py-2.5"
+                    onClick={() => handleConfirm('incorrect')}
+                    disabled={isConfirming}
+                  >
+                    {isConfirming ? <Loader2 className="w-4 h-4 animate-spin" /> : '여전히 달라요'}
+                  </Button>
+                  <Button
+                    className="flex-1 py-2.5"
+                    onClick={() => handleConfirm('correct')}
+                    disabled={isConfirming}
+                  >
+                    {isConfirming ? <Loader2 className="w-4 h-4 animate-spin" /> : '맞아요!'}
+                  </Button>
+                </div>
+                <p className="text-xs text-text-tertiary text-center mt-3">
+                  "여전히 달라요"를 선택하면 관리자가 직접 검토해요.
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -27,6 +27,31 @@ export type DeductResult = DeductSuccess | DeductError;
  * 4. 횟수권도 없고 대기 중인 무제한 이용권 있음 → 첫 스캔으로 활성화
  * 5. 모두 없음 → no_scans
  */
+/**
+ * 스캔 이용권 환불 — 오류 제보 시 차감된 스캔권 1회 복구
+ * 무제한권(monthly)은 scan_count 개념이 없으므로 횟수권만 처리.
+ */
+export async function refundScan(
+  supabase: SupabaseClient,
+  userId: string,
+  entitlementId: string
+): Promise<void> {
+  // entitlement 타입 확인
+  const { data: ent } = await supabase
+    .from('user_entitlements')
+    .select('type, scan_count')
+    .eq('id', entitlementId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!ent || ent.type === 'monthly') return; // 무제한권은 환불 불필요
+
+  await supabase
+    .from('user_entitlements')
+    .update({ scan_count: (ent.scan_count ?? 0) + 1 })
+    .eq('id', entitlementId);
+}
+
 export async function deductScan(
   supabase: SupabaseClient,
   userId: string

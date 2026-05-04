@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { verifyAdmin } from '@/lib/admin-auth';
 
@@ -8,48 +8,28 @@ export const maxDuration = 60;
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
-const RESCAN_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    status:      { type: Type.STRING },
-    headline:    { type: Type.STRING },
-    description: { type: Type.STRING },
-    ingredients: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          name:   { type: Type.STRING },
-          status: { type: Type.STRING },
-          reason: { type: Type.STRING },
-        },
-        required: ['name', 'status', 'reason'],
-      },
-    },
-    evidence: { type: Type.STRING },
-  },
-  required: ['status', 'headline', 'description', 'ingredients', 'evidence'],
-};
-
 function buildPrompt(productName: string): string {
   return [
-    '다음 식품 정보를 바탕으로 임산부가 섭취해도 안전한지 분석해줘.',
+    `제품명: "${productName}"`,
     '',
-    `제품명: ${productName}`,
-    '원재료명: 정보 없음 (제품명과 일반적인 식품 지식을 바탕으로 주요 성분을 추론해서 분석해줘)',
+    '위 제품의 공식 홈페이지, 식품의약품안전처 식품영양성분DB, 쿠팡, 네이버쇼핑 등에서 실제 원재료 정보를 검색해줘.',
+    '검색으로 원재료를 확인한 경우에만 해당 성분을 기반으로 임산부 안전 여부를 판정해줘.',
+    '원재료 정보를 찾지 못한 경우에는 추론하지 말고 status를 "success"로 설정하고 원재료 미확인임을 명시해줘.',
     '',
     'status는 "success", "caution", "danger" 중 하나로 설정해줘.',
     '★카페인 음료 필수 규칙★: 녹차, 홍차, 우롱차, 커피, 에너지드링크 등 카페인 함유 음료는 반드시 "caution" 이상으로 분류해줘.',
     '★날생선·날해산물 필수 규칙★: 생선회, 날것의 생선, 날새우, 날굴, 스시(날것 토핑) 등은 반드시 "danger"로 분류해줘.',
     '',
-    '다음 JSON 형식으로 응답해줘:',
+    '반드시 아래 JSON 형식으로만 응답해줘 (다른 텍스트 없이):',
+    '```json',
     '{',
     '  "status": "success" | "caution" | "danger",',
     '  "headline": "요약 헤드라인 (주의/위험 성분명 직접 언급 절대 금지)",',
     '  "description": "임산부 섭취와 관련된 전반적인 설명",',
     '  "ingredients": [{ "name": "주요 성분/특징", "status": "success"|"caution"|"danger", "reason": "이유" }],',
-    '  "evidence": "분석 근거 (어떤 성분/특성 때문에 이 판정을 내렸는지)"',
+    '  "evidence": "어느 출처(URL 또는 사이트명)에서 원재료 정보를 확인했는지, 그리고 어떤 성분/특성 때문에 이 판정을 내렸는지"',
     '}',
+    '```',
   ].join('\n');
 }
 
@@ -86,8 +66,7 @@ export async function POST(req: Request) {
       contents: [{ role: 'user', parts: [{ text: buildPrompt(productName) }] }],
       config: {
         temperature: 0,
-        responseMimeType: 'application/json',
-        responseSchema: RESCAN_SCHEMA,
+        tools: [{ googleSearch: {} }],
         thinkingConfig: { thinkingBudget: 0 },
       },
     });
@@ -97,7 +76,8 @@ export async function POST(req: Request) {
       console.error('[admin/scans/reanalyze] Gemini returned empty response');
       return NextResponse.json({ error: 'gemini_empty_response' }, { status: 500 });
     }
-    const parsed = JSON.parse(raw) as {
+    const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/) ?? raw.match(/(\{[\s\S]*\})/);
+    const parsed = JSON.parse(jsonMatch?.[1] ?? jsonMatch?.[0] ?? '{}') as {
       status: 'success' | 'caution' | 'danger';
       headline: string;
       description: string;

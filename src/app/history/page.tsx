@@ -78,6 +78,7 @@ export default function HistoryPage() {
           .from('scan_history')
           .select('*')
           .eq('user_id', user.id)
+          .eq('is_under_review', false)
           .order('created_at', { ascending: false })
           .limit(100);
 

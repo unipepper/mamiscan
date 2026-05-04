@@ -131,14 +131,17 @@ async function lookupHaccpByName(productName: string): Promise<{ rawIngredients:
   }
 }
 
-async function extractProductNameFromImage(base64Data: string, mimeType: string): Promise<string> {
+async function extractProductNameFromImage(base64Data: string, mimeType: string, barcodeHint?: string): Promise<string> {
   try {
+    const hint = barcodeHint
+      ? `바코드 번호 ${barcodeHint}가 감지됐지만 DB에서 제품을 찾지 못했어. 이미지를 보고 제품명을 최대한 정확하게 추출해줘. 바코드 스티커나 제품 포장지에서 브랜드명·제품명을 찾아줘.`
+      : '이 이미지에서 제품명만 추출해줘.';
     const res = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: {
         parts: [
           { inlineData: { data: base64Data, mimeType } },
-          { text: '이 이미지에서 제품명만 추출해줘. 한국어 제품이면 한국어로, 외국 제품이면 원래 표기대로. 제품이 보이지 않으면 빈 문자열.' },
+          { text: `${hint} 한국어 제품이면 한국어로, 외국 제품이면 원래 표기대로. 제품이 보이지 않으면 빈 문자열.` },
         ],
       },
       config: {
@@ -367,6 +370,13 @@ async function callGeminiBarcode(
   const hasWeekInfo = pregnancyWeeks !== undefined && pregnancyWeeks !== null;
   const hasMatched = matchedIngredients.length > 0;
   const hasDBAlts = dbSafeProducts.length > 0;
+  const needsSearch = !product.rawIngredients;
+
+  const ingredientsSection = needsSearch
+    ? `원재료명: DB에 정보가 없습니다. Google Search로 "${product.productName}" 공식 홈페이지 또는 식품 정보 사이트에서 실제 원재료를 검색한 뒤 분석해줘. 검색 결과에서 원재료를 찾으면 그 정보를 기반으로 정확하게 판정하고, 찾지 못했을 때만 추론해줘.
+
+★원재료 미확인 시 추론 금지 원칙★: 검색으로도 원재료를 확인하지 못한 경우, 카페인·알코올·인공감미료 등 주의/위험 성분이 "있을 수 있다"는 이유로 caution/danger를 부여하지 마. 확인된 성분에 대해서만 판정해줘. 불확실하면 success로 두고 description에 "원재료를 확인하지 못해 정밀 분석이 어렵다"고 명시해줘.`
+    : `원재료명: ${product.rawIngredients}${product.allergyInfo && product.allergyInfo !== '없음' ? `\n알레르기 유발물질: ${product.allergyInfo}` : ''}`;
 
   const response = await withRetry(() => ai.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -377,7 +387,7 @@ async function callGeminiBarcode(
 
 제품명: ${product.productName}
 제조사: ${product.brand}${product.productType ? `\n식품 분류: ${product.productType}` : ''}
-원재료명: ${product.rawIngredients || '정보 없음 (제품명과 식품 분류를 기반으로 일반적인 성분을 추론해서 분석해줘)'}${product.allergyInfo && product.allergyInfo !== '없음' ? `\n알레르기 유발물질: ${product.allergyInfo}` : ''}
+${ingredientsSection}
 
 ${hasMatched
   ? `★규칙 기반 판정 완료 성분★ (이 판정을 절대 변경하지 말고 ingredients 배열에 그대로 포함해줘):
@@ -420,13 +430,27 @@ ${hasDBAlts
         },
       ],
     },
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: RESPONSE_SCHEMA,
-      thinkingConfig: { thinkingBudget: 0 },
-    },
+    config: needsSearch
+      ? {
+          tools: [{ googleSearch: {} }],
+          thinkingConfig: { thinkingBudget: 0 },
+        }
+      : {
+          responseMimeType: 'application/json',
+          responseSchema: RESPONSE_SCHEMA,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
   }));
-  const parsed = JSON.parse(response.text?.trim() ?? '{}');
+
+  let parsed: Record<string, any>;
+  if (needsSearch) {
+    // grounding 모드: JSON 스키마 강제 불가 → 텍스트에서 JSON 블록 추출
+    const raw = response.text?.trim() ?? '';
+    const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/) ?? raw.match(/(\{[\s\S]*\})/);
+    parsed = JSON.parse(jsonMatch?.[1] ?? jsonMatch?.[0] ?? '{}');
+  } else {
+    parsed = JSON.parse(response.text?.trim() ?? '{}');
+  }
   if (!parsed.status) throw new Error('Gemini returned empty or invalid response');
   return parsed;
 }
@@ -642,7 +666,7 @@ export async function POST(req: Request) {
 
     // ── Phase 1: 제품명 추출 → catalog 선조회 + HACCP 이름 검색 병렬 실행 ──
     const _tPhase1 = Date.now();
-    const extractedName = await extractProductNameFromImage(base64Data, mimeType);
+    const extractedName = await extractProductNameFromImage(base64Data, mimeType, barcode ?? undefined);
 
     // catalog 선조회와 HACCP 조회를 병렬로 실행
     const [catalogHit, haccpByName] = await Promise.all([
@@ -699,13 +723,17 @@ export async function POST(req: Request) {
       ? `\n★대체 제품 제약★: 아래는 실제로 안전 판정을 받은 제품 목록이야. alternatives는 반드시 이 목록에 있는 제품 이름만 사용해줘. 목록에 관련 제품이 없으면 alternatives를 빈 배열([])로 반환해줘. 절대 목록 외의 제품을 만들어 넣지 마.\n[${dbSafeProducts.join(', ')}]`
       : '\nalternatives는 빈 배열([])로 반환해줘.';
 
+    const barcodeMissHint = barcode
+      ? `★바코드 힌트★: 이 이미지에서 바코드 번호 ${barcode}가 감지됐지만 식품 DB에서 제품 정보를 찾지 못했어. 이미지에서 제품명·브랜드명을 최대한 찾아서 분석해줘. 바코드가 찍힌 라벨이나 포장지 텍스트를 꼼꼼히 읽어줘.\n\n`
+      : '';
+
     const response = await withRetry(() => ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: {
         parts: [
           { inlineData: { data: base64Data, mimeType } },
           {
-            text: `이 사진에 있는 것이 무엇인지 식별하고, 임산부에게 안전한지 분석해줘.
+            text: `${barcodeMissHint}이 사진에 있는 것이 무엇인지 식별하고, 임산부에게 안전한지 분석해줘.
 사진 내용에 따라 다음 중 가장 적절한 status를 선택해줘:
 
 포장 제품 (성분 표기가 있는 가공식품):
@@ -719,6 +747,7 @@ export async function POST(req: Request) {
 - "error_db_mismatch": 바코드는 인식되나 제품을 도저히 알 수 없는 경우
 
 ★중요★: 어떤 status든 이미지에서 음식/제품을 식별할 수 있다면 productName, headline, description, ingredients, weekAnalysis에 분석 정보를 최대한 작성해줘. 완전히 식별 불가능한 경우에만 description에 그 이유를 짧게 적어줘.
+★추론 금지 원칙★: 이미지에서 성분 표기를 직접 읽을 수 없는 경우, 카페인·알코올·인공감미료 등 주의/위험 성분이 "있을 수 있다"는 이유로 caution/danger를 부여하지 마. 이미지나 제품 카테고리로 미루어 확실히 포함된 성분에 대해서만 판정해줘. 불확실한 성분은 ingredients에 넣지 마.
 ★판정 기준 핵심 원칙★
 - caution/danger는 의학적으로 임산부에게 실질적 위험이 있는 성분에만 부여해줘.
 - 아래 성분들은 일반 가공식품에 보편적으로 사용되며 임산부에게 특별한 위험이 없으므로 반드시 "success"로 분류해줘 (ingredients에 포함하되 수치 정보만 제공):
