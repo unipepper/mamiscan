@@ -193,7 +193,9 @@ function ResultContent() {
             if (!user) {
               const current = parseInt(localStorage.getItem('mamiscan_guest_scans') || '0', 10);
               localStorage.setItem('mamiscan_guest_scans', String(current + 1));
-            } else {
+            }
+
+            {
               const thumbnail = scanImage
                 ? await compressThumbnail(scanImage).catch(() => null)
                 : null;

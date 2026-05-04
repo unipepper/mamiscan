@@ -232,7 +232,9 @@ function ResultContent() {
               // 비로그인 게스트: 분석 성공 시에만 횟수 차감
               const current = parseInt(localStorage.getItem('mamiscan_guest_scans') || '0', 10);
               localStorage.setItem('mamiscan_guest_scans', String(current + 1));
-            } else {
+            }
+
+            {
               // 이미지 압축 (실패해도 계속)
               const isBlack = scanImage ? await isBlackImage(scanImage).catch(() => false) : false;
               const thumbnail = (scanImage && !isBlack)
@@ -264,7 +266,6 @@ function ResultContent() {
                 const saveData = await saveRes.json().catch(() => null);
                 if (saveData?.imagePath) {
                   setSavedImageUrl(saveData.imagePath);
-                  // result는 이미 표시 중이므로 userImageUrl만 업데이트
                   setResult((r: any) => r ? { ...r, userImageUrl: saveData.imagePath } : r);
                 }
                 if (saveData?.historyId) {
