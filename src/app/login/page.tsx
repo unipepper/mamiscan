@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronLeft } from 'lucide-react';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 
@@ -44,14 +46,24 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white px-6">
+    <div className="flex flex-col flex-1 bg-bg-canvas">
+      <header className="safe-top sticky top-0 z-50 flex items-center h-14 px-2 bg-bg-surface/80 backdrop-blur-md border-b border-border-subtle">
+        <button
+          onClick={() => router.back()}
+          className="p-2 text-text-secondary hover:text-text-primary transition-colors"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+      </header>
+      <div className="flex-1 flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold text-gray-900">마미스캔</h1>
-          <p className="text-sm text-gray-500">임산부를 위한 성분 안전 확인 서비스</p>
+        <div className="text-center">
+          <Image src="/logo.png" alt="마미스캔" width={160} height={160} className="rounded-3xl mx-auto" />
+          <h1 className="text-3xl font-bold text-text-primary -mt-1">마미스캔</h1>
+          <p className="text-base text-text-secondary mt-1">임산부를 위한 성분 안전 확인 서비스</p>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2 pt-2">
           <Button
             variant="outline"
             onClick={loginWithGoogle}
@@ -71,11 +83,10 @@ export default function LoginPage() {
             Google로 계속하기
           </Button>
 
-          {/* Kakao: provider 고유 색상(#FEE500)으로 Button 컴포넌트 적용 불가 */}
-          <button
+          <Button
             onClick={loginWithKakao}
             disabled={!!loading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-[#FEE500] rounded-xl text-sm font-medium text-[#3C1E1E] hover:bg-[#F5DC00] disabled:opacity-60 transition"
+            className="w-full gap-3 rounded-xl bg-[#FEE500] text-[#3C1E1E] hover:bg-[#F5DC00] shadow-sm"
           >
             {loading === 'kakao' ? (
               <div className="w-5 h-5 border-2 border-[#3C1E1E]/40 border-t-transparent rounded-full animate-spin" />
@@ -85,20 +96,21 @@ export default function LoginPage() {
               </svg>
             )}
             카카오로 계속하기
-          </button>
+          </Button>
 
           {loginError && (
             <p className="text-center text-sm text-danger-fg">{loginError}</p>
           )}
-        </div>
 
-        <Button
-          variant="ghost"
-          onClick={() => router.push('/home')}
-          className="w-full text-text-tertiary hover:text-text-secondary"
-        >
-          로그인 없이 둘러보기
-        </Button>
+          <Button
+            variant="ghost"
+            onClick={() => router.push('/home')}
+            className="w-full text-text-tertiary hover:text-text-secondary text-sm font-normal mt-2"
+          >
+            로그인 없이 둘러보기
+          </Button>
+        </div>
+      </div>
       </div>
     </div>
   );

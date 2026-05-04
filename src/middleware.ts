@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // 로그인 필요 경로 (/scan은 비로그인 3회 체험 허용 — 페이지 내부에서 제한)
-  const protectedPaths = ['/history', '/settings', '/payment', '/billing-history'];
+  const protectedPaths = ['/history', '/payment', '/billing-history'];
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
 
   if (isProtected && !user) {

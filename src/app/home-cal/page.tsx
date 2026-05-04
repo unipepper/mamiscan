@@ -83,7 +83,7 @@ export default function HomePageCal() {
         ) : (
           <div className="flex gap-2">
             <button
-              onClick={() => router.push('/settings')}
+              onClick={() => router.push('/login')}
               className="flex-1 flex items-center gap-2 bg-bg-surface border border-border-subtle rounded-xl px-3 py-2.5 hover:bg-neutral-bg transition-colors shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.04)]"
             >
               <Calendar className="w-4 h-4 text-primary shrink-0" />

@@ -57,6 +57,33 @@ export async function compressThumbnail(dataUrl: string): Promise<string> {
 }
 
 /**
+ * 검은 이미지 여부 판별 — iOS WebRTC 버그로 검은 프레임이 캡처되는 경우 필터링
+ * 캔버스 중앙 샘플 픽셀의 평균 밝기가 10 미만이면 검은 이미지로 간주
+ */
+export async function isBlackImage(dataUrl: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const SIZE = 64;
+      const canvas = document.createElement('canvas');
+      canvas.width = SIZE;
+      canvas.height = SIZE;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(false); return; }
+      ctx.drawImage(img, 0, 0, SIZE, SIZE);
+      const { data } = ctx.getImageData(0, 0, SIZE, SIZE);
+      let total = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        total += (data[i] + data[i + 1] + data[i + 2]) / 3;
+      }
+      resolve(total / (SIZE * SIZE) < 10);
+    };
+    img.onerror = () => resolve(false);
+    img.src = dataUrl;
+  });
+}
+
+/**
  * Base64 data URL → Blob 변환 (Supabase Storage 업로드용)
  */
 export function dataUrlToBlob(dataUrl: string): Blob {

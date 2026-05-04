@@ -83,7 +83,7 @@ export default function HomePageNotion() {
         ) : (
           <div className="flex gap-2">
             <button
-              onClick={() => router.push('/settings')}
+              onClick={() => router.push('/login')}
               className="flex-1 flex items-center gap-2 bg-white border border-[rgba(0,0,0,0.08)] rounded-xl px-3 py-2.5 hover:bg-[#f6f5f4] transition-colors shadow-[0_1px_4px_rgba(0,0,0,0.04)]"
             >
               <Calendar className="w-4 h-4 text-primary shrink-0" />

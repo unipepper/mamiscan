@@ -208,7 +208,6 @@ export default function SettingsPage() {
 
   const isActive = !!activeSubExpiresAt;
 
-  // Not logged in
   if (!authUser) {
     return (
       <div className="flex flex-col flex-1 bg-bg-canvas pb-nav">

@@ -56,12 +56,12 @@ export async function GET(req: Request, ctx: RouteContext) {
     ? report.scan_history[0]
     : report.scan_history;
 
-  // image_url: storage path → public URL
+  // image_url: storage path → signed URL (1시간 유효)
   if (scanHistory?.image_url) {
-    const { data } = supabase.storage
+    const { data } = await supabase.storage
       .from('scan-images')
-      .getPublicUrl(scanHistory.image_url);
-    (scanHistory as Record<string, unknown>).image_url = data.publicUrl;
+      .createSignedUrl(scanHistory.image_url, 3600);
+    (scanHistory as Record<string, unknown>).image_url = data?.signedUrl ?? null;
   }
 
   // products 캐시 조회 (현재 저장된 분석 결과)

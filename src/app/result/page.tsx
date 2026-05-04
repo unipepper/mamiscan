@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
-import { compressThumbnail } from '@/lib/compressImage';
+import { compressThumbnail, isBlackImage } from '@/lib/compressImage';
 import { pendingAnalyze } from '@/lib/pendingAnalyze';
 import { Suspense } from 'react';
 import LoadingTips from '@/components/LoadingTips';
@@ -234,7 +234,8 @@ function ResultContent() {
               localStorage.setItem('mamiscan_guest_scans', String(current + 1));
             } else {
               // 이미지 압축 (실패해도 계속)
-              const thumbnail = scanImage
+              const isBlack = scanImage ? await isBlackImage(scanImage).catch(() => false) : false;
+              const thumbnail = (scanImage && !isBlack)
                 ? await compressThumbnail(scanImage).catch(() => null)
                 : null;
 

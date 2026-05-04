@@ -251,7 +251,7 @@ export default function HomePage() {
           <div className="bg-bg-surface border border-border-subtle rounded-[24px] shadow-sm overflow-hidden">
             {[
               { icon: Scan, iconBg: 'bg-[#FAEEE9]', iconColor: 'text-primary', title: '먹어도 되는 건지 헷갈릴 때', desc: '제품 바코드나 식료품을 찍으면 5초 안에 분석해드려요.' },
-              { icon: ShieldCheck, iconBg: 'bg-[#E8F0EC]', iconColor: 'text-secondary', title: '뱃속 아가가 커갈수록', desc: '주차에 맞게 주의 성분이 달라지니까, 지금 기준으로 다시 확인해드려요.' },
+              { icon: ShieldCheck, iconBg: 'bg-[#E8F0EC]', iconColor: 'text-secondary', title: '뱃속 아가가 커갈수록', desc: '임신 주차마다 주의해야 할 성분이 달라요. 지금 드시려는 제품, 이번 주차엔 괜찮은지 확인해보세요.' },
               { icon: Search, iconBg: 'bg-caution-bg', iconColor: 'text-caution-fg', title: '먹고 싶은데 찜찜할 때', desc: '비슷하지만 더 안심할 수 있는 제품을 바로 찾아드려요.' },
             ].map(({ icon: Icon, iconBg, iconColor, title, desc }, idx, arr) => (
               <div key={title} className="flex flex-col">
