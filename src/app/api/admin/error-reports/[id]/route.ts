@@ -52,10 +52,19 @@ export async function GET(req: Request, ctx: RouteContext) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
-  // products 캐시 조회 (현재 저장된 분석 결과)
   const scanHistory = Array.isArray(report.scan_history)
     ? report.scan_history[0]
     : report.scan_history;
+
+  // image_url: storage path → public URL
+  if (scanHistory?.image_url) {
+    const { data } = supabase.storage
+      .from('scan-images')
+      .getPublicUrl(scanHistory.image_url);
+    (scanHistory as Record<string, unknown>).image_url = data.publicUrl;
+  }
+
+  // products 캐시 조회 (현재 저장된 분석 결과)
 
   let productCache = null;
   if (scanHistory) {
